@@ -1,0 +1,298 @@
+! Copyright (c) 2017-2018 Etienne Descamps
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without modification,
+! are permitted provided that the following conditions are met:
+!
+! 1. Redistributions of source code must retain the above copyright notice,
+!    this list of conditions and the following disclaimer.
+!
+! 2. Redistributions in binary form must reproduce the above copyright notice,
+!    this list of conditions and the following disclaimer in the documentation and/or
+!    other materials provided with the distribution.
+!
+! 3. Neither the name of the copyright holder nor the names of its contributors may be
+!    used to endorse or promote products derived from this software without specific prior
+!    written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+! ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+! WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+! IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+! INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+! (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+! NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+! EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Module mlf_funbasis
+  Use ieee_arithmetic
+  Use iso_c_binding
+  Use iso_fortran_env
+  Use mlf_intf
+  Use mlf_rsc_array
+  Use mlf_utils
+  Use mlf_matrix
+  Use mlf_fun_intf
+  Use mlf_errors
+  IMPLICIT NONE
+  PRIVATE
+
+  real(c_double), parameter :: fb_icoeff(4) =  [3d0/8d0, 7d0/6d0, 23d0/24d0, 1d0]
+  ! Object handling timer and step evaluations
+  Type, Public, extends(mlf_arr_obj) :: mlf_algo_funbasis
+    class(mlf_basis_fun), pointer :: fun ! Reference function
+    real(c_double), pointer :: P(:,:) ! Selected parameter function basis
+    real(c_double), pointer :: W(:,:) ! Selected function basis
+    real(c_double), pointer :: X(:) ! Selected inputs of X
+    real(c_double), pointer :: Vals(:,:) ! Values of the function basis
+    real(c_double) :: alpha, x0, xEnd, eA0, eDiff, eAEnd
+  Contains
+    procedure :: initF => mlf_funbasis_init
+    procedure :: getProj => mlf_FunBasisGetProjection
+    procedure :: getValue => mlf_FunBasisFunValue
+  End Type mlf_algo_funbasis
+
+Contains
+  ! Init function for the step object
+  integer Function mlf_funbasis_init(this, f, alpha, x0, xEnd, P, sizeBase, nX, WP, data_handler) result(info)
+    class(mlf_algo_funbasis), intent(inout) :: this
+    class(mlf_data_handler), intent(inout), optional :: data_handler
+    class(mlf_basis_fun), intent(inout), optional, target :: f
+    real(c_double), intent(in), optional :: alpha, x0, xEnd
+    real(c_double), intent(in), optional :: WP(:), P(:,:)
+    integer, intent(in), optional :: sizeBase, nX
+    real(c_double), allocatable :: C(:,:), LD(:), LB(:,:)
+    integer :: nrsc, i, j, nP, N
+    integer(c_int64_t) :: nipar, nrpar, ndP(2), ndW(2), ndV(2), nX0
+    nipar = 0; nrpar = 0; nrsc = 4
+    info = mlf_arr_init(this, nipar, nrpar, nrsc, C_CHAR_"", &
+      C_CHAR_"", data_handler)
+    if(present(P)) then
+      nP = size(P,1); N = size(P,2)
+      ndP = int([nP, N], kind=8); ndW = int([N, sizeBase], kind=8)
+      ndV = int([sizeBase, nX], kind=8)
+    else if(.NOT. present(data_handler)) then
+      write (error_unit, *) 'mlf_funbasis(init) error: no input parameter nor data_handler'
+      info = -1; RETURN
+    endif
+    info = this%add_rmatrix(nrsc, ndP, this%P, C_CHAR_"P", data_handler = data_handler)
+    if(info /= 0) RETURN
+    ndW(1) = ndP(2)
+    info = this%add_rmatrix(nrsc+1, ndW, this%W, C_CHAR_"W", data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
+    if(info /= 0) RETURN
+    ndV(1) = ndW(2)
+    info = this%add_rmatrix(nrsc+2, ndV, this%Vals, C_CHAR_"Vals", data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
+    if(info /= 0) RETURN
+    nX0 = ndV(2)
+    info = this%add_rarray(nrsc+3, nX0, this%X, C_CHAR_"X", data_handler = data_handler, fixed_dims = [.TRUE.])
+    if(info /= 0) RETURN
+    if(present(data_handler)) RETURN
+    this%fun => f
+    this%P = P
+    allocate(C(N,N), LD(N), LB(N,N))
+    this%alpha = alpha; this%x0 = x0; this%xEnd = xEnd
+    call ComputeFunMatrix(this, C, nX)
+    if(present(WP)) then
+      forall(i=1:N,j=1:N) C(i,j) = WP(i)*WP(j)*C(i,j)
+    endif
+    ! C is the positive definite matrix containing the dot product of each function
+    info = SymMatrixEigenDecomposition(C, LD, LB)
+    if(info /= 0) RETURN
+    allocate(this%W(N, sizeBase))
+    ! Choose the (normalised) eigenvector that have the higest eigenvalues
+    if(present(WP)) then
+      forall(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))*WP(:)
+    else
+      forall(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))
+    endif
+    call ComputeBasisValue(this, nX)
+  End Function mlf_funbasis_init
+
+  ! Subroutines used for computing a huge number of dot product between function
+  ! The goal is to have a restricted basis of function
+
+  ! First subroutine: compute for one particular X all possibles
+  ! local dot product
+  integer Function ComputeCoeff(fun, x, P, Y, Y0, fact, M) result(info)
+    class(mlf_basis_fun), intent(inout), target :: fun
+    real(c_double), intent(in) :: P(:,:), x, fact
+    real(c_double), intent(out) :: Y(:,:)
+    real(c_double), intent(inout) :: Y0(:)
+    integer, intent(in) :: M
+    info = fun%eval([x], P, Y)
+    if(info<0) RETURN
+    call ComputeProduct(Y(1,:), Y0, fact, M)    
+  End Function ComputeCoeff
+  ! First subroutine: compute for one particular X all possibles
+  ! local dot products
+  Subroutine ComputeProduct(Y, Y0, fact, M)
+    real(c_double), intent(in) :: Y(:), fact
+    real(c_double), intent(inout) :: Y0(:)
+    integer, intent(in) :: M
+    integer :: i, j, k
+    k = 1
+    do i=1,M
+      do j=i,M
+        Y0(k) = Y0(k) + fact*Y(i)*Y(j)
+        k = k+1
+      end do
+    end do
+  End Subroutine ComputeProduct
+  ! Second subroutine: compute dot product between the value of a set of function
+  ! with a orthonormal function vector of the function basis
+  real(c_double) Function ComputeDotProduct(Y, Y0, xEnd) result(F)
+    real(c_double), intent(in) :: Y(:), Y0(:), xEnd
+    integer :: i, N, l
+    F =  0
+    N =  size(Y)
+    l =  merge(0,1, ieee_is_finite(xEnd))
+    do i=1,3
+      F = F + fb_icoeff(i+l)*Y(i)*Y0(i)
+    end do
+    do i=3,N-3
+      F = F + Y(i)*Y0(i)
+    end do
+    do i=N-2,N
+      F = F + fb_icoeff(N+1-i)*Y(i)*Y0(i)
+    end do
+  End Function ComputeDotProduct
+  ! Compute the matrix of the dot product between all functions
+  ! Main function for determining a function basis
+  ! Gives also the error
+  Subroutine ComputeFunMatrix(this, C, N)
+    class(mlf_algo_funbasis), intent(in) :: this
+    real(c_double), intent(out) :: C(:,:)
+    integer, intent(in) :: N
+    ! constants initialised once
+    real(c_double) :: invAlpha, eDiff, difFact, eA0, eAEnd
+    real(c_double), allocatable :: Y(:,:), Y0(:)
+    integer :: i, j, k, M, P, info
+    M = size(C,1)
+    P = M*(M+1)/2
+    allocate(Y(1,M), Y0(P))
+    eA0 = exp(-this%alpha*this%x0)
+    invAlpha = 1/this%alpha
+    if(ieee_is_finite(this%xEnd)) then
+      eAEnd = exp(-this%alpha*this%xEnd)
+    else
+      eAEnd = 0
+    endif
+    eDiff = (eA0-eAEnd)/real(N-1, kind=8)
+    difFact = eDiff*invAlpha
+    Y0 = 0
+    ! We made the sum backward for avoiding catastrophic cancellation
+    if(eAEnd > 0) then
+      info = ComputeCoeff(this%fun, this%xEnd, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
+    else
+      Y0 = 0
+    endif
+    info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+eDiff), this%P, Y, Y0, fb_icoeff(2)*difFact, M)
+    info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+2*eDiff), this%P, Y, Y0, fb_icoeff(3)*difFact, M)
+    do i=3,N-4
+      info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+i*eDiff), this%P, Y, Y0, difFact, M)
+    end do
+    info = ComputeCoeff(this%fun, -invAlpha*log(eA0-2*eDiff), this%P, Y, Y0, fb_icoeff(3)*difFact, M)
+    info = ComputeCoeff(this%fun, -invAlpha*log(eA0-eDiff), this%P, Y, Y0, fb_icoeff(2)*difFact, M)
+    info = ComputeCoeff(this%fun, this%x0, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
+    k = 1
+    do i=1,M
+      do j=i,M
+        C(i,j) = Y0(k)
+        k = k+1
+      end do
+    end do
+    do i=2,M
+      forall(j=1:(i-1)) C(i,j) = C(j,i)
+    end do
+  End Subroutine ComputeFunMatrix
+  Subroutine mlf_FunBasisGetProjection(this, Y, W, Aerror)
+    ! Get the projection of the function in the basis of the selected vector
+    class(mlf_algo_funbasis), intent(in) :: this
+    real(c_double), intent(in) :: Y(:,:)
+    real(c_double), intent(out) :: W(:,:)
+    real(c_double), optional, intent(out) :: Aerror(:,:)
+    real(c_double), allocatable :: F(:,:), P(:)
+    integer :: np, nx, ny, i, j, info
+    real(c_double) :: invAlpha
+    np = size(this%W, 2)
+    ny = size(Y, 2)
+    nx = size(this%X)
+    allocate(F(nx,ny), P(nx))
+    invAlpha = 1d0/this%alpha
+    info = this%fun%eval(this%X, Y, F)
+    do i = 1,np
+      P =  this%Vals(i,:)
+      do j = 1,ny
+        W(i,j) = this%eDiff*invAlpha*ComputeDotProduct(F(:,j), P, this%xEnd)
+        ! It is not essential to remove this part (the function basis is orthonormal)
+        ! but the remaining value can be used for estimating the error of the approximation
+        F(:,j) = F(:,j)-W(i,j)*P
+      end do
+    end do
+    if(present(Aerror)) then
+      F = abs(F)
+      forall (i=1:ny)
+        Aerror(i,1) = sum(F(:,i))/real(nx)
+        Aerror(i,2) = maxval(F(:,i))
+      end forall 
+    endif
+  End Subroutine mlf_FunBasisGetProjection
+  ! Get value of the function expressed as W in the current basis at position x
+  pure real(c_double) Function mlf_FunBasisFunValue(this, W, x) result(Y)
+    class(mlf_algo_funbasis), intent(in) :: this
+    real(c_double), intent(in) :: x, W(:)
+    real(c_double) :: t, Y1, Y2, dX
+    integer :: i
+    ! The X are dreasingly ordered
+    if(x>=this%X(1)) then
+      Y1 = dot_product(this%Vals(:,1), W)
+      Y2 = dot_product(this%Vals(:,2), W)
+      Y =  Y1*exp(log(Y1/Y2)/(this%X(1)-this%X(2))*(x-this%X(1)))
+      return
+    endif
+    i = 1+INT((exp(-this%alpha*x)-this%eAEnd)/this%eDiff)
+    if(i >= size(this%X, 1)) i = size(this%X, 1)-1
+    dX = this%X(i)-this%X(i+1)
+    ! We define t as (x-X(i+1))/dX
+    !  so when t=0 -> x=X(i+1) and t=1 -> x=X(i)
+    t = (x-this%X(i+1))/dX
+    ! We get values Y1=F_W(X(i+1)) and Y2=F_W(X(i)) 
+    Y1 = dot_product(this%Vals(:,i+1), W)
+    Y2 = dot_product(this%Vals(:,i), W)
+    Y =  (1d0-t)*Y1+t*Y2
+  End Function mlf_FunBasisFunValue
+  ! Compute the vectors X and V from the structure
+  subroutine ComputeBasisValue(this, N)
+    class(mlf_algo_funbasis), intent(inout) :: this
+    integer, intent(in) :: N
+    integer :: M, i, info
+    real(c_double) :: eA0, eAEnd, eDiff, invAlpha
+    real(c_double), allocatable :: Y(:,:)
+    M = size(this%P,2)
+    allocate(Y(1,M))
+    eA0 = exp(-this%alpha*this%x0)
+    invAlpha = 1d0/this%alpha
+    if(ieee_is_finite(this%xEnd)) then
+      eAEnd = exp(-this%alpha*this%xEnd)
+      eDiff = (eA0-eAEnd)/real(N-1, kind=8)
+      this%X(1) = this%xEnd
+    else
+      eDiff = eA0/real(N, kind=8)
+      eAEnd = eDiff
+      this%X(1) = -invAlpha*log(eDiff)
+    endif
+    this%eA0 = eA0
+    this%eAEnd = eAEnd
+    this%eDiff = eDiff
+    this%X(N) = this%x0
+    do i = 2,N-1
+      this%X(i) = -invAlpha*log(eAEnd+(i-1)*eDiff)
+    end do
+    do i = 1,N
+      info = this%fun%eval(this%X(i:i), this%P, Y)
+      this%Vals(:,i) = matmul(Y(1,:),this%W)
+    end do
+  end subroutine ComputeBasisValue
+End Module mlf_funbasis

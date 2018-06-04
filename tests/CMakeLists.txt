@@ -1,0 +1,18 @@
+
+add_executable(test_rsc test_rsc.f90 test_rsc_main.c)
+add_executable(test_kmeans test_kmeans.f90)
+add_executable(test_emgmm test_common.f90 test_emgmm.f90)
+add_executable(test_kmeans_c test_kmeans_c.c)
+add_executable(test_pareto test_common.f90 test_pareto.f90)
+add_executable(test_funbasis test_functions.f90 test_funbasis.f90)
+add_executable(test_cmaes test_functions.f90 test_cmaes.f90)
+
+target_link_libraries(test_rsc ${MLF_LIB})
+target_link_libraries(test_kmeans ${MLF_LIB})
+target_link_libraries(test_emgmm ${MLF_LIB})
+target_link_libraries(test_kmeans_c ${MLF_LIB})
+target_link_libraries(test_pareto ${MLF_LIB})
+target_link_libraries(test_funbasis ${MLF_LIB})
+#target_link_libraries(test_funbasis ${MLF_LIB}_s ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+target_link_libraries(test_cmaes ${MLF_LIB})
+

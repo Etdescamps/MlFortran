@@ -42,7 +42,7 @@ Module mlf_funbasis
 
   real(c_double), parameter :: fb_icoeff(4) =  [3d0/8d0, 7d0/6d0, 23d0/24d0, 1d0]
   ! Object handling timer and step evaluations
-  Type, Public, extends(mlf_reduce_model) :: mlf_algo_funbasis
+  Type, Public, extends(mlf_approx_model) :: mlf_algo_funbasis
     class(mlf_basis_fun), pointer :: fun ! Reference function
     real(c_double), pointer :: P(:,:) ! Selected parameter function basis
     real(c_double), pointer :: W(:,:) ! Selected function basis

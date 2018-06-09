@@ -53,6 +53,12 @@ Module mlf_models
     procedure (mlf_model_getProj), deferred :: getProj
   End Type mlf_reduce_model
 
+  Type, public, abstract, extends(mlf_reduce_model) :: mlf_approx_model
+  Contains
+    procedure (mlf_model_getValue), deferred :: getValue
+  End Type mlf_approx_model
+
+
   Abstract Interface
     integer Function mlf_model_getClass(this, X, Cl)
       use iso_c_binding
@@ -84,6 +90,15 @@ Module mlf_models
       real(c_double), intent(out) :: W(:,:)
       real(c_double), optional, intent(out) :: Aerror(:,:)
     End Function mlf_model_getProj
+
+    Function mlf_model_getValue(this, W, x) result(Y)
+      use iso_c_binding
+      import :: mlf_approx_model
+      class(mlf_approx_model), intent(in) :: this
+      real(c_double), intent(in) :: W(:), x
+      real(c_double) :: Y
+    End Function mlf_model_getValue
+
 
   End Interface
 Contains
@@ -155,6 +170,24 @@ Contains
       end select
     end associate
   End Function c_getProj
+
+  real(c_double) Function c_getValue(cptr, cW, t) result(Y) bind(C, name="mlf_getValue")
+    type(c_ptr), value :: cptr, cW
+    real(c_double), value :: t
+    type(mlf_cintf), pointer :: this
+    real(c_double), pointer :: W(:)
+    call C_F_POINTER(cptr, this)
+    Y = IEEE_VALUE(Y, IEEE_QUIET_NAN)
+    if(.NOT. allocated(this%obj)) RETURN
+    associate(obj => this%obj)
+      select type(obj)
+        class is (mlf_approx_model)
+          call C_F_POINTER(cW, W, [obj%nDimOut])
+          Y = obj%getValue(W, t)
+      end select
+    end associate
+  End Function c_getValue
+
 
 End Module mlf_models
 

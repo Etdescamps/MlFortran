@@ -99,7 +99,27 @@ Contains
     cl = maxloc(Proba, dim=2)
   End Function mlf_model_getClass_proba
 
-  integer(c_int) Function c_getProj(cptr, cY, cW, nIn) result(info) bind(C, name="mlf_getproj")
+  integer(c_int) Function c_getProba(cptr, cX, cCl, nX, nIn) result(info) bind(C, name="mlf_getProba")
+    type(c_ptr), value :: cptr, cX, cCl
+    integer(c_int), value :: nX, nIn
+    type(mlf_cintf), pointer :: this
+    real(c_double), pointer :: X(:,:), Cl(:,:)
+    integer :: nCl
+    info = -1
+    call C_F_POINTER(cptr, this)
+    if(.NOT. allocated(this%obj)) RETURN
+    associate(obj => this%obj)
+      select type(obj)
+        class is (mlf_class_proba_model)
+          nCl = obj%getNumClasses()
+          call C_F_POINTER(cX, X, [nX, nIn])
+          call C_F_POINTER(cCl, Cl, [nCl, nIn])
+          info = obj%getProba(X, Cl)
+      end select
+    end associate
+  End Function c_getProba
+
+  integer(c_int) Function c_getProj(cptr, cY, cW, nIn) result(info) bind(C, name="mlf_getProj")
     type(c_ptr), value :: cptr, cY, cW
     integer(c_int), value :: nIn
     type(mlf_cintf), pointer :: this

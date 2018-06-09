@@ -87,7 +87,7 @@ Contains
     nt = size(Ytests,1)
     allocate(W(nparam,nt), Aerror(nt,2), U1(nx,nt), U2(nx,nt))
     print *,ferr
-    call fb%getProj(Ytests, W, Aerror)
+    info = fb%getProj(Ytests, W, Aerror)
     print *, Aerror(:,1)
     print *, Aerror(:,2)
     call FExpInv(X0, Ytests, U1(:,:))

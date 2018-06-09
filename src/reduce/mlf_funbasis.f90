@@ -34,6 +34,7 @@ Module mlf_funbasis
   Use mlf_rsc_array
   Use mlf_utils
   Use mlf_matrix
+  Use mlf_models
   Use mlf_fun_intf
   Use mlf_errors
   IMPLICIT NONE
@@ -41,7 +42,7 @@ Module mlf_funbasis
 
   real(c_double), parameter :: fb_icoeff(4) =  [3d0/8d0, 7d0/6d0, 23d0/24d0, 1d0]
   ! Object handling timer and step evaluations
-  Type, Public, extends(mlf_arr_obj) :: mlf_algo_funbasis
+  Type, Public, extends(mlf_reduce_model) :: mlf_algo_funbasis
     class(mlf_basis_fun), pointer :: fun ! Reference function
     real(c_double), pointer :: P(:,:) ! Selected parameter function basis
     real(c_double), pointer :: W(:,:) ! Selected function basis
@@ -107,6 +108,7 @@ Contains
     else
       forall(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))
     endif
+    this%nDimIn = nP; this%nDimOut = sizeBase
     call ComputeBasisValue(this, nX)
   End Function mlf_funbasis_init
 
@@ -207,14 +209,14 @@ Contains
       forall(j=1:(i-1)) C(i,j) = C(j,i)
     end do
   End Subroutine ComputeFunMatrix
-  Subroutine mlf_FunBasisGetProjection(this, Y, W, Aerror)
+  integer Function mlf_FunBasisGetProjection(this, Y, W, Aerror) result(info)
     ! Get the projection of the function in the basis of the selected vector
-    class(mlf_algo_funbasis), intent(in) :: this
+    class(mlf_algo_funbasis), intent(in), target :: this
     real(c_double), intent(in) :: Y(:,:)
     real(c_double), intent(out) :: W(:,:)
     real(c_double), optional, intent(out) :: Aerror(:,:)
     real(c_double), allocatable :: F(:,:), P(:)
-    integer :: np, nx, ny, i, j, info
+    integer :: np, nx, ny, i, j
     real(c_double) :: invAlpha
     np = size(this%W, 2)
     ny = size(Y, 2)
@@ -222,6 +224,7 @@ Contains
     allocate(F(nx,ny), P(nx))
     invAlpha = 1d0/this%alpha
     info = this%fun%eval(this%X, Y, F)
+    if(info<0) RETURN
     do i = 1,np
       P =  this%Vals(i,:)
       do j = 1,ny
@@ -238,7 +241,7 @@ Contains
         Aerror(i,2) = maxval(F(:,i))
       end forall 
     endif
-  End Subroutine mlf_FunBasisGetProjection
+  End Function mlf_FunBasisGetProjection
   ! Get value of the function expressed as W in the current basis at position x
   pure real(c_double) Function mlf_FunBasisFunValue(this, W, x) result(Y)
     class(mlf_algo_funbasis), intent(in) :: this

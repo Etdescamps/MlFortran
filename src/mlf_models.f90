@@ -47,6 +47,12 @@ Module mlf_models
     procedure :: getClass => mlf_model_getClass_proba
   End Type mlf_class_proba_model
 
+  Type, public, abstract, extends(mlf_arr_obj) :: mlf_reduce_model
+    integer :: nDimIn, nDimOut
+  Contains
+    procedure (mlf_model_getProj), deferred :: getProj
+  End Type mlf_reduce_model
+
   Abstract Interface
     integer Function mlf_model_getClass(this, X, Cl)
       use iso_c_binding
@@ -69,6 +75,16 @@ Module mlf_models
       real(c_double), intent(in) :: X(:,:)
       real(c_double), intent(out) :: Proba(:,:)
     End Function mlf_model_getProba
+
+    integer Function mlf_model_getProj(this, Y, W, Aerror)
+      use iso_c_binding
+      import :: mlf_reduce_model
+      class(mlf_reduce_model), intent(in), target :: this
+      real(c_double), intent(in) :: Y(:,:)
+      real(c_double), intent(out) :: W(:,:)
+      real(c_double), optional, intent(out) :: Aerror(:,:)
+    End Function mlf_model_getProj
+
   End Interface
 Contains
   integer Function mlf_model_getClass_proba(this, X, Cl) result(info)
@@ -82,6 +98,24 @@ Contains
     info = this%getProba(X, Proba)
     cl = maxloc(Proba, dim=2)
   End Function mlf_model_getClass_proba
+
+  integer(c_int) Function c_getProj(cptr, cY, cW, nIn) result(info) bind(C, name="mlf_getproj")
+    type(c_ptr), value :: cptr, cY, cW
+    integer(c_int), value :: nIn
+    type(mlf_cintf), pointer :: this
+    real(c_double), pointer :: Y(:,:), W(:,:)
+    info = -1
+    call C_F_POINTER(cptr, this)
+    if(.NOT. allocated(this%obj)) RETURN
+    associate(obj => this%obj)
+      select type(obj)
+        class is (mlf_reduce_model)
+          call C_F_POINTER(cY, Y, [obj%nDimIn, nIn])
+          call C_F_POINTER(cW, W, [obj%nDimOut, nIn])
+          info = obj%getProj(Y, W)
+      end select
+    end associate
+  End Function c_getProj
 
 End Module mlf_models
 

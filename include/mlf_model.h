@@ -31,6 +31,7 @@
 
 #include "mlf_cintf.h"
 
+int mlf_getClass(MLF_OBJ *obj, const double *X, int *Cl, int nX, int nIn);
 int mlf_getProba(MLF_OBJ *obj, const double *X, double *Cl, int nX, int nIn);
 int mlf_getProj(MLF_OBJ *obj, const double *Y, double *W, int nIn);
 

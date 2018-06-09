@@ -108,7 +108,7 @@ Contains
     else
       forall(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))
     endif
-    this%nDimIn = nP; this%nDimOut = sizeBase
+    this%nDimIn = size(this%P, 1); this%nDimOut = sizeBase
     call ComputeBasisValue(this, nX)
   End Function mlf_funbasis_init
 

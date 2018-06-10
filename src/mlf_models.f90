@@ -121,6 +121,7 @@ Contains
     real(c_double), pointer :: X(:,:)
     integer(c_int), pointer :: Cl(:)
     info = -1
+    if(.NOT. C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
     if(.NOT. allocated(this%obj)) RETURN
     associate(obj => this%obj)
@@ -140,6 +141,7 @@ Contains
     real(c_double), pointer :: X(:,:), Cl(:,:)
     integer :: nCl
     info = -1
+    if(.NOT. C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
     if(.NOT. allocated(this%obj)) RETURN
     associate(obj => this%obj)
@@ -159,6 +161,7 @@ Contains
     type(mlf_cintf), pointer :: this
     real(c_double), pointer :: Y(:,:), W(:,:)
     info = -1
+    if(.NOT. C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
     if(.NOT. allocated(this%obj)) RETURN
     associate(obj => this%obj)
@@ -176,8 +179,9 @@ Contains
     real(c_double), value :: t
     type(mlf_cintf), pointer :: this
     real(c_double), pointer :: W(:)
-    call C_F_POINTER(cptr, this)
     Y = IEEE_VALUE(Y, IEEE_QUIET_NAN)
+    if(.NOT. C_ASSOCIATED(cptr)) RETURN
+    call C_F_POINTER(cptr, this)
     if(.NOT. allocated(this%obj)) RETURN
     associate(obj => this%obj)
       select type(obj)

@@ -56,6 +56,35 @@ Module mlf_funbasis
   End Type mlf_algo_funbasis
 
 Contains
+  ! C wrapper for init function
+  type(c_ptr) Function c_funbasis_init(cfobj, nFPar, alpha, x0, xEnd, cP, nP, sizeBase, nX, cWP) &
+      bind(C, name="mlf_funBasisInit")
+    type(c_ptr), value :: cfobj, cP, cWP
+    type(mlf_cintf), pointer :: funC
+    type(mlf_algo_funbasis) :: x
+    real(c_double), value :: alpha, x0, xEnd
+    integer(c_int), value :: nFPar, nP, sizeBase, nX
+    real(c_double), pointer :: WP(:), P(:,:)
+    integer :: info
+    c_funbasis_init = C_NULL_PTR
+    call C_F_POINTER(cfobj, funC)
+    if(.NOT. allocated(funC%obj)) RETURN
+    associate(fobj => funC%obj)
+      select type(fobj)
+        class is (mlf_basis_fun)
+          if(.NOT. C_ASSOCIATED(cP)) RETURN
+          call C_F_POINTER(cP, P, [nFPar, nP])
+          if(.NOT. C_ASSOCIATED(cWP)) then
+            info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX)
+          else
+            call C_F_POINTER(cWP, WP, [nP])
+            info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX, WP)
+          endif
+          c_funbasis_init = c_allocate(x)
+      end select
+    end associate
+  End Function c_funbasis_init
+
   ! Init function for the step object
   integer Function mlf_funbasis_init(this, f, alpha, x0, xEnd, P, sizeBase, nX, WP, data_handler) result(info)
     class(mlf_algo_funbasis), intent(inout) :: this

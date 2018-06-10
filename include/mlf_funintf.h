@@ -36,5 +36,5 @@ MLF_OBJ *mlf_objfunction(mlf_objective_fun f, void *ptr, mlf_objective_fun cstr)
 
 typedef int (*mlf_basis_fun)(const double *x, const double *rpar, double *y, int nX, int nPar, int nY, void *ptr);
 
-MLF_OBJ *mlf_basisfunction(mlf_basis_fun f, void *ptr, mlf_basis_fun cstr);
+MLF_OBJ *mlf_basisfunction(mlf_basis_fun f, void *ptr);
 

@@ -36,3 +36,6 @@ int mlf_getProba(MLF_OBJ *obj, const double *X, double *Cl, int nX, int nIn);
 int mlf_getProj(MLF_OBJ *obj, const double *Y, double *W, int nIn);
 double mlf_getValue(MLF_OBJ *obj, const double *W, double t);
 
+// Function reduction
+MLF_OBJ *mlf_funBasisInit(MLF_OBJ *fobj, int nFPar, double alpha, double x0, double xEnd, double *P, int nP, int sizeBase, int nX, double *WP);
+

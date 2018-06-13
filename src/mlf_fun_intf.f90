@@ -93,10 +93,8 @@ Module mlf_fun_intf
     Function mlf_obj_eval_c(X, Y, ND, NY, lambda, ptr) bind(C)
       Use iso_c_binding
       integer(c_int), intent(in), value :: ND, NY, lambda
-      real(c_double), intent(in) :: X(ND, *)
-      real(c_double), intent(out) :: Y(NY, *)
       integer(c_int) :: mlf_obj_eval_c
-      type(c_ptr), value :: ptr
+      type(c_ptr), value :: ptr, X, Y
     End Function mlf_obj_eval_c
 
     ! Abstract basis function type (for dimension reduction)
@@ -160,7 +158,7 @@ Contains
     lambda = size(X,2)
     ND = size(X,1)
     NY = size(Y,1)
-    info = this%evalC(X, Y, ND, nY, lambda, this%ptr)
+    info = this%evalC(c_loc(X), c_loc(Y), ND, nY, lambda, this%ptr)
   End Function mlf_obj_c_eval
 
   integer Function mlf_obj_c_constraints(this, X, Y) result(info)
@@ -172,7 +170,7 @@ Contains
       lambda = size(X,2)
       ND = size(X,1)
       NY = size(Y,1)
-      info = this%constraintsC(X, Y, ND, nY, lambda, this%ptr)
+      info = this%constraintsC(c_loc(X), c_loc(Y), ND, nY, lambda, this%ptr)
     else
       info = mlf_OK
       Y=0

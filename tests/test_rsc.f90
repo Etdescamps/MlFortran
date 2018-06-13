@@ -33,15 +33,18 @@ Module test_rsc
   Use mlf_rsc_array
 Contains
   type(c_ptr) Function c_alloctest() bind(C, name="c_alloctest")
-    type(mlf_obj) :: r
+    type(mlf_obj), pointer :: r
+    class(mlf_obj), pointer :: obj
     type(mlf_rsc_double1d) :: ar
     integer :: i, info
     info = mlf_init()
+    ALLOCATE(r)
     ALLOCATE(r%v(1))
     call r%v(1)%set_str(mlf_NAME, C_CHAR_"teststr!!")
     ar%V = [(real(i), i=1,10)]
     r%v(1)%r = ar
-    c_alloctest = c_allocate(r)
+    obj => r
+    c_alloctest = c_allocate(obj)
     info = mlf_quit()
   End Function c_alloctest
 End Module test_rsc

@@ -145,18 +145,15 @@ Contains
     integer(c_long), value :: niter
     integer(kind=8) :: niterX
     type(mlf_cintf), pointer :: this
+    info = -1
     niterX = niter
     call C_F_POINTER(cptr, this)
-    if(.NOT. allocated(this%obj)) then
-      info = -1; RETURN
-    endif
+    if(.NOT. associated(this%obj)) RETURN
     associate(obj => this%obj)
       select type(obj)
         class is (mlf_step_obj)
           info = obj%step(dt, niterX)
           info = niterX
-        class default
-          info = -1
       end select
     end associate
   End Function mlf_step_c

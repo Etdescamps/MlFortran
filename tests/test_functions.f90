@@ -82,16 +82,16 @@ Contains
 
   integer Function mlf_basis_test_eval(this, X, rpar, Y) result(info)
     class(mlf_basis_test), intent(in), target :: this
-    real(c_double), intent(in) :: X(:), rpar(:,:)
-    real(c_double), intent(out) :: Y(:,:)
+    real(c_double), intent(in), target :: X(:), rpar(:,:)
+    real(c_double), intent(out), target :: Y(:,:)
     info = 0
     call this%evalT(X, rpar, Y)
   End Function mlf_basis_test_eval
   
   integer Function mlf_obj_test_eval(this, X, Y) result(info)
     class(mlf_objective_test), intent(in), target :: this
-    real(c_double), intent(in) :: X(:,:)
-    real(c_double), intent(inout) :: Y(:,:)
+    real(c_double), intent(in), target :: X(:,:)
+    real(c_double), intent(inout), target :: Y(:,:)
     integer :: i
     info = 0
     Do i=1,size(X,2)
@@ -101,8 +101,8 @@ Contains
 
   integer Function mlf_obj_test_constraints(this, X, Y) result(info)
     class(mlf_objective_test), intent(in), target :: this
-    real(c_double), intent(in) :: X(:,:)
-    real(c_double), intent(inout) :: Y(:,:)
+    real(c_double), intent(in), target :: X(:,:)
+    real(c_double), intent(inout), target :: Y(:,:)
     integer :: i
     info = 0
     if(associated(this%constraintsT)) then

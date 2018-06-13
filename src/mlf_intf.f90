@@ -107,7 +107,7 @@ Module mlf_intf
 
   ! Universal container. Permits the use of polymorphism
   Type, Public :: mlf_cintf
-    class (mlf_obj), allocatable :: obj
+    class (mlf_obj), pointer :: obj
   End Type mlf_cintf
 
   Abstract Interface
@@ -241,7 +241,10 @@ Contains
     type(mlf_cintf), pointer :: this
     call C_F_POINTER(cptr, this)
     ! FINAL not yet correctly implemented in GNU Fortran
-    if(ALLOCATED(this%obj)) CALL this%obj%finalize()
+    if(ASSOCIATED(this%obj)) then
+      CALL this%obj%finalize()
+      DEALLOCATE(this%obj)
+    endif
     DEALLOCATE(this)
     c_dealloc = 0
   End Function c_dealloc
@@ -250,9 +253,9 @@ Contains
   Function c_allocate(obj) result(cptr)
     type(c_ptr) :: cptr
     type(mlf_cintf), pointer :: this
-    class (mlf_obj) :: obj
+    class (mlf_obj), pointer :: obj
     ALLOCATE(this)
-    this%obj = obj
+    this%obj => obj
     cptr = C_LOC(this)
   End Function c_allocate
 
@@ -266,7 +269,7 @@ Contains
     call C_F_POINTER(cptr, this)
     call C_F_POINTER(dt0, dt)
     c_getrsc = C_NULL_PTR
-    if(.NOT. allocated(this%obj)) RETURN
+    if(.NOT. associated(this%obj)) RETURN
     if(.NOT. allocated(this%obj%v)) RETURN
     Associate(v => this%obj%v)
       if(id < LBOUND(v,1) .OR. id > UBOUND(v,1)) RETURN
@@ -282,7 +285,7 @@ Contains
     type(mlf_cintf), pointer :: this
     call C_F_POINTER(cptr, this)
     c_getinfo = C_NULL_PTR
-    if(.NOT. allocated(this%obj)) RETURN
+    if(.NOT. associated(this%obj)) RETURN
     if(.NOT. allocated(this%obj%v)) RETURN
     Associate(v => this%obj%v)
       if(id < LBOUND(v,1) .OR. id > UBOUND(v,1)) RETURN
@@ -297,7 +300,7 @@ Contains
     type(mlf_cintf), pointer :: this
     call C_F_POINTER(cptr, this)
     c_updatersc = -1
-    if(.NOT. allocated(this%obj)) RETURN
+    if(.NOT. associated(this%obj)) RETURN
     if(.NOT. allocated(this%obj%v)) RETURN
     Associate(v => this%obj%v)
       if(id < LBOUND(v,1) .OR. id > UBOUND(v,1)) RETURN

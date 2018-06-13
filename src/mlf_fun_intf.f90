@@ -85,16 +85,16 @@ Module mlf_fun_intf
       Use iso_c_binding
       import :: mlf_objective_fun
       class(mlf_objective_fun), intent(in), target :: this
-      real(c_double), intent(in) :: X(:,:)
-      real(c_double), intent(inout):: Y(:,:)
+      real(c_double), intent(in), target :: X(:,:)
+      real(c_double), intent(inout), target:: Y(:,:)
     End Function mlf_obj_eval
 
     ! C interface for objective functions
     Function mlf_obj_eval_c(X, Y, ND, NY, lambda, ptr) bind(C)
       Use iso_c_binding
       integer(c_int), intent(in), value :: ND, NY, lambda
-      real(c_double), intent(in) :: X(ND, lambda)
-      real(c_double), intent(out) :: Y(NY, lambda)
+      real(c_double), intent(in) :: X(ND, *)
+      real(c_double), intent(out) :: Y(NY, *)
       integer(c_int) :: mlf_obj_eval_c
       type(c_ptr), value :: ptr
     End Function mlf_obj_eval_c
@@ -104,17 +104,15 @@ Module mlf_fun_intf
       use iso_c_binding
       import :: mlf_basis_fun
       class(mlf_basis_fun), intent(in), target :: this
-      real(c_double), intent(in) :: X(:), rpar(:,:)
-      real(c_double), intent(out) :: Y(:,:)
+      real(c_double), intent(in), target :: X(:), rpar(:,:)
+      real(c_double), intent(out), target :: Y(:,:)
     End Function mlf_basis_eval
 
     ! C interface for basis functions
-    Function mlf_basis_eval_c(X, rpar, Y, nX, nPar, nY, ptr) bind(C)
+    Function mlf_basis_eval_c(X, rpar, Y, nX, nPar, sPar, ptr) bind(C)
       use iso_c_binding
-      integer(c_int), intent(in), value :: nX, nPar, nY
-      real(c_double), intent(in) :: X(nX), rpar(nPar,nX)
-      real(c_double), intent(out) :: Y(nY,nX)
-      type(c_ptr), value :: ptr
+      integer(c_int), intent(in), value :: nX, nPar, sPar
+      type(c_ptr), value :: ptr, X, Y, rpar
       integer(c_int) :: mlf_basis_eval_c
     End Function mlf_basis_eval_c
 
@@ -137,23 +135,23 @@ Module mlf_fun_intf
 Contains
   integer Function mlf_basis_c_eval(this, X, rpar, Y) result(info)
     class(mlf_basis_fun_c), intent(in), target :: this
-    real(c_double), intent(in) :: X(:), rpar(:,:)
-    real(c_double), intent(out) :: Y(:,:)
-    integer(c_int) :: nX, nPar, nY
+    real(c_double), intent(in), target :: X(:), rpar(:,:)
+    real(c_double), intent(out), target :: Y(:,:)
+    integer(c_int) :: nX, sPar, nPar
     if(.NOT. associated(this%evalC)) then
       info = mlf_UNINIT
       RETURN
     endif
     nX = size(X,1)
-    nPar = size(rpar,1)
-    nY = size(Y,1)
-    info = this%evalC(X, rpar, Y, nX, nPar, nY, this%ptr)
+    sPar = size(rpar,1)
+    nPar = size(rpar,2)
+    info = this%evalC(c_loc(X), c_loc(rpar), c_loc(Y), nX, nPar, sPar, this%ptr)
   End Function mlf_basis_c_eval
 
   integer Function mlf_obj_c_eval(this, X, Y) result(info)
     class(mlf_objective_fun_c), intent(in), target :: this
-    real(c_double), intent(in) :: X(:,:)
-    real(c_double), intent(inout) :: Y(:,:)
+    real(c_double), intent(in), target :: X(:,:)
+    real(c_double), intent(inout), target :: Y(:,:)
     integer(c_int) :: ND, NY, lambda
     if(.NOT. associated(this%evalC)) then
       info = mlf_UNINIT
@@ -167,8 +165,8 @@ Contains
 
   integer Function mlf_obj_c_constraints(this, X, Y) result(info)
     class(mlf_objective_fun_c), intent(in), target :: this
-    real(c_double), intent(in) :: X(:,:)
-    real(c_double), intent(inout) :: Y(:,:)
+    real(c_double), intent(in), target :: X(:,:)
+    real(c_double), intent(inout), target :: Y(:,:)
     integer(c_int) :: ND, NY, lambda
     if(associated(this%constraintsC)) then
       lambda = size(X,2)
@@ -184,20 +182,26 @@ Contains
   type(c_ptr) Function c_objfunction(cfun, cptr, ccst) bind(C, name="mlf_objfunction")
     type(c_ptr), value :: cptr
     type(c_funptr), value :: cfun, ccst
-    type(mlf_objective_fun_c) :: x
+    type(mlf_objective_fun_c), pointer :: x
+    class (mlf_obj), pointer :: obj
+    ALLOCATE(x)
     x%ptr = cptr
     if(C_ASSOCIATED(cfun)) call C_F_PROCPOINTER(cfun, x%evalC)
     if(C_ASSOCIATED(ccst)) call C_F_PROCPOINTER(ccst, x%constraintsC)
-    c_objfunction = c_allocate(x)
+    obj => x
+    c_objfunction = c_allocate(obj)
   End Function c_objfunction
 
   type(c_ptr) Function c_basisfunction(cfun, cptr) bind(C, name="mlf_basisfunction")
     type(c_ptr), value :: cptr
     type(c_funptr), value :: cfun
-    type(mlf_basis_fun_c) :: x
+    type(mlf_basis_fun_c), pointer :: x
+    class (mlf_obj), pointer :: obj
+    ALLOCATE(x)
     x%ptr = cptr
     if(C_ASSOCIATED(cfun)) call C_F_PROCPOINTER(cfun, x%evalC)
-    c_basisfunction = c_allocate(x)
+    obj => x
+    c_basisfunction = c_allocate(obj)
   End Function c_basisfunction
 
   ! Abstract weight function type

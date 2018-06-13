@@ -111,23 +111,18 @@ Contains
     real(c_double), pointer :: X(:,:), Mu(:,:)
     integer(c_int), value :: nX, nY, nC
     integer :: info
-    type(mlf_cintf), pointer :: this
-    type(mlf_algo_kmeans) :: km_obj
+    type(mlf_algo_kmeans), pointer :: this
+    class (mlf_obj), pointer :: obj
     ALLOCATE(this)
-    this%obj = km_obj
-    associate(obj => this%obj)
-      select type(obj)
-      class is (mlf_algo_kmeans)
-        call C_F_POINTER(pX, X, [nY, nX])
-        if(C_ASSOCIATED(pMu)) then
-          call C_F_POINTER(pMu, Mu, [nC, nX])
-          info = obj%init(X, Mu = Mu)
-        else
-          info = obj%init(X, nC = nC)
-        endif
-      end select
-    end associate
-    cptr = C_LOC(this)
+    call C_F_POINTER(pX, X, [nY, nX])
+    if(C_ASSOCIATED(pMu)) then
+      call C_F_POINTER(pMu, Mu, [nC, nX])
+      info = this%init(X, Mu = Mu)
+    else
+      info = this%init(X, nC = nC)
+    endif
+    obj => this
+    cptr = c_allocate(obj)
   End Function mlf_kmeans_c
 
   ! Reinit algorithm parameters

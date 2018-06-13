@@ -61,26 +61,29 @@ Contains
       bind(C, name="mlf_funBasisInit")
     type(c_ptr), value :: cfobj, cP, cWP
     type(mlf_cintf), pointer :: funC
-    type(mlf_algo_funbasis) :: x
+    type(mlf_algo_funbasis), pointer :: x
+    class (mlf_obj), pointer :: obj
     real(c_double), value :: alpha, x0, xEnd
     integer(c_int), value :: nFPar, nP, sizeBase, nX
     real(c_double), pointer :: WP(:), P(:,:)
     integer :: info
     c_funbasis_init = C_NULL_PTR
     call C_F_POINTER(cfobj, funC)
-    if(.NOT. allocated(funC%obj)) RETURN
+    if(.NOT. associated(funC%obj)) RETURN
     associate(fobj => funC%obj)
       select type(fobj)
         class is (mlf_basis_fun)
           if(.NOT. C_ASSOCIATED(cP)) RETURN
           call C_F_POINTER(cP, P, [nFPar, nP])
+          ALLOCATE(x)
           if(.NOT. C_ASSOCIATED(cWP)) then
             info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX)
           else
             call C_F_POINTER(cWP, WP, [nP])
             info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX, WP)
           endif
-          c_funbasis_init = c_allocate(x)
+          obj => x
+          c_funbasis_init = c_allocate(obj)
       end select
     end associate
   End Function c_funbasis_init
@@ -130,7 +133,6 @@ Contains
     ! C is the positive definite matrix containing the dot product of each function
     info = SymMatrixEigenDecomposition(C, LD, LB)
     if(info /= 0) RETURN
-    allocate(this%W(N, sizeBase))
     ! Choose the (normalised) eigenvector that have the higest eigenvalues
     if(present(WP)) then
       forall(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))*WP(:)

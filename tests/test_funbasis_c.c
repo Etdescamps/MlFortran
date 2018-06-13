@@ -3,18 +3,18 @@
 #include "mlf_model.h"
 #include "mlf_funintf.h"
 
-#define nG 16
-#define nR 32
+#define nG 8
+#define nR 16
 
 double params[nG][nR][2];
 
 double Y[2] = {0.5, 0.5}, W[16];
 
-int fBasis_invExp(const double *x, const double *rpar, double *y, int nX, int nPar, int nY, void *ptr){
+int fBasis_invExp(const double *x, const double *rpar, double *y, int nX, int nPar, int sPar, void *ptr){
   for(int i=0; i<nPar; i++) {
-    double a = rpar[nPar*i], b = rpar[nPar*i+1];
+    double a = rpar[sPar*i], b = rpar[sPar*i+1];
     for(int j=0; j<nX; j++) {
-      y[i*nX*nY+j*nY] = 1.0/(1.0+a*exp(-b*x[j]))-1.0;
+      y[i*nX+j] = 1.0/(1.0+a*exp(-b*x[j]))-1.0;
     }
   }
   return 0;
@@ -31,11 +31,11 @@ int main(int argc, char **argv) {
       params[i][j][1]=vRj;
     }
   }
-  MLF_OBJ *fbasis = mlf_funBasisInit(fobj, 2, 1.0, 0.0, HUGE_VAL, (double *) params, nR*nG, 16, 65536, NULL);
+  MLF_OBJ *fbasis = mlf_funBasisInit(fobj, 2, 1.0, 0.0, HUGE_VAL, (double *) params, nR*nG, 16, 16384, NULL);
   mlf_getProj(fbasis, (double*) Y, (double*) W, 1);
   double x = 2.0;
   double vx = mlf_getValue(fbasis, (double*) W, x), vy;
-  fBasis_invExp(&x, (double*) Y, &vy, 1, 1, 1, NULL);
+  fBasis_invExp(&x, (double*) Y, &vy, 1, 1, 2, NULL);
   printf("%f\n", vx-vy);
   mlf_dealloc(fobj);
   mlf_dealloc(fbasis);

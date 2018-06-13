@@ -123,7 +123,7 @@ Contains
     info = -1
     if(.NOT. C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
-    if(.NOT. allocated(this%obj)) RETURN
+    if(.NOT. associated(this%obj)) RETURN
     associate(obj => this%obj)
       select type(obj)
         class is (mlf_class_model)
@@ -143,7 +143,7 @@ Contains
     info = -1
     if(.NOT. C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
-    if(.NOT. allocated(this%obj)) RETURN
+    if(.NOT. associated(this%obj)) RETURN
     associate(obj => this%obj)
       select type(obj)
         class is (mlf_class_proba_model)
@@ -163,7 +163,7 @@ Contains
     info = -1
     if(.NOT. C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
-    if(.NOT. allocated(this%obj)) RETURN
+    if(.NOT. associated(this%obj)) RETURN
     associate(obj => this%obj)
       select type(obj)
         class is (mlf_reduce_model)
@@ -182,7 +182,7 @@ Contains
     Y = IEEE_VALUE(Y, IEEE_QUIET_NAN)
     if(.NOT. C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
-    if(.NOT. allocated(this%obj)) RETURN
+    if(.NOT. associated(this%obj)) RETURN
     associate(obj => this%obj)
       select type(obj)
         class is (mlf_approx_model)

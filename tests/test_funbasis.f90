@@ -38,38 +38,46 @@ Program test_funbasis
   Use test_functions
   IMPLICIT NONE
 
-  type(mlf_basis_test) :: f_test
-  integer, parameter :: nR = 32, nG = 16
-  real(c_double) :: YB(2,nG,nR), a0, a1, b0, b1, YT(2,2), WB(nG,nR), W1, W0, X, Y
-  integer :: i, j, info
-  real(c_double), parameter :: Ri(nR) = [(5d-2*exp(i/real(nR-1)*log(2d1)), i=0,(NR-1))]
-  real(c_double), parameter :: Gi(nG) = [(exp(-i/real(nG-1)), i=0,(nG-1))]
+  integer :: infoX
+  infoX = mlf_init()
+  infoX = RunTest()
 
-  info = mlf_init()
-
-  a0 = -1.5; a1 = 2.0
-  b0 = 0.1; b1 = 10.0
-  forall(i=1:nG) YB(2,i,:) = Ri
-  forall(i=1:nR) YB(1,:,i) = Gi
-  do i=1,nG
-    X = (i-1d0)/real(nG-1)
-    W0 = 1d0*(1d0-X)+0.01*X
-    W1 = 0.2d0*(1d0-X)+ 1d0*X
-    do j=1,nR
-      Y = (j-1d0)/real(nR-1)
-      WB(i,j) = W0*(1d0-Y)+W1*Y
-    End do
-  End do
-  ! print *, YB
-  YT(:,1) = YB(:,1,2)
-  YT(:,2) = YB(:,nG-5,nR-2)
-  f_test%evalT => FExpInv  
-  info = testfb(reshape(YB, [2,nR*nG]), YT, reshape(sqrt(WB), [nR*nG]))
-  
-  info = mlf_quit()
+  infoX = mlf_quit()
 
 Contains
-  integer function testfb(Ybasis, Ytests, WP) result(info)
+  integer function RunTest() result(info)
+    type(mlf_basis_test) :: f_test
+    integer, parameter :: nR = 32, nG = 16
+    real(c_double) :: YB(2,nG,nR), a0, a1, b0, b1, YT(2,2), WB(nG,nR), W1, W0, X, Y
+    integer :: i, j
+    real(c_double), parameter :: Ri(nR) = [(5d-2*exp(i/real(nR-1)*log(2d1)), i=0,(NR-1))]
+    real(c_double), parameter :: Gi(nG) = [(exp(-i/real(nG-1)), i=0,(nG-1))]
+
+    info = mlf_init()
+ 
+    a0 = -1.5; a1 = 2.0
+    b0 = 0.1; b1 = 10.0
+    forall(i=1:nG) YB(2,i,:) = Ri
+    forall(i=1:nR) YB(1,:,i) = Gi
+    do i=1,nG
+      X = (i-1d0)/real(nG-1)
+      W0 = 1d0*(1d0-X)+0.01*X
+      W1 = 0.2d0*(1d0-X)+ 1d0*X
+      do j=1,nR
+        Y = (j-1d0)/real(nR-1)
+        WB(i,j) = W0*(1d0-Y)+W1*Y
+      End do
+    End do
+    ! print *, YB
+    YT(:,1) = YB(:,1,2)
+    YT(:,2) = YB(:,nG-5,nR-2)
+    f_test%evalT => FExpInv  
+    info = testfb(f_test, reshape(YB, [2,nR*nG]), YT, reshape(sqrt(WB), [nR*nG]))
+
+  End function RunTest
+
+  integer function testfb(f_test, Ybasis, Ytests, WP) result(info)
+    class(mlf_basis_test), intent(inout) :: f_test
     type(mlf_algo_funbasis) :: fb
     real(c_double), intent(in) :: Ybasis(:,:), Ytests(:,:), WP(:)
     real(c_double) :: infty

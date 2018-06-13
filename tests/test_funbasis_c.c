@@ -36,12 +36,14 @@ int main(int argc, char **argv) {
       weights[i][j] = w1*(1.0-y)+w2*y;
     }
   }
-  MLF_OBJ *fbasis = mlf_funBasisInit(fobj, 2, 1.0, 0.0, HUGE_VAL, (double *) params, nR*nG, 16, 2000000, (double *) weights);
+  double alpha = 0.5;
+  MLF_OBJ *fbasis = mlf_funBasisInit(fobj, 2, alpha, 0.0, HUGE_VAL, (double *) params, nR*nG, 16, 2000000, (double *) weights);
   mlf_getProj(fbasis, (double*) Y, (double*) W, 1);
-  double x = 2.0;
-  double vx = mlf_getValue(fbasis, (double*) W, x), vy;
-  fBasis_invExp(&x, (double*) Y, &vy, 1, 1, 2, NULL);
-  printf("vx: %f vy: %f error: %f\n", vx, vy, 2.0*(vx-vy)/(fabs(vx)+fabs(vy)));
+  for(double x = 0.1; x<4.0; x*=1.1) {
+    double vx = mlf_getValue(fbasis, (double*) W, x), vy;
+    fBasis_invExp(&x, (double*) Y, &vy, 1, 1, 2, NULL);
+    printf("x: %f vx: %f vy: %f error: %f\n exp: %f", x, vx, vy, 2.0*(vx-vy)/(fabs(vx)+fabs(vy)), exp(-alpha*x));
+  }
   mlf_dealloc(fobj);
   mlf_dealloc(fbasis);
   mlf_quit();

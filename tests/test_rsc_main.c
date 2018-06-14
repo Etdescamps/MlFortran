@@ -31,7 +31,7 @@
 #include "test_rsc.h"
 
 int main(int argc, char **argv) {
-  mlf_init();
+  //mlf_init();
 
   MLF_OBJ *o = c_alloctest();
   char *desc = mlf_getinfo(o, 1, mlf_NAME);
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
   }
   int ret = mlf_dealloc(o);
 
-  mlf_quit();
+  //mlf_quit();
 
   return ret;
 }

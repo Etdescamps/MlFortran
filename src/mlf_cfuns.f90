@@ -32,7 +32,8 @@ Module mlf_cfuns
   IMPLICIT NONE
 
   PRIVATE
-  Public :: c_qsort, c_qsort_neg, c_qsort_unify, c_memcpy, c_strncmp
+  Public :: c_qsort, c_qsort_neg, c_qsort_unify, c_memcpy, c_strncmp, c_strlen
+  Public :: mlf_stringFromC
 
   Interface
     Subroutine c_qsort(V, idSorted, N, ND, L, mu) bind(C, name="mlf_qsort")
@@ -66,7 +67,21 @@ Module mlf_cfuns
       integer(c_size_t), value :: n
       integer(c_int) ::  c_strncmp
     End Function c_strncmp
+    Function c_strlen(s1) bind(C, name="strlen")
+      Use iso_c_binding
+      type(c_ptr), value :: s1
+      integer(c_size_t) ::  c_strlen
+    End Function c_strlen
   End Interface
 Contains
+  Subroutine mlf_stringFromC(cptr, string)
+    character(len=:, kind=c_char), allocatable, target, intent(out) :: string
+    type(c_ptr), intent(in) :: cptr
+    type(c_ptr) :: cout
+    integer(c_size_t) :: sl
+    sl = c_strlen(cptr)
+    ALLOCATE(character(len=sl) :: string)
+    cout = c_memcpy(c_loc(string), cptr, int(sl, kind=c_size_t))
+  End Subroutine mlf_stringFromC
 End Module mlf_cfuns
 

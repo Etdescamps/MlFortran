@@ -156,6 +156,24 @@ Contains
     this%obj_name = fname // C_NULL_CHAR
   End Function mlf_hdf5_createFile
 
+  type(c_ptr) Function c_hdf5_createFile(pfname, access_flag) result(cptr) bind(C, name="mlf_hdf5_createFile")
+    type(mlf_hdf5_file), pointer :: this
+    class (mlf_obj), pointer :: obj
+    type(c_ptr), value :: pfname
+    character(len=:, kind=c_char), allocatable, target :: fname
+    integer(c_int), intent(in) :: access_flag
+    integer :: info
+    ALLOCATE(this)
+    cptr = c_null_ptr
+    call mlf_stringFromC(pfname, fname)
+    info = this%createFile(fname, access_flag)
+    if(info<0) then
+      deallocate(this); RETURN
+    endif
+    obj => this
+    cptr = c_allocate(obj)
+  End Function c_hdf5_createFile
+
   Integer Function mlf_hdf5_openFile(this, fname, access_flag) result(hdferr)
     class(mlf_hdf5_file), intent(inout) :: this
     character(LEN=*), intent(in) :: fname

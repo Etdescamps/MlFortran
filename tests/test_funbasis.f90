@@ -35,6 +35,7 @@ Program test_funbasis
   Use mlf_matrix
   Use mlf_fun_intf
   Use mlf_funbasis
+  Use mlf_models
   Use test_functions
   IMPLICIT NONE
 
@@ -95,7 +96,7 @@ Contains
     nt = size(Ytests,1)
     allocate(W(nparam,nt), Aerror(nt,2), U1(nx,nt), U2(nx,nt))
     print *,ferr
-    info = fb%getProj(Ytests, W, Aerror)
+    info = mlf_getProj(fb%model, Ytests, W, Aerror)
     print *, Aerror(:,1)
     print *, Aerror(:,2)
     call FExpInv(X0, Ytests, U1(:,:))

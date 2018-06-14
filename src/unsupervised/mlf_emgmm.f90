@@ -43,7 +43,7 @@ Module mlf_emgmm
   PRIVATE
   
   ! Algorithm structure of Expectation-Maximization on Gaussian Mixture Model
-  Type, public, extends(mlf_class_proba_model) :: mlf_algo_emgmm
+  Type, public, extends(mlf_step_obj) :: mlf_algo_emgmm
     real(c_double), pointer :: X(:,:), Mu(:,:), Cov(:,:,:), lambda(:), sumLL
     real(c_double), allocatable :: ProbaC(:,:)
     integer(c_int32_t), pointer :: cl(:)
@@ -52,11 +52,30 @@ Module mlf_emgmm
     procedure :: init => mlf_algo_emgmm_init
     procedure :: reinit => mlf_algo_emgmm_reinit
     procedure :: stepF => mlf_algo_emgmm_stepF
-    procedure :: getProba => mlf_algo_emgmm_getLikelihood
-    procedure :: getNumClasses => mlf_algo_emgmm_getNumClasses
   End Type mlf_algo_emgmm
 
+  Type, Public, extends(mlf_class_proba_model) :: mlf_model_emgmm
+    class(mlf_algo_emgmm), pointer :: top
+  Contains
+    procedure :: getProba => mlf_algo_emgmm_getLikelihood
+    procedure :: getNumClasses => mlf_algo_emgmm_getNumClasses
+  End Type mlf_model_emgmm
+
+
+
 Contains
+  ! Model initilisator
+  Subroutine mlf_model_emgmm_init(this, top)
+    class(mlf_model), intent(out), allocatable :: this
+    class(mlf_algo_emgmm), intent(in), target :: top
+    ALLOCATE(mlf_model_emgmm :: this)
+    select type(this)
+      class is (mlf_model_emgmm)
+        this%top => top
+    end select
+  End Subroutine mlf_model_emgmm_init
+
+
   integer Function mlf_algo_emgmm_init(this, X, nC, data_handler) result(info)
     class(mlf_algo_emgmm), intent(out), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
@@ -89,6 +108,7 @@ Contains
     else
       info = this%reinit()
     endif
+    call mlf_model_emgmm_init(this%model, this)
   End Function mlf_algo_emgmm_init
 
   ! Reinit algorithm parameters
@@ -133,21 +153,21 @@ Contains
   End Function mlf_algo_emgmm_stepF
 
   integer Function mlf_algo_emgmm_getNumClasses(this) result(nC)
-    class(mlf_algo_emgmm), intent(in), target :: this
-    nC = size(this%Mu,2)
+    class(mlf_model_emgmm), intent(in), target :: this
+    nC = size(this%top%Mu,2)
   End Function mlf_algo_emgmm_getNumClasses
 
   ! Function that determines likelihood of input datapoints
   integer Function mlf_algo_emgmm_getLikelihood(this, X, Proba) result(info)
-    class(mlf_algo_emgmm), intent(in), target :: this
+    class(mlf_model_emgmm), intent(in), target :: this
     real(c_double), intent(in) :: X(:,:)
     real(c_double), intent(out) :: Proba(:,:)
     real(c_double) :: sumLL
-    if(.NOT. this%initialized) then
+    if(.NOT. this%top%initialized) then
       info = mlf_UNINIT
       RETURN
     endif
-    info = ExpStep(X, Proba, this%Mu, this%Cov, this%Lambda, sumLL)
+    info = ExpStep(X, Proba, this%top%Mu, this%top%Cov, this%top%Lambda, sumLL)
   End Function mlf_algo_emgmm_getLikelihood
 
   ! Maximum likelihood step of the EM algorithm

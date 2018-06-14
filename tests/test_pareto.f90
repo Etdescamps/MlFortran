@@ -41,7 +41,7 @@ Program test_pareto
   info = mlf_init()
 
   if(COMMAND_ARGUMENT_COUNT()<2) then
-    print *, "Error missing arguments: ND NC NX Nstep sigmaC sigmaX"
+    print *, "Error missing arguments: ND NX"
     stop
   endif
   ND = GetIntParameter(1)

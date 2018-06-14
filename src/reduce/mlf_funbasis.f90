@@ -42,7 +42,7 @@ Module mlf_funbasis
 
   real(c_double), parameter :: fb_icoeff(4) =  [3d0/8d0, 7d0/6d0, 23d0/24d0, 1d0]
   ! Object handling timer and step evaluations
-  Type, Public, extends(mlf_approx_model) :: mlf_algo_funbasis
+  Type, Public, extends(mlf_obj_model) :: mlf_algo_funbasis
     class(mlf_basis_fun), pointer :: fun ! Reference function
     real(c_double), pointer :: P(:,:) ! Selected parameter function basis
     real(c_double), pointer :: W(:,:) ! Selected function basis
@@ -51,11 +51,30 @@ Module mlf_funbasis
     real(c_double) :: alpha, x0, xEnd, eA0, eDiff, eAEnd
   Contains
     procedure :: initF => mlf_funbasis_init
-    procedure :: getProj => mlf_FunBasisGetProjection
     procedure :: getValue => mlf_FunBasisFunValue
   End Type mlf_algo_funbasis
 
+  Type, Public, extends(mlf_approx_model) :: mlf_model_funbasis
+    class(mlf_algo_funbasis), pointer :: top
+  Contains
+    procedure :: getProj => mlf_FunBasisGetProjection
+    procedure :: getValue => mlf_model_FunBasisFunValue
+  End Type mlf_model_funbasis
+
+
 Contains
+
+  ! Model initilisator
+  Subroutine mlf_model_funbasis_init(this, top)
+    class(mlf_model), intent(out), allocatable :: this
+    class(mlf_algo_funbasis), intent(in), target :: top
+    ALLOCATE(mlf_model_funbasis :: this)
+    select type(this)
+      class is (mlf_model_funbasis)
+        this%top => top
+    end select
+  End Subroutine mlf_model_funbasis_init
+
   ! C wrapper for init function
   type(c_ptr) Function c_funbasis_init(cfobj, nFPar, alpha, x0, xEnd, cP, nP, sizeBase, nX, cWP) &
       bind(C, name="mlf_funBasisInit")
@@ -139,8 +158,8 @@ Contains
     else
       forall(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))
     endif
-    this%nDimIn = size(this%P, 1); this%nDimOut = sizeBase
     call ComputeBasisValue(this, nX)
+    call mlf_model_funbasis_init(this%model, this)
   End Function mlf_funbasis_init
 
   ! Subroutines used for computing a huge number of dot product between function
@@ -242,24 +261,24 @@ Contains
   End Subroutine ComputeFunMatrix
   integer Function mlf_FunBasisGetProjection(this, Y, W, Aerror) result(info)
     ! Get the projection of the function in the basis of the selected vector
-    class(mlf_algo_funbasis), intent(in), target :: this
+    class(mlf_model_funbasis), intent(in), target :: this
     real(c_double), intent(in) :: Y(:,:)
     real(c_double), intent(out) :: W(:,:)
     real(c_double), optional, intent(out) :: Aerror(:,:)
     real(c_double), allocatable :: F(:,:), P(:)
     integer :: np, nx, ny, i, j
     real(c_double) :: invAlpha
-    np = size(this%W, 2)
+    np = size(this%top%W, 2)
     ny = size(Y, 2)
-    nx = size(this%X)
+    nx = size(this%top%X)
     allocate(F(nx,ny), P(nx))
-    invAlpha = 1d0/this%alpha
-    info = this%fun%eval(this%X, Y, F)
+    invAlpha = 1d0/this%top%alpha
+    info = this%top%fun%eval(this%top%X, Y, F)
     if(info<0) RETURN
     do i = 1,np
-      P =  this%Vals(i,:)
+      P =  this%top%Vals(i,:)
       do j = 1,ny
-        W(i,j) = this%eDiff*invAlpha*ComputeDotProduct(F(:,j), P, this%xEnd)
+        W(i,j) = this%top%eDiff*invAlpha*ComputeDotProduct(F(:,j), P, this%top%xEnd)
         ! It is not essential to remove this part (the function basis is orthonormal)
         ! but the remaining value can be used for estimating the error of the approximation
         F(:,j) = F(:,j)-W(i,j)*P
@@ -273,7 +292,14 @@ Contains
       end forall 
     endif
   End Function mlf_FunBasisGetProjection
+
   ! Get value of the function expressed as W in the current basis at position x
+  real(c_double) Function mlf_model_FunBasisFunValue(this, W, x) result(Y)
+    class(mlf_model_funbasis), intent(in) :: this
+    real(c_double), intent(in) :: x, W(:)
+    Y = this%top%getValue(W,x)
+  end Function mlf_model_FunBasisFunValue
+
   pure real(c_double) Function mlf_FunBasisFunValue(this, W, x) result(Y)
     class(mlf_algo_funbasis), intent(in) :: this
     real(c_double), intent(in) :: x, W(:)
@@ -297,6 +323,7 @@ Contains
     Y2 = dot_product(this%Vals(:,i), W)
     Y =  (1d0-t)*Y1+t*Y2
   End Function mlf_FunBasisFunValue
+
   ! Compute the vectors X and V from the structure
   subroutine ComputeBasisValue(this, N)
     class(mlf_algo_funbasis), intent(inout) :: this

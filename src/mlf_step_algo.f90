@@ -31,13 +31,14 @@ Module mlf_step_algo
   Use iso_c_binding
   Use mlf_intf
   Use mlf_rsc_array
+  Use mlf_models
   IMPLICIT NONE
   PRIVATE
 
   PUBLIC :: mlf_step_obj_init, mlf_step_obj_reinit
 
   ! Object handling timer and step evaluations
-  Type, Public, extends(mlf_arr_obj), abstract :: mlf_step_obj
+  Type, Public, extends(mlf_obj_model), abstract :: mlf_step_obj
     integer(kind=8) :: start_time
     real :: cpu_start
     integer(c_int64_t), pointer :: niter, nitermax

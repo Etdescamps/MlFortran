@@ -43,7 +43,7 @@ Module mlf_kmeans
   public :: mlf_kmeans_c, mlf_match_points
 
   ! Kmean object type
-  Type, Public, extends(mlf_class_model) :: mlf_algo_kmeans
+  Type, Public, extends(mlf_step_obj) :: mlf_algo_kmeans
     real(c_double), pointer :: X(:,:), Mu(:,:), MDist
     real(c_double), allocatable :: minDist(:)
     integer(c_int32_t), allocatable :: cl(:)
@@ -52,10 +52,26 @@ Module mlf_kmeans
     procedure :: init => mlf_algo_kmeans_init
     procedure :: reinit => mlf_algo_kmeans_reinit
     procedure :: stepF => mlf_algo_kmeans_stepF
-    procedure :: getClass => mlf_algo_kmean_getClass
   End Type mlf_algo_kmeans
 
+  Type, Public, extends(mlf_class_model) :: mlf_model_kmeans
+    class(mlf_algo_kmeans), pointer :: top
+  Contains
+    procedure :: getClass => mlf_model_kmean_getClass
+  End Type mlf_model_kmeans
+
 Contains
+  ! Model initilisator
+  Subroutine mlf_model_kmean_init(this, top)
+    class(mlf_model), intent(out), allocatable :: this
+    class(mlf_algo_kmeans), intent(in), target :: top
+    ALLOCATE(mlf_model_kmeans :: this)
+    select type(this)
+      class is (mlf_model_kmeans)
+        this%top => top
+    end select
+  End Subroutine mlf_model_kmean_init
+
   ! Simple K-means algorithm implementation
 
   ! Init function for the step object
@@ -103,6 +119,7 @@ Contains
     if(CheckF(info, "Error reinit")) RETURN
     ALLOCATE(this%minDist(nX), this%cl(nX))
     this%MDist => this%rpar(nrpar)
+    call mlf_model_kmean_init(this%model, this)
   End Function mlf_algo_kmeans_init
 
   ! C interface to k-means algorithm
@@ -153,13 +170,13 @@ Contains
     info = 0
   End Function mlf_algo_kmeans_stepF
 
-  integer Function mlf_algo_kmean_getClass(this, X, Cl) result(info)
-    class(mlf_algo_kmeans), intent(in), target :: this
+  integer Function mlf_model_kmean_getClass(this, X, Cl) result(info)
+    class(mlf_model_kmeans), intent(in), target :: this
     real(c_double), intent(in) :: X(:,:)
     integer(c_int), intent(out) :: Cl(:)
     info = 0
-    call EvaluateClass(X, this%Mu, Cl)
-  End Function mlf_algo_kmean_getClass
+    call EvaluateClass(X, this%top%Mu, Cl)
+  End Function mlf_model_kmean_getClass
 
   Subroutine EvaluateClass(X, Mu, cl, minDist)
     ! Naive algorithm (TODO use a better structure when the number of points is huge)

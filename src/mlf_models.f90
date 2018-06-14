@@ -31,11 +31,18 @@ Module mlf_models
   Use iso_c_binding
   Use mlf_intf
   Use mlf_rsc_array
-  Use mlf_step_algo
   IMPLICIT NONE
   PRIVATE
+
+  Public :: mlf_getClass, mlf_getProba, mlf_getNumClasses, mlf_getValue, mlf_getProj
+  Type, public :: mlf_model
+  End Type mlf_model
   
-  Type, public, abstract, extends(mlf_step_obj) :: mlf_class_model
+  Type, public, abstract, extends(mlf_arr_obj) :: mlf_obj_model
+    class(mlf_model), allocatable :: model
+  End Type mlf_obj_model
+
+  Type, public, abstract, extends(mlf_model) :: mlf_class_model
   Contains
     procedure (mlf_model_getClass), deferred :: getClass
   End Type mlf_class_model
@@ -47,8 +54,7 @@ Module mlf_models
     procedure :: getClass => mlf_model_getClass_proba
   End Type mlf_class_proba_model
 
-  Type, public, abstract, extends(mlf_arr_obj) :: mlf_reduce_model
-    integer :: nDimIn, nDimOut
+  Type, public, abstract, extends(mlf_model) :: mlf_reduce_model
   Contains
     procedure (mlf_model_getProj), deferred :: getProj
   End Type mlf_reduce_model
@@ -114,82 +120,136 @@ Contains
     cl = maxloc(Proba, dim=2)
   End Function mlf_model_getClass_proba
 
+  Function c_getModel(cptr) result(model)
+    type(c_ptr), value :: cptr
+    type(mlf_cintf), pointer :: this
+    class(mlf_model), pointer :: model
+    model => NULL()
+    if(.NOT. C_ASSOCIATED(cptr)) RETURN
+    call C_F_POINTER(cptr, this)
+    if(.NOT. associated(this%obj)) RETURN
+    associate(obj => this%obj)
+      select type(obj)
+        class is (mlf_obj_model)
+          if(allocated(obj%model)) model => obj%model
+      end select
+    end associate
+  End Function c_getModel
+
+  integer(c_int) Function mlf_getClass(model, X, Cl) result(info)
+    class(mlf_model), intent(inout) :: model
+    integer(c_int), intent(out) :: Cl(:)
+    real(c_double), intent(in) :: X(:,:)
+    info = -1
+    select type(model)
+      class is (mlf_class_model)
+        info = model%getClass(X, Cl)
+    end select
+  End Function mlf_getClass
+
   integer(c_int) Function c_getClass(cptr, cX, cCl, nX, nIn) result(info) bind(C, name="mlf_getClass")
     type(c_ptr), value :: cptr, cX, cCl
     integer(c_int), value :: nX, nIn
-    type(mlf_cintf), pointer :: this
     real(c_double), pointer :: X(:,:)
+    class(mlf_model), pointer :: model
     integer(c_int), pointer :: Cl(:)
     info = -1
-    if(.NOT. C_ASSOCIATED(cptr)) RETURN
-    call C_F_POINTER(cptr, this)
-    if(.NOT. associated(this%obj)) RETURN
-    associate(obj => this%obj)
-      select type(obj)
-        class is (mlf_class_model)
-          call C_F_POINTER(cX, X, [nX, nIn])
-          call C_F_POINTER(cCl, Cl, [nIn])
-          info = obj%getClass(X, Cl)
-      end select
-    end associate
+    model => c_getModel(cptr)
+    if(.NOT. associated(model)) RETURN
+    call C_F_POINTER(cX, X, [nX, nIn])
+    call C_F_POINTER(cCl, Cl, [nIn])
+    info = mlf_getClass(model, X, Cl)
   End Function c_getClass
 
-  integer(c_int) Function c_getProba(cptr, cX, cCl, nX, nIn) result(info) bind(C, name="mlf_getProba")
-    type(c_ptr), value :: cptr, cX, cCl
-    integer(c_int), value :: nX, nIn
-    type(mlf_cintf), pointer :: this
-    real(c_double), pointer :: X(:,:), Cl(:,:)
-    integer :: nCl
+  integer(c_int) Function mlf_getProba(model, X, Cl) result(info)
+    class(mlf_model), intent(inout) :: model
+    real(c_double), intent(out) :: Cl(:,:)
+    real(c_double), intent(in) :: X(:,:)
     info = -1
-    if(.NOT. C_ASSOCIATED(cptr)) RETURN
-    call C_F_POINTER(cptr, this)
-    if(.NOT. associated(this%obj)) RETURN
-    associate(obj => this%obj)
-      select type(obj)
-        class is (mlf_class_proba_model)
-          nCl = obj%getNumClasses()
-          call C_F_POINTER(cX, X, [nX, nIn])
-          call C_F_POINTER(cCl, Cl, [nCl, nIn])
-          info = obj%getProba(X, Cl)
-      end select
-    end associate
+    select type(model)
+      class is (mlf_class_proba_model)
+        info = model%getProba(X, Cl)
+    end select
+  End Function mlf_getProba
+
+  integer(c_int) Function c_getProba(cptr, cX, cCl, nX, nIn, nCl) result(info) bind(C, name="mlf_getProba")
+    type(c_ptr), value :: cptr, cX, cCl
+    integer(c_int), value :: nX, nIn, nCl
+    class(mlf_model), pointer :: model
+    real(c_double), pointer :: X(:,:), Cl(:,:)
+    info = -1
+    model => c_getModel(cptr)
+    if(.NOT. associated(model)) RETURN
+    call C_F_POINTER(cX, X, [nX, nIn])
+    call C_F_POINTER(cCl, Cl, [nCl, nIn])
+    info = mlf_getProba(model, X, Cl)
   End Function c_getProba
 
-  integer(c_int) Function c_getProj(cptr, cY, cW, nIn) result(info) bind(C, name="mlf_getProj")
+  integer(c_int) Function mlf_getNumClasses(model) result(info)
+    class(mlf_model), intent(inout) :: model
+    info = -1
+    select type(model)
+      class is (mlf_class_proba_model)
+        info = model%getNumClasses()
+    end select
+  End Function mlf_getNumClasses
+
+  integer(c_int) Function c_getNumClasses(cptr) result(info) bind(C, name="mlf_getNumClasses")
+    type(c_ptr), value :: cptr
+    class(mlf_model), pointer :: model
+    info = -1
+    model => c_getModel(cptr)
+    if(.NOT. associated(model)) RETURN
+    info = mlf_getNumClasses(model)
+  End Function c_getNumClasses
+
+  integer(c_int) Function mlf_getProj(model, Y, W, Aerror) result(info)
+    class(mlf_model), intent(inout) :: model
+    real(c_double), intent(in) :: Y(:,:)
+    real(c_double), intent(out) :: W(:,:)
+    real(c_double), optional, intent(out) :: Aerror(:,:)
+    info = -1
+    select type(model)
+      class is (mlf_reduce_model)
+        info = model%getProj(Y,W,Aerror)
+    end select
+  End Function mlf_getProj
+
+  integer(c_int) Function c_getProj(cptr, cY, cW, nIn, nDimIn, nDimOut) result(info) bind(C, name="mlf_getProj")
     type(c_ptr), value :: cptr, cY, cW
     integer(c_int), value :: nIn
-    type(mlf_cintf), pointer :: this
+    class(mlf_model), pointer :: model
     real(c_double), pointer :: Y(:,:), W(:,:)
+    integer(c_int), value :: nDimIn, nDimOut
     info = -1
-    if(.NOT. C_ASSOCIATED(cptr)) RETURN
-    call C_F_POINTER(cptr, this)
-    if(.NOT. associated(this%obj)) RETURN
-    associate(obj => this%obj)
-      select type(obj)
-        class is (mlf_reduce_model)
-          call C_F_POINTER(cY, Y, [obj%nDimIn, nIn])
-          call C_F_POINTER(cW, W, [obj%nDimOut, nIn])
-          info = obj%getProj(Y, W)
-      end select
-    end associate
+    model => c_getModel(cptr)
+    if(.NOT. associated(model)) RETURN
+    call C_F_POINTER(cY, Y, [nDimIn, nIn])
+    call C_F_POINTER(cW, W, [nDimOut, nIn])
+    info = mlf_getProj(model, Y, W)
   End Function c_getProj
 
-  real(c_double) Function c_getValue(cptr, cW, t) result(Y) bind(C, name="mlf_getValue")
+  real(c_double) Function mlf_getValue(model, W, t) result(Y)
+    class(mlf_model), intent(inout) :: model
+    real(c_double), intent(in) :: W(:), t
+    Y = IEEE_VALUE(Y, IEEE_QUIET_NAN)
+    select type(model)
+      class is (mlf_approx_model)
+        Y = model%getValue(W,t)
+    end select
+  End Function mlf_getValue
+
+  real(c_double) Function c_getValue(cptr, cW, t, nDimOut) result(Y) bind(C, name="mlf_getValue")
     type(c_ptr), value :: cptr, cW
     real(c_double), value :: t
-    type(mlf_cintf), pointer :: this
+    class(mlf_model), pointer :: model
     real(c_double), pointer :: W(:)
+    integer(c_int), value :: nDimOut
     Y = IEEE_VALUE(Y, IEEE_QUIET_NAN)
-    if(.NOT. C_ASSOCIATED(cptr)) RETURN
-    call C_F_POINTER(cptr, this)
-    if(.NOT. associated(this%obj)) RETURN
-    associate(obj => this%obj)
-      select type(obj)
-        class is (mlf_approx_model)
-          call C_F_POINTER(cW, W, [obj%nDimOut])
-          Y = obj%getValue(W, t)
-      end select
-    end associate
+    model => c_getModel(cptr)
+    if(.NOT. associated(model)) RETURN
+    call C_F_POINTER(cW, W, [nDimOut])
+    Y = mlf_getValue(model, W, t)
   End Function c_getValue
 
 

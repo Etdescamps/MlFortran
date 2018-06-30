@@ -4,7 +4,7 @@ project(MLFORTRAN)
 
 set(VERSION 0.0.1)
 
-enable_language(C Fortran)
+enable_language(C Fortran CXX)
 
 include(cmake/fortran.cmake)
 include(cmake/c.cmake)
@@ -23,6 +23,7 @@ set(MLF_LIB mlfortran)
 
 add_subdirectory(src)
 add_subdirectory(tests)
+add_subdirectory(utils)
 
 install(DIRECTORY include/ DESTINATION include/MlFortran FILES_MATCHING PATTERN "*.h")
 

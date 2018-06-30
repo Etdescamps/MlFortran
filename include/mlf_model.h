@@ -29,6 +29,9 @@
 
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "mlf_cintf.h"
 
 int mlf_getClass(MLF_OBJ *obj, const double *X, int *Cl, int nX, int nIn, int nCl);
@@ -39,4 +42,8 @@ double mlf_getValue(MLF_OBJ *obj, const double *W, double t, int nDimOut);
 
 // Function reduction
 MLF_OBJ *mlf_funBasisInit(MLF_OBJ *fobj, int nFPar, double alpha, double x0, double xEnd, double *P, int nP, int sizeBase, int nX, double *WP);
+
+#ifdef __cplusplus
+}
+#endif
 

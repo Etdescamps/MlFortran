@@ -28,9 +28,18 @@
  */
 
 #pragma once
+
 #include "mlf_cintf.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 MLF_OBJ *mlf_kmeans_c(double *X, int nX, int nY, int nC, const double *Mu);
 double mlf_evalGaussian(int nD, int nX, const double *X, const double *Proba, double *mu, double *C);
 int mlf_maxGaussian(int nD, int nX, const double *X, double *Proba, const double *mu, const double *C, double lambda, double *sumLL);
+
+#ifdef __cplusplus
+}
+#endif
 

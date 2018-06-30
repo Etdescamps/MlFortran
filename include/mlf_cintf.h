@@ -31,6 +31,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef void MLF_OBJ;
 
 typedef enum {mlf_BOOL = 1, mlf_INT = 2, mlf_INT64 = 3, mlf_SIZE = 4, mlf_FLOAT = 5, mlf_DOUBLE = 6, mlf_SIZEPARAM = 7, mlf_RAW = 8} MLF_DATATYPE;
@@ -66,4 +70,8 @@ void mlf_randN(double *v, int N);
 
 // Display a matrix using FORTRAN representation
 void mlf_printMat(double *M, int nL, int nC);
+
+#ifdef __cplusplus
+}
+#endif
 

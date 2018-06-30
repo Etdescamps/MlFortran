@@ -28,6 +28,7 @@
  */
 
 #pragma once
+
 #include <stdlib.h>
 // Function that counts the number of zero bits on top of an uint32
 #if __LZCNT__

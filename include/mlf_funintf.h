@@ -28,13 +28,31 @@
  */
 
 #pragma once
+
 #include "mlf_cintf.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Objective function type used for multi/mono objective optimisation
 typedef int (*mlf_objective_fun)(const double *x, double *y, int nD, int nY, int lambda, void *ptr);
 
 MLF_OBJ *mlf_objfunction(mlf_objective_fun f, void *ptr, mlf_objective_fun cstr);
 
+// Basis function type used for dimension reduction
 typedef int (*mlf_basis_fun)(const double *x, const double *rpar, double *y, int nX, int nPar, int sPar, void *ptr);
 
 MLF_OBJ *mlf_basisfunction(mlf_basis_fun f, void *ptr);
+
+// Init/free function for .so binding using a data filename
+typedef void *(*mlf_init_fun)(const char *filename);
+
+typedef int (*mlf_free_fun)(void *data);
+
+typedef char *(*mlf_getinfo_fun)(int type);
+
+#ifdef __cplusplus
+}
+#endif
 

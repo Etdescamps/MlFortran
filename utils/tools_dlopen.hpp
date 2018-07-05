@@ -25,6 +25,10 @@ namespace ToolsDlopen {
     public:
       void init(string path);
       template<typename FType>
+      FType getSymOrNull(string name) {
+        return (FType) dlsym(handle, name.c_str());
+      }
+      template<typename FType>
       FType getSym(string name) {
         void *address = dlsym(handle, name.c_str());
         if(!address)

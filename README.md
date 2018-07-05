@@ -1,7 +1,7 @@
 # MlFortran
 
 **MlFortran** is an object-oriented machine learning library written in Fortran 2008.
-Its aim is to be computationally efficient, easy to read and interoperable with C.
+Its aim is to be computationally efficient, easy to read and interoperable with C and C++.
 This library is designed to be sufficiently generalist to handle multiple kind of algorithms:
   - Dimension reduction
   - Statistical inference (EM algorithm on gaussian mixture model)
@@ -17,8 +17,8 @@ This interface permits also to get data from the C language.
 This project has only been tested in POSIX environments (Ubuntu 18.04 and macOS).
 It requires these dependencies:
   - CMake >= 3.5
+  - GCC/G++ >= 7.0
   - GFortran >= 7.0
-  - G++ >= 7.0
   - LAPACK and BLAS
   - HDF5: a version that contains a Fortran 90/2003 interface compiled with the same
     version of GNU Fortran. (Remove Anaconda from your $PATH if cmake choose the wrong

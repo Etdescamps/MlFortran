@@ -46,8 +46,17 @@ namespace ToolsDlopen {
       description[i] = finfo(data, i);
     switch(typeFun) {
       case LibraryFunType::OptimFun:
+        {
+          mlf_objective_fun fobj = DlLoader::getSym<mlf_objective_fun>(funPrefix+"_objfun");
+          mlf_objective_fun fcstr = DlLoader::getSymOrNull<mlf_objective_fun>(funPrefix+"_cstrfun");
+          object = mlf_objfunction(fobj, data, fcstr);
+        }
         break;
       case LibraryFunType::BasisFun:
+        {
+          mlf_basis_fun fbasis = DlLoader::getSym<mlf_basis_fun>(funPrefix+"_basisfun");
+          object = mlf_basisfunction(fbasis, data);
+        }
         break;
       default:
         throw DlException(DlErrorType::InvalidFunctionType);

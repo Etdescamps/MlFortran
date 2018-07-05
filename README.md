@@ -12,6 +12,9 @@ This interface permits also to get data from the C language.
 
 **This project is in an early stage of development, don't expect this to be stable.**
 
+## License
+MlFortran is released under the BSD 3-Clause license.
+
 ## Requirements
 
 This project has only been tested in POSIX environments (Ubuntu 18.04 and macOS).

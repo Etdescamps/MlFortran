@@ -19,16 +19,23 @@ namespace ToolsDlopen {
 
   };
 
-  typedef enum {OptimFun, BasisFun} FunType;
-  class LibraryFun {
+  class DlLoader {
     protected:
       void *handle = nullptr;
+    public:
+      void init(string path);
+      ~DlLoader();
+  };
+
+  enum class LibraryFunType {OptimFun, BasisFun};
+  class LibraryFun : protected DlLoader{
+    protected:
       void *data = nullptr;
       mlf_free_fun ffree = nullptr;
       char *description[mlf_FIELDS+1];
       MLF_OBJ *object = nullptr;
     public:
-      int init(string path, string funPrefix, FunType t = OptimFun);
+      void init(string path, string funPrefix, LibraryFunType t);
       ~LibraryFun();
   };
 }

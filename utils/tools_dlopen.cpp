@@ -17,7 +17,8 @@ namespace ToolsDlopen {
         return MlfException::what();
     }
   }
-  int LibraryFun::init(string path, string funPrefix, FunType t) {
+
+  void DlLoader::init(string path) {
     if(handle) {
       dlclose(handle);
       handle = nullptr;
@@ -25,7 +26,14 @@ namespace ToolsDlopen {
     handle = dlopen(path.c_str(), RTLD_LAZY);
     if(!handle)
       throw DlException(DlErrorType::FilePathError);
-
+  }
+  DlLoader::~DlLoader(){
+    if(handle) {
+      dlclose(handle);
+    }
+  }
+  void LibraryFun::init(string path, string funPrefix, LibraryFunType t) {
+    DlLoader::init(path);
   }
   LibraryFun::~LibraryFun() {
     if(data) {
@@ -33,9 +41,6 @@ namespace ToolsDlopen {
         ffree(data);
       else
         free(data);
-    }
-    if(handle) {
-      dlclose(handle);
     }
     if(object) {
       mlf_dealloc(object);

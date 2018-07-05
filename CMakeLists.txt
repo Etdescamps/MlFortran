@@ -8,9 +8,11 @@ enable_language(C Fortran CXX)
 
 include(cmake/fortran.cmake)
 include(cmake/c.cmake)
+include(cmake/cpp.cmake)
 
 find_package(LAPACK REQUIRED)
 find_package(HDF5 COMPONENTS C Fortran REQUIRED)
+#find_package(Boost 1.54 REQUIRED)
 
 include_directories(include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src)

@@ -1,17 +1,21 @@
 #pragma once
 #include <cstdint>
 #include <string>
-#include <exception>
 #include <dlfcn.h>
-#include "mlf_funintf.h"
+#include "mlf.hpp"
 
 
 namespace ToolsDlopen {
 
   using std::string;
-  using std::exception;
+  using MlFortran::MlfException;
 
-  class  LibraryException : exception {
+  enum class DlErrorType {FilePathError, InvalidDll, MissingFunctions, DataError};
+  class DlException : MlfException {
+    public:
+      DlErrorType errorDl;
+      DlException(DlErrorType e) : MlfException(mlf_OTHERERROR), errorDl(e) {}
+      const char* what() const noexcept override;
 
   };
 

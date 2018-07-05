@@ -17,7 +17,8 @@ This interface permits also to get data from the C language.
 This project has only been tested in POSIX environments (Ubuntu 18.04 and macOS).
 It requires these dependencies:
   - CMake >= 3.5
-  - GFortran >= 7
+  - GFortran >= 7.0
+  - G++ >= 7.0
   - LAPACK and BLAS
   - HDF5: a version that contains a Fortran 90/2003 interface compiled with the same
     version of GNU Fortran. (Remove Anaconda from your $PATH if cmake choose the wrong

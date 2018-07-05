@@ -1,6 +1,6 @@
 
 set(MLF_UNSUPERVISED unsupervised/mlf_kmeans.f90 unsupervised/mlf_emgmm.f90 unsupervised/mlf_gaussian.f90)
-set(MLF_CSRC cfuns/qsort.c)
+set(MLF_CSRC cfuns/qsort.c cfuns/mlfcpp.cpp)
 set(MLF_REDUCE reduce/mlf_funbasis.f90)
 set(MLF_MULTI_OBJ multi_objective/mlf_pareto.f90)
 set(MLF_MONO_OBJ mono_objective/mlf_cmaes.f90)

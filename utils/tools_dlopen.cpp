@@ -72,7 +72,8 @@ namespace ToolsDlopen {
     mlf_getinfo_fun finfo = DlLoader::getSym<mlf_getinfo_fun>(funPrefix+"_getinfo");
     data = finit(fileName.c_str());
     for(int i=mlf_NAME; i <= mlf_FIELDS; i++)
-      description[i] = finfo(data, i);
+      description[i] = (char *) finfo(data, i);
+    info = finfo(data, mlf_FUNINFO);
     switch(typeFun) {
       case LibraryFunType::OptimFun:
         {

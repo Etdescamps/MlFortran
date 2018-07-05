@@ -50,7 +50,11 @@ typedef void *(*mlf_init_fun)(const char *filename);
 
 typedef int (*mlf_free_fun)(void *data);
 
-typedef char *(*mlf_getinfo_fun)(void *data, int type);
+typedef void *(*mlf_getinfo_fun)(void *data, int type);
+
+typedef struct {
+  int nDimIn, nDimOut;
+} MLF_OBJFUNINFO;
 
 #ifdef __cplusplus
 }

@@ -10,7 +10,7 @@ namespace ToolsDlopen {
   using std::string;
   using MlFortran::MlfException;
 
-  enum class DlErrorType {FilePathError, InvalidDll, MissingFunctions, DataError};
+  enum class DlErrorType {FilePathError, InvalidDll, MissingFunctions, DataError, InvalidFunctionType};
   class DlException : MlfException {
     public:
       DlErrorType errorDl;
@@ -24,6 +24,13 @@ namespace ToolsDlopen {
       void *handle = nullptr;
     public:
       void init(string path);
+      template<typename FType>
+      FType getSym(string name) {
+        void *address = dlsym(handle, name.c_str());
+        if(!address)
+          throw DlException(DlErrorType::MissingFunctions);
+        return (FType) address;
+      }
       ~DlLoader();
   };
 
@@ -35,7 +42,7 @@ namespace ToolsDlopen {
       char *description[mlf_FIELDS+1];
       MLF_OBJ *object = nullptr;
     public:
-      void init(string path, string funPrefix, LibraryFunType t);
+      void init(string path, string funPrefix, LibraryFunType typeFun, string fileName = "");
       ~LibraryFun();
   };
 }

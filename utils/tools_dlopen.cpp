@@ -13,6 +13,8 @@ namespace ToolsDlopen {
         return "DlException: Library file is missing functions";
       case DlErrorType::DataError:
         return "DlException: Error when handling data";
+      case DlErrorType::InvalidFunctionType:
+        return "DlException: Invalid function type";
       default:
         return MlfException::what();
     }
@@ -27,14 +29,31 @@ namespace ToolsDlopen {
     if(!handle)
       throw DlException(DlErrorType::FilePathError);
   }
+
   DlLoader::~DlLoader(){
     if(handle) {
       dlclose(handle);
     }
   }
-  void LibraryFun::init(string path, string funPrefix, LibraryFunType t) {
+
+  void LibraryFun::init(string path, string funPrefix, LibraryFunType typeFun, string fileName) {
     DlLoader::init(path);
+    mlf_init_fun finit = DlLoader::getSym<mlf_init_fun>(funPrefix+"_init");
+    ffree = DlLoader::getSym<mlf_free_fun>(funPrefix+"_free");
+    mlf_getinfo_fun finfo = DlLoader::getSym<mlf_getinfo_fun>(funPrefix+"_getinfo");
+    data = finit(fileName.c_str());
+    for(int i=mlf_NAME; i <= mlf_FIELDS; i++)
+      description[i] = finfo(data, i);
+    switch(typeFun) {
+      case LibraryFunType::OptimFun:
+        break;
+      case LibraryFunType::BasisFun:
+        break;
+      default:
+        throw DlException(DlErrorType::InvalidFunctionType);
+    }
   }
+
   LibraryFun::~LibraryFun() {
     if(data) {
       if(ffree)

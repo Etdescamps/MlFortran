@@ -50,7 +50,7 @@ typedef void *(*mlf_init_fun)(const char *filename);
 
 typedef int (*mlf_free_fun)(void *data);
 
-typedef char *(*mlf_getinfo_fun)(int type);
+typedef char *(*mlf_getinfo_fun)(void *data, int type);
 
 #ifdef __cplusplus
 }

@@ -3,14 +3,19 @@
 #include <stdexcept>
 #include <string>
 #include <unistd.h>
+#include "tools_dlopen.hpp"
 
 using namespace std;
+using namespace ToolsDlopen;
 
-
+int _proceed_optim(MLF_OBJ *obj, int lambda, int mu, double sigma) {
+  return 0;
+}
 
 static int _print_usage(int out, char *name) {
-  cerr << "Usage: "<< name <<" -m model.so (-p m_parameter.dat) (-c checkpoint.h5)" << endl;
+  cerr << "Usage: "<< name <<" -m model.so (-X prefix) (-p m_parameter.dat) (-c checkpoint.h5)" << endl;
   cerr << "  -m model.so           Model used as optimisation function" << endl;
+  cerr << "  -X prefix_name        Prefix name used by the function" << endl;
   cerr << "  -p m_parameter.dat    Parameter file used for model initialisation" << endl;
   cerr << "  -c checkpoint.h5      Checkpoint file that save the optimisation" << endl;
   cerr << "  -A algorithm          Select an algorithm for optimization" << endl;
@@ -27,15 +32,18 @@ static int _print_usage(int out, char *name) {
 
 int main(int argc, char **argv) {
   string nmodel, nparameter, ncheckpoint;
-  string nalg = "cmaes";
+  string nalg = "cmaes", nprefix = "fun";
   int opt, ninput = -1, noutput = -1;
-  int mu, lambda;
+  int mu = -1, lambda = -1;
   double sigma = 1.0;
   try {
-    while((opt = getopt(argc, argv, "m:p:c:A:hi:o:L:M:S")) != -1) {
+    while((opt = getopt(argc, argv, "m:X:p:c:A:hi:o:L:M:S")) != -1) {
       switch(opt) {
         case 'm':
           nmodel = optarg;
+          break;
+        case 'X':
+          nprefix = optarg;
           break;
         case 'p':
           nparameter = optarg;
@@ -78,6 +86,9 @@ int main(int argc, char **argv) {
   }
   if(nmodel.size() == 0)
     return _print_usage(-1, argv[0]);
+  LibraryFun lib;
+  MLF_OBJ *obj = lib.init(nmodel, nprefix, LibraryFunType::OptimFun, nparameter, ninput, noutput);
+  _proceed_optim(obj, lambda, mu, sigma);
   return 0;
 }
 

@@ -68,6 +68,7 @@ namespace ToolsDlopen {
   };
 
   enum class LibraryFunType {OptimFun, BasisFun};
+
   class LibraryFun : protected DlLoader {
     protected:
       void *data = nullptr;
@@ -75,7 +76,7 @@ namespace ToolsDlopen {
       const char *description[mlf_FIELDS+1];
       MLF_OBJ *object = nullptr;
     public:
-      void init(string path, string funPrefix, LibraryFunType typeFun, string fileName = "", int nIn = -1, int nOut = -1);
+      MLF_OBJ *init(string path, string funPrefix, LibraryFunType typeFun, string fileName = "", int nIn = -1, int nOut = -1);
       ~LibraryFun();
   };
 }

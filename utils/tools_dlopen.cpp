@@ -65,7 +65,7 @@ namespace ToolsDlopen {
     }
   }
 
-  void LibraryFun::init(string path, string funPrefix, LibraryFunType typeFun, string fileName, int nIn, int nOut) {
+  MLF_OBJ *LibraryFun::init(string path, string funPrefix, LibraryFunType typeFun, string fileName, int nIn, int nOut) {
     DlLoader::init(path);
     mlf_init_fun finit = DlLoader::getSym<mlf_init_fun>(funPrefix+"_init");
     ffree = DlLoader::getSym<mlf_free_fun>(funPrefix+"_free");
@@ -99,6 +99,7 @@ namespace ToolsDlopen {
       default:
         throw DlException(DlErrorType::InvalidFunctionType);
     }
+    return object;
   }
 
   LibraryFun::~LibraryFun() {

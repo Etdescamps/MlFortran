@@ -145,17 +145,15 @@ Contains
     real(c_double), intent(out) :: dt
     integer(c_long), value :: niter
     integer(kind=8) :: niterX
-    type(mlf_cintf), pointer :: this
+    class(mlf_obj), pointer :: obj
     info = -1
     niterX = niter
-    call C_F_POINTER(cptr, this)
-    if(.NOT. associated(this%obj)) RETURN
-    associate(obj => this%obj)
-      select type(obj)
-        class is (mlf_step_obj)
-          info = obj%step(dt, niterX)
-          info = niterX
-      end select
-    end associate
+    obj => mlf_getobjfromc(cptr)
+    if(.NOT. associated(obj)) RETURN
+    select type(obj)
+      class is (mlf_step_obj)
+        info = obj%step(dt, niterX)
+        info = niterX
+    end select
   End Function mlf_step_c
 End Module mlf_step_algo

@@ -40,6 +40,8 @@ Module mlf_cmaes
   Use mlf_errors
   IMPLICIT NONE
   PRIVATE
+  
+  Public :: mlf_cmaes_objcreate
 
   ! Common class for CMA-ES and MA-ES
   Type, Public, abstract, extends(mlf_optim_obj) :: mlf_matrix_es_obj
@@ -52,7 +54,7 @@ Module mlf_cmaes
     real(c_double), allocatable :: D(:,:) ! Previous vectors multiplied by M (D = MZ)
     real(c_double), allocatable :: Dw(:), DM(:,:)
     real(c_double) :: chiN, mueff, cs, cw, c1, dsigma
-    integer :: mu
+    integer :: mu = -1
   Contains
     procedure :: genX => mlf_matrix_es_obj_genX
     procedure :: stopCond => mlf_matrix_es_obj_stopCond
@@ -98,18 +100,16 @@ Contains
     integer, intent(in), optional :: lambdaIn, muIn
     class(mlf_data_handler), intent(inout), optional :: data_handler
     integer, parameter :: ni = 0, nr = 2, ns = 4
-    integer :: lambda
+    integer :: lambda = -1
     integer(c_int64_t) :: nD, CND(2), mu
     nD = fun%nD
     CND = nD
-    if(present(lambdaIn)) then
-      lambda = lambdaIn
-    else
+    if(present(lambdaIn)) lambda = lambdaIn
+    if(lambda <= 0) then
       lambda = 4 + floor(3.0*log(real(ND)))
     end if
-    if(present(muIn)) then
-      this%mu = muIn
-    else
+    if(present(muIn)) this%mu = muIn
+    if(.NOT. present(muIN) .OR. this%mu > lambda) then
       this%mu = MAX(lambda/2,1)
     endif
     mu = this%mu
@@ -217,6 +217,37 @@ Contains
       info = this%reinit_X(X0, sigma0, funW, alphacovIn)
     endif
   End Function mlf_maes_init
+
+  Function mlf_cmaes_objcreate(ismaes, fun, X0, sigma0, funW, lambdaIn, muIn, &
+      alphacovIn, data_handler, covevery) result(obj)
+    type(mlf_maes_obj), pointer :: mthis
+    type(mlf_cmaes_obj), pointer :: cthis
+    class(mlf_objective_fun), intent(in) :: fun
+    class (mlf_obj), pointer :: obj
+    class(mlf_weight_fun), optional, intent(in) :: funW
+    real(c_double), intent(in), optional :: X0(:), sigma0, alphacovIn
+    integer, intent(in), optional :: lambdaIn, muIn, covevery
+    class(mlf_data_handler), intent(inout), optional :: data_handler
+    logical, intent(in) :: ismaes
+    integer :: ret
+    if(ismaes) then
+      allocate(mthis)
+      ret = mthis%init(fun, X0, sigma0, funW, lambdaIn, muIn, alphacovIn, data_handler)
+      if(ret<0) then
+        deallocate(mthis)
+      else
+        obj => mthis
+      endif
+    else
+      allocate(cthis)
+      ret = cthis%init(fun, X0, sigma0, funW, lambdaIn, muIn, alphacovIn, covevery, data_handler)
+      if(ret<0) then
+        deallocate(cthis)
+      else
+        obj => cthis
+      endif
+    endif
+  End Function mlf_cmaes_objcreate
 
   Integer Function mlf_cmaes_init(this, fun, X0, sigma0, funW, lambdaIn, muIn, &
       alphacovIn, covEvery, data_handler) result(info)

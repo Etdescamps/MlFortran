@@ -79,7 +79,7 @@ Contains
   type(c_ptr) Function c_funbasis_init(cfobj, nFPar, alpha, x0, xEnd, cP, nP, sizeBase, nX, cWP) &
       bind(C, name="mlf_funBasisInit")
     type(c_ptr), value :: cfobj, cP, cWP
-    type(mlf_cintf), pointer :: funC
+    class(mlf_obj), pointer :: fobj
     type(mlf_algo_funbasis), pointer :: x
     class (mlf_obj), pointer :: obj
     real(c_double), value :: alpha, x0, xEnd
@@ -87,24 +87,22 @@ Contains
     real(c_double), pointer :: WP(:), P(:,:)
     integer :: info
     c_funbasis_init = C_NULL_PTR
-    call C_F_POINTER(cfobj, funC)
-    if(.NOT. associated(funC%obj)) RETURN
-    associate(fobj => funC%obj)
-      select type(fobj)
-        class is (mlf_basis_fun)
-          if(.NOT. C_ASSOCIATED(cP)) RETURN
-          call C_F_POINTER(cP, P, [nFPar, nP])
-          ALLOCATE(x)
-          if(.NOT. C_ASSOCIATED(cWP)) then
-            info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX)
-          else
-            call C_F_POINTER(cWP, WP, [nP])
-            info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX, WP)
-          endif
-          obj => x
-          c_funbasis_init = c_allocate(obj)
-      end select
-    end associate
+    fobj => mlf_getobjfromc(cfobj)
+    if(.NOT. associated(fobj)) RETURN
+    select type(fobj)
+      class is (mlf_basis_fun)
+        if(.NOT. C_ASSOCIATED(cP)) RETURN
+        call C_F_POINTER(cP, P, [nFPar, nP])
+        ALLOCATE(x)
+        if(.NOT. C_ASSOCIATED(cWP)) then
+          info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX)
+        else
+          call C_F_POINTER(cWP, WP, [nP])
+          info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX, WP)
+        endif
+        obj => x
+        c_funbasis_init = c_allocate(obj)
+    end select
   End Function c_funbasis_init
 
   ! Init function for the step object

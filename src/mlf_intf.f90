@@ -60,7 +60,7 @@ Module mlf_intf
   Public :: mlf_BOOL, mlf_INT, mlf_INT64, mlf_SIZE, mlf_FLOAT, mlf_DOUBLE, mlf_SIZEPARAM, mlf_RAW
   Public :: mlf_DIRECT, mlf_INDIRECT, mlf_READONLY, mlf_COPYONLY, mlf_WRITEONLY
   Public :: mlf_OK, mlf_UNINIT, mlf_FUNERROR, mlf_WRONGTYPE, mlf_NAME, mlf_DESC, mlf_FIELDS
-  Public :: mlf_obj_finalize
+  Public :: mlf_obj_finalize, mlf_getobjfromc
 
   Type, Public, bind(C) :: mlf_dt
     integer(c_short) :: dt
@@ -259,6 +259,14 @@ Contains
     this%obj => obj
     cptr = C_LOC(this)
   End Function c_allocate
+
+  Function mlf_getobjfromc(cptr) result(obj)
+    type(c_ptr) :: cptr
+    type(mlf_cintf), pointer :: this
+    class (mlf_obj), pointer :: obj
+    call C_F_POINTER(cptr, this)
+    obj => this%obj
+  End Function mlf_getobjfromc
 
   ! Get ressource handler for most of the classes
   type(c_ptr) Function c_getrsc(cptr, id, dt0, nD, D, dataptr) bind(C, name="mlf_getrsc")

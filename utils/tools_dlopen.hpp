@@ -68,7 +68,7 @@ namespace ToolsDlopen {
   };
 
   enum class LibraryFunType {OptimFun, BasisFun};
-  class LibraryFun : protected DlLoader{
+  class LibraryFun : protected DlLoader {
     protected:
       void *data = nullptr;
       mlf_free_fun ffree = nullptr;

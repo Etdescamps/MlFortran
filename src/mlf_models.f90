@@ -122,18 +122,15 @@ Contains
 
   Function c_getModel(cptr) result(model)
     type(c_ptr), value :: cptr
-    type(mlf_cintf), pointer :: this
+    class(mlf_obj), pointer :: obj
     class(mlf_model), pointer :: model
     model => NULL()
-    if(.NOT. C_ASSOCIATED(cptr)) RETURN
-    call C_F_POINTER(cptr, this)
-    if(.NOT. associated(this%obj)) RETURN
-    associate(obj => this%obj)
-      select type(obj)
-        class is (mlf_obj_model)
-          if(allocated(obj%model)) model => obj%model
-      end select
-    end associate
+    obj => mlf_getobjfromc(cptr)
+    if(.NOT. associated(obj)) RETURN
+    select type(obj)
+      class is (mlf_obj_model)
+        if(allocated(obj%model)) model => obj%model
+    end select
   End Function c_getModel
 
   integer(c_int) Function mlf_getClass(model, X, Cl) result(info)

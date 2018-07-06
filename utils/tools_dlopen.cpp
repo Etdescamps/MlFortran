@@ -65,7 +65,7 @@ namespace ToolsDlopen {
     }
   }
 
-  void LibraryFun::init(string path, string funPrefix, LibraryFunType typeFun, string fileName) {
+  void LibraryFun::init(string path, string funPrefix, LibraryFunType typeFun, string fileName, int nIn, int nOut) {
     DlLoader::init(path);
     mlf_init_fun finit = DlLoader::getSym<mlf_init_fun>(funPrefix+"_init");
     ffree = DlLoader::getSym<mlf_free_fun>(funPrefix+"_free");
@@ -73,13 +73,21 @@ namespace ToolsDlopen {
     data = finit(fileName.c_str());
     for(int i=mlf_NAME; i <= mlf_FIELDS; i++)
       description[i] = (char *) finfo(data, i);
-    info = finfo(data, mlf_FUNINFO);
+    void *info = finfo(data, mlf_FUNINFO);
     switch(typeFun) {
       case LibraryFunType::OptimFun:
         {
           mlf_objective_fun fobj = DlLoader::getSym<mlf_objective_fun>(funPrefix+"_objfun");
           mlf_objective_fun fcstr = DlLoader::getSymOrNull<mlf_objective_fun>(funPrefix+"_cstrfun");
-          object = mlf_objfunction(fobj, data, fcstr);
+          MLF_OBJFUNINFO nfo = { nIn, -1, nOut};
+          if(info) {
+            nfo = *(MLF_OBJFUNINFO*) info;
+            if(nIn>0)
+              nfo.nDimIn = nIn;
+            if(nOut>0)
+              nfo.nDimOut = nOut;
+          }
+          object = mlf_objfunction(fobj, data, fcstr, &nfo);
         }
         break;
       case LibraryFunType::BasisFun:

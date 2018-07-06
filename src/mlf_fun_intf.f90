@@ -34,6 +34,10 @@ Module mlf_fun_intf
   PRIVATE
  
   Public :: c_objfunction, c_basisfunction
+  Type, bind(C) :: mlf_objfuninfo
+    integer(c_int) :: nDimIn, nDimCstr, nDimOut
+  End Type mlf_objfuninfo
+
   ! Function handler ((multi/mono) objective fitness function)
   Type, Public, abstract, extends(mlf_obj) :: mlf_objective_fun
     integer :: nD, nC, nY
@@ -177,13 +181,15 @@ Contains
     endif
   End Function mlf_obj_c_constraints
 
-  type(c_ptr) Function c_objfunction(cfun, cptr, ccst) bind(C, name="mlf_objfunction")
+  type(c_ptr) Function c_objfunction(cfun, cptr, ccst, funinfo) bind(C, name="mlf_objfunction")
     type(c_ptr), value :: cptr
+    type(mlf_objfuninfo) :: funinfo
     type(c_funptr), value :: cfun, ccst
     type(mlf_objective_fun_c), pointer :: x
     class (mlf_obj), pointer :: obj
     ALLOCATE(x)
     x%ptr = cptr
+    x%nD = funinfo%nDimIn; x%nY = funinfo%nDimOut; x%nC = funinfo%nDimCstr
     if(C_ASSOCIATED(cfun)) call C_F_PROCPOINTER(cfun, x%evalC)
     if(C_ASSOCIATED(ccst)) call C_F_PROCPOINTER(ccst, x%constraintsC)
     obj => x

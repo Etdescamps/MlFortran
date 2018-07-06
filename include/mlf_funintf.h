@@ -38,7 +38,11 @@ extern "C" {
 // Objective function type used for multi/mono objective optimisation
 typedef int (*mlf_objective_fun)(const double *x, double *y, int nD, int nY, int lambda, void *ptr);
 
-MLF_OBJ *mlf_objfunction(mlf_objective_fun f, void *ptr, mlf_objective_fun cstr);
+typedef struct {
+  int nDimIn, nDimCstr, nDimOut;
+} MLF_OBJFUNINFO;
+
+MLF_OBJ *mlf_objfunction(mlf_objective_fun f, void *ptr, mlf_objective_fun cstr, MLF_OBJFUNINFO *info);
 
 // Basis function type used for dimension reduction
 typedef int (*mlf_basis_fun)(const double *x, const double *rpar, double *y, int nX, int nPar, int sPar, void *ptr);
@@ -51,10 +55,6 @@ typedef void *(*mlf_init_fun)(const char *filename);
 typedef int (*mlf_free_fun)(void *data);
 
 typedef void *(*mlf_getinfo_fun)(void *data, int type);
-
-typedef struct {
-  int nDimIn, nDimOut;
-} MLF_OBJFUNINFO;
 
 #ifdef __cplusplus
 }

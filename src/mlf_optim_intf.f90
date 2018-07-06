@@ -45,21 +45,20 @@ Module mlf_optim_intf
   Use mlf_cmaes
   IMPLICIT NONE
   PRIVATE
+
+  Public :: c_getoptimobj
 Contains
-  type(c_ptr) Function c_getoptimobj(calgoname, cfunobj, chandler, NIn, Nout, lambda, &
+  type(c_ptr) Function c_getoptimobj(calgoname, cfunobj, chandler, lambda, &
       mu, sigma) result(cptr) bind(C, name="mlf_getoptimobj")
     type(c_ptr), value :: calgoname, cfunobj, chandler
-    integer(c_int), value :: NIn, Nout, lambda, mu
+    integer(c_int), value :: lambda, mu
     real(c_double), value :: sigma
-    real(c_double), allocatable :: X0(:)
     class(mlf_objective_fun), pointer :: funobj
     class(mlf_obj), pointer :: obj 
     character(len=:, kind=c_char), allocatable, target :: algoname
     class(mlf_data_handler), pointer :: data_handler
     call mlf_stringFromC(calgoname, algoname)
     obj => mlf_getobjfromc(cfunobj)
-    ALLOCATE(X0(NIn))
-    X0 = 0
     if(associated(obj)) then
       select type (obj)
       class is (mlf_objective_fun)
@@ -76,9 +75,9 @@ Contains
     obj => NULL()
     select case (algoname)
       case("maes") ! MA-ES
-        obj => mlf_cmaes_objcreate(.TRUE., funobj, X0, sigma, lambdaIn = lambda, muIn = mu, data_handler = data_handler)
+        obj => mlf_cmaes_objcreate(.TRUE., funobj, sigma0 = sigma, lambdaIn = lambda, muIn = mu, data_handler = data_handler)
       case default ! CMA-ES
-        obj => mlf_cmaes_objcreate(.FALSE., funobj, X0, sigma, lambdaIn = lambda, muIn = mu, data_handler = data_handler)
+        obj => mlf_cmaes_objcreate(.FALSE., funobj, sigma0 = sigma, lambdaIn = lambda, muIn = mu, data_handler = data_handler)
     end select
     cptr = c_allocate(obj)
   End Function c_getoptimobj

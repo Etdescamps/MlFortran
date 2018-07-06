@@ -266,6 +266,7 @@ Contains
     type(c_ptr) :: cptr
     type(mlf_cintf), pointer :: this
     class (mlf_obj), pointer :: obj
+    obj => NULL()
     if(C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
     obj => this%obj

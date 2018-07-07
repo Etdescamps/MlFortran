@@ -302,5 +302,23 @@ namespace MlFortran {
         return at;
       }
   };
+
+  class MlfStepObject : public MlfObject {
+    public:
+      using MlfObject::MlfObject;
+      int64_t step() {
+        double dt = 0;
+        return mlf_step(MlfObject::get(), &dt, 1);
+      }
+      int64_t step(double &dt, int nstep = 1) {
+        return mlf_step(MlfObject::get(), &dt, nstep);
+      }
+  };
+  class MlfOptimObject : public MlfStepObject {
+    public:
+      MlfOptimObject(string nalg, MlfObject &funobj, int lambda, int mu, double sigma)
+        : MlfStepObject(mlf_getoptimobj(nalg.c_str(), funobj.get(), nullptr, lambda, mu, sigma)) {}
+  };
+
 }
 

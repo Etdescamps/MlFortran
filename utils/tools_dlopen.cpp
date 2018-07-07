@@ -49,7 +49,7 @@ namespace ToolsDlopen {
     }
   }
 
-  void DlLoader::init(string path) {
+  void DlLoader::init(const string &path) {
     if(handle) {
       dlclose(handle);
       handle = nullptr;
@@ -65,7 +65,7 @@ namespace ToolsDlopen {
     }
   }
 
-  MLF_OBJ *LibraryFun::init(string path, string funPrefix, LibraryFunType typeFun, string fileName, int nIn, int nOut) {
+  MLF_OBJ *LibraryFun::init(const string &path, const string &funPrefix, LibraryFunType typeFun, const string &fileName, int nIn, int nOut) {
     DlLoader::init(path);
     mlf_init_fun finit = DlLoader::getSym<mlf_init_fun>(funPrefix+"_init");
     ffree = DlLoader::getSym<mlf_free_fun>(funPrefix+"_free");

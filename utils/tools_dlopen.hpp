@@ -52,13 +52,13 @@ namespace ToolsDlopen {
     protected:
       void *handle = nullptr;
     public:
-      void init(string path);
+      void init(const string &path);
       template<typename FType>
-      FType getSymOrNull(string name) {
+      FType getSymOrNull(const string &name) {
         return (FType) dlsym(handle, name.c_str());
       }
       template<typename FType>
-      FType getSym(string name) {
+      FType getSym(const string &name) {
         void *address = dlsym(handle, name.c_str());
         if(!address)
           throw DlException(DlErrorType::MissingFunctions);
@@ -76,7 +76,7 @@ namespace ToolsDlopen {
       const char *description[mlf_FIELDS+1];
       MLF_OBJ *object = nullptr;
     public:
-      MLF_OBJ *init(string path, string funPrefix, LibraryFunType typeFun, string fileName = "", int nIn = -1, int nOut = -1);
+      MLF_OBJ *init(const string &path, const string &funPrefix, LibraryFunType typeFun, const string &fileName = "", int nIn = -1, int nOut = -1);
       ~LibraryFun();
   };
 }

@@ -34,6 +34,8 @@ Module mlf_optim
   Use mlf_step_algo
   Use mlf_fun_intf
   Use mlf_errors
+  Use mlf_utils
+  Use mlf_rand
   IMPLICIT NONE
   PRIVATE
 
@@ -228,12 +230,12 @@ Contains
 
   Subroutine mlf_optim_setparams(p, fun, lambda, mu, XMin, XMax, X0, nevalFunMax, sigma, targetFun)
     class(mlf_optim_param), intent(inout) :: p
-    class(mlf_objective_fun), pointer :: fun
+    class(mlf_objective_fun), target :: fun
     integer(c_int) :: lambda
     integer(c_int), optional :: mu
     integer(c_int64_t), optional :: nevalFunMax
     real(c_double), optional :: sigma, targetFun
-    real(c_double), optional, pointer :: XMin(:), XMax(:), X0(:)
+    real(c_double), optional, target :: XMin(:), XMax(:), X0(:)
     p%fun => fun
     p%lambda = lambda
     call SetIf(p%mu, -1, mu)

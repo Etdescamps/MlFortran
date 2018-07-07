@@ -35,6 +35,7 @@ Program test_cmaes
   Use mlf_matrix
   Use mlf_fun_intf
   Use mlf_cmaes
+  Use mlf_optim
   Use test_functions
   integer :: lambda=120, ND = 30, Nmax = 2000, Niter = 30, NFirst
   integer :: larg = 32, info
@@ -46,6 +47,7 @@ Program test_cmaes
   class (mlf_matrix_es_obj), pointer :: optObj => maesOpt
   type (mlf_objective_test) :: fTest
   procedure (mlf_obj_test_fun), pointer :: optFun
+  type(mlf_optim_param) :: p
   optFun => OFrosenbrock
   if(COMMAND_ARGUMENT_COUNT()>0) then
     call GET_COMMAND_ARGUMENT(1, arg, larg)
@@ -109,11 +111,12 @@ Program test_cmaes
   call fTest%init(optFun, ND)
   ALLOCATE(X0(ND))
   X0 = 1d0 
+  call p%init(fTest, lambda, X0 = X0)
   Select Type(optObj)
   class is (mlf_maes_obj)
-    info = optObj%init(fTest, X0 = X0, lambdaIn = lambda)
+    info = optObj%init(params = p)
   class is (mlf_cmaes_obj)
-    info = optObj%init(fTest, X0 = X0, lambdaIn = lambda, covEvery = 1)
+    info = optObj%init(params = p, covEvery = 1)
   End Select
   DEALLOCATE(X0)
   call optObj%constraints_step(niterMax = int(nMax, kind=8))

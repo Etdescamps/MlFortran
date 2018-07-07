@@ -26,6 +26,7 @@ set(MLF_LIB mlfortran)
 add_subdirectory(src)
 add_subdirectory(tests)
 add_subdirectory(utils)
+add_subdirectory(examples)
 
 install(DIRECTORY include/ DESTINATION include/MlFortran FILES_MATCHING PATTERN "*.h")
 

@@ -67,13 +67,17 @@ namespace ToolsDlopen {
 
   MLF_OBJ *LibraryFun::init(const string &path, const string &funPrefix, LibraryFunType typeFun, const string &fileName, int nIn, int nOut) {
     DlLoader::init(path);
-    mlf_init_fun finit = DlLoader::getSym<mlf_init_fun>(funPrefix+"_init");
-    ffree = DlLoader::getSym<mlf_free_fun>(funPrefix+"_free");
-    mlf_getinfo_fun finfo = DlLoader::getSym<mlf_getinfo_fun>(funPrefix+"_getinfo");
-    data = finit(fileName.c_str());
-    for(int i=mlf_NAME; i <= mlf_FIELDS; i++)
-      description[i] = (char *) finfo(data, i);
-    void *info = finfo(data, mlf_FUNINFO);
+    mlf_init_fun finit = DlLoader::getSymOrNull<mlf_init_fun>(funPrefix+"_init");
+    ffree = DlLoader::getSymOrNull<mlf_free_fun>(funPrefix+"_free");
+    mlf_getinfo_fun finfo = DlLoader::getSymOrNull<mlf_getinfo_fun>(funPrefix+"_getinfo");
+    if(finit)
+      data = finit(fileName.c_str());
+    void *info = nullptr;
+    if(finfo) {
+      for(int i=mlf_NAME; i <= mlf_FIELDS; i++)
+        description[i] = (char *) finfo(data, i);
+      finfo(data, mlf_FUNINFO);
+    }
     switch(typeFun) {
       case LibraryFunType::OptimFun:
         {
@@ -81,12 +85,16 @@ namespace ToolsDlopen {
           mlf_objective_fun fcstr = DlLoader::getSymOrNull<mlf_objective_fun>(funPrefix+"_cstrfun");
           MLF_OBJFUNINFO nfo = { nIn, -1, nOut};
           if(info) {
+            // Get default values of the model
             nfo = *(MLF_OBJFUNINFO*) info;
+            // Use input dimension if provided
             if(nIn>0)
               nfo.nDimIn = nIn;
             if(nOut>0)
               nfo.nDimOut = nOut;
           }
+          if(nfo.nDimOut<0) // Not initialised number of output dimensions
+            nfo.nDimOut = 1;
           object = mlf_objfunction(fobj, data, fcstr, &nfo);
         }
         break;

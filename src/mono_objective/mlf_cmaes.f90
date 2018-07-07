@@ -49,12 +49,11 @@ Module mlf_cmaes
     real(c_double), pointer :: X0(:) ! Center of the sampling: X(:,i) = D(:,i)+X0(:)
     real(c_double), pointer :: ps(:) ! Isotropically path (that comes from the best mu element of Z)
     real(c_double), pointer :: W(:) ! weight used by the methods on best mu element
-    real(c_double), pointer :: sigma, alphacov
+    real(c_double), pointer :: alphacov
     real(c_double), allocatable :: Z(:,:) ! Vectors sampled using Norm(0,Id_N)
     real(c_double), allocatable :: D(:,:) ! Previous vectors multiplied by M (D = MZ)
     real(c_double), allocatable :: Dw(:), DM(:,:)
     real(c_double) :: chiN, mueff, cs, cw, c1, dsigma
-    integer :: mu = -1
   Contains
     procedure :: genX => mlf_matrix_es_obj_genX
     procedure :: stopCond => mlf_matrix_es_obj_stopCond
@@ -90,41 +89,33 @@ Module mlf_cmaes
     End Function mlf_matrix_updateF
   End Interface
 Contains
-  Integer Function mlf_matrix_es_obj_init(this, fun, nipar, nrpar, nrsc, ifields, rfields, &
-    lambdaIn, muIn, data_handler) result(info)
+  Integer Function mlf_matrix_es_obj_init(this, nipar, nrpar, nrsc, ifields, rfields, &
+    data_handler, params) result(info)
     class(mlf_matrix_es_obj), intent(inout), target :: this
-    class(mlf_objective_fun), intent(in) :: fun
+    class(mlf_optim_param), intent(inout) :: params
     integer, intent(inout) :: nrsc
     integer(c_int64_t), intent(inout) :: nipar, nrpar
     character(len=*,kind=c_char) :: ifields, rfields
-    integer, intent(in), optional :: lambdaIn, muIn
     class(mlf_data_handler), intent(inout), optional :: data_handler
     integer, parameter :: ni = 0, nr = 2, ns = 4
-    integer :: lambda = -1
     integer(c_int64_t) :: nD, CND(2), mu
-    nD = fun%nD
+    nD = params%fun%nD
     CND = nD
-    if(present(lambdaIn)) lambda = lambdaIn
-    if(lambda <= 0) then
-      lambda = 4 + floor(3.0*log(real(ND)))
+    if(params%lambda <= 0) then
+      params%lambda = 4 + floor(3.0*log(real(ND)))
     end if
-    if(present(muIn)) this%mu = muIn
-    if(.NOT. present(muIN) .OR. this%mu > lambda) then
-      this%mu = MAX(lambda/2,1)
-    endif
-    mu = this%mu
     nipar = nipar+ni; nrpar = nrpar+nr; nrsc = nrsc+ns
-    info = mlf_optim_init(this, lambda, fun, nipar, nrpar, nrsc, ifields, &
-      C_CHAR_"sigma;alphacov;"//rfields, data_handler)
+    info = mlf_optim_init(this, nipar, nrpar, nrsc, ifields, &
+      C_CHAR_"alphacov;"//rfields, data_handler, params)
     info = this%add_rmatrix(nrsc, CND, this%M, C_CHAR_"M", data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
     info = this%add_rarray(nrsc+1, nD, this%X0, C_CHAR_"X0", data_handler = data_handler, fixed_dims = [.TRUE.])
     info = this%add_rarray(nrsc+2, nD, this%ps, C_CHAR_"ps", data_handler = data_handler, fixed_dims = [.TRUE.])
+    mu = this%mu
     info = this%add_rarray(nrsc+3, mu, this%W, C_CHAR_"W", data_handler = data_handler)
-    this%mu = int(mu, kind=4)
-    this%sigma => this%rpar(nrpar)
+    this%mu = int(mu, kind=c_int)
     this%alphacov => this%rpar(nrpar+1)
     nipar = nipar+ni; nrpar = nrpar+nr; nrsc = nrsc+ns
-    ALLOCATE(this%Z(ND, lambda), this%D(ND, lambda), this%Dw(ND), this%DM(ND,ND))
+    ALLOCATE(this%Z(ND, this%lambda), this%D(ND, this%lambda), this%Dw(ND), this%DM(ND,ND))
   End Function mlf_matrix_es_obj_init
 
   Subroutine mlf_matrix_es_obj_updateW(this)
@@ -154,14 +145,16 @@ Contains
     class(mlf_weight_fun), optional, intent(in) :: funW
     real(c_double), intent(in), optional :: X0(:), sigma0, alphacovIn
     integer :: lambda, mu, i
+    if(present(sigma0)) this%sigma = sigma0
     info = mlf_optim_reinit(this)
     lambda = size(this%Z, 2); mu = size(this%W)
     call IdentityMatrix(this%M)
     this%ps = 0
-    this%X0 = 0
-    if(present(X0)) this%X0 = X0
-    this%sigma = 1d0
-    if(present(sigma0)) this%sigma = sigma0
+    if(present(X0)) then
+      this%X0 = X0
+    else
+      call this%randomStartPoint(this%X0)
+    endif
     this%alphacov = 2d0
     if(present(alphacovIn)) this%alphacov=alphacovIn
     if(present(funW)) then
@@ -198,71 +191,37 @@ Contains
     info = mlf_optim_stopCond(this)
   End Function mlf_matrix_es_obj_stopCond
 
-  Integer Function mlf_maes_init(this, fun, X0, sigma0, funW, lambdaIn, muIn, &
-      alphacovIn, data_handler) result(info)
+  Integer Function mlf_maes_init(this, funW, alphacovIn, data_handler, params) result(info)
     class(mlf_maes_obj), intent(inout), target :: this
-    class(mlf_objective_fun), intent(in) :: fun
+    class(mlf_optim_param), intent(inout) :: params
     integer(c_int64_t) :: nipar = 0, nrpar = 0
     integer :: nrsc = 0
     class(mlf_weight_fun), optional, intent(in) :: funW
-    real(c_double), intent(in), optional :: X0(:), sigma0, alphacovIn
-    integer, intent(in), optional :: lambdaIn, muIn
+    real(c_double), intent(in), optional :: alphacovIn
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    info = mlf_matrix_es_obj_init(this, fun, nipar, nrpar, nrsc, C_CHAR_"", &
-      C_CHAR_"", lambdaIn, muIn, data_handler)
+    info = mlf_matrix_es_obj_init(this, nipar, nrpar, nrsc, C_CHAR_"", &
+      C_CHAR_"", data_handler, params)
     if(CheckF(info, 'mlf_maes_init: Error init matrix_es')) RETURN
     if(present(data_handler)) then
       call this%updateW()
     else
-      info = this%reinit_X(X0, sigma0, funW, alphacovIn)
+      info = this%reinit_X(params%X0, funW = funW, alphacovIn = alphacovIn)
     endif
   End Function mlf_maes_init
 
-  Function mlf_cmaes_objcreate(ismaes, fun, X0, sigma0, funW, lambdaIn, muIn, &
-      alphacovIn, data_handler, covevery) result(obj)
-    type(mlf_maes_obj), pointer :: mthis
-    type(mlf_cmaes_obj), pointer :: cthis
-    class(mlf_objective_fun), intent(in) :: fun
-    class (mlf_obj), pointer :: obj
-    class(mlf_weight_fun), optional, intent(in) :: funW
-    real(c_double), intent(in), optional :: X0(:), sigma0, alphacovIn
-    integer, intent(in), optional :: lambdaIn, muIn, covevery
-    class(mlf_data_handler), intent(inout), optional :: data_handler
-    logical, intent(in) :: ismaes
-    integer :: ret
-    if(ismaes) then
-      allocate(mthis)
-      ret = mthis%init(fun, X0, sigma0, funW, lambdaIn, muIn, alphacovIn, data_handler)
-      if(ret<0) then
-        deallocate(mthis)
-      else
-        obj => mthis
-      endif
-    else
-      allocate(cthis)
-      ret = cthis%init(fun, X0, sigma0, funW, lambdaIn, muIn, alphacovIn, covevery, data_handler)
-      if(ret<0) then
-        deallocate(cthis)
-      else
-        obj => cthis
-      endif
-    endif
-  End Function mlf_cmaes_objcreate
-
-  Integer Function mlf_cmaes_init(this, fun, X0, sigma0, funW, lambdaIn, muIn, &
-      alphacovIn, covEvery, data_handler) result(info)
+  Integer Function mlf_cmaes_init(this, funW, alphacovIn, covEvery, data_handler, params) result(info)
     class(mlf_cmaes_obj), intent(inout), target :: this
-    class(mlf_objective_fun), intent(in) :: fun
+    class(mlf_optim_param), intent(inout) :: params
     integer(c_int64_t) :: nipar = 2, nrpar = 0, ND, CND(2)
     integer :: nrsc = 2
     class(mlf_weight_fun), optional, intent(in) :: funW
-    real(c_double), intent(in), optional :: X0(:), sigma0, alphacovIn
-    integer, intent(in), optional :: lambdaIn, muIn, covEvery
+    real(c_double), intent(in), optional :: alphacovIn
+    integer, intent(in), optional :: covEvery
     class(mlf_data_handler), intent(inout), optional :: data_handler
     integer :: lambda
      
-    info = mlf_matrix_es_obj_init(this, fun, nipar, nrpar, nrsc, C_CHAR_"lastCov;covEvery;", &
-      C_CHAR_"", lambdaIn, muIn, data_handler)
+    info = mlf_matrix_es_obj_init(this, nipar, nrpar, nrsc, C_CHAR_"lastCov;covEvery;", &
+      C_CHAR_"", data_handler, params)
     if(CheckF(info, 'mlf_cmaes_init: Error init matrix_es')) RETURN
     lambda = size(this%Z, 2); ND = size(this%Z, 1)
     CND = ND
@@ -277,10 +236,40 @@ Contains
       this%covEvery = MAX(CEILING(ND/REAL(lambda, kind=8)),1)
       if(present(covEvery)) this%covEvery = covEvery
       this%lastCov = 0
-      info = this%reinit_X(X0, sigma0, funW, alphacovIn)
+      info = this%reinit_X(params%X0, funW = funW, alphacovIn = alphacovIn)
       if(CheckF(info, 'mlf_cmaes_init: Error reinit_X')) RETURN
     endif
   End Function mlf_cmaes_init
+
+  Function mlf_cmaes_objcreate(ismaes, data_handler, params, funW, alphacovIn, covevery) result(obj)
+    type(mlf_maes_obj), pointer :: mthis
+    type(mlf_cmaes_obj), pointer :: cthis
+    class(mlf_optim_param), intent(inout) :: params
+    class(mlf_obj), pointer :: obj
+    class(mlf_weight_fun), optional, intent(in) :: funW
+    real(c_double), intent(in), optional :: alphacovIn
+    integer, intent(in), optional :: covevery
+    class(mlf_data_handler), intent(inout), optional :: data_handler
+    logical, intent(in) :: ismaes
+    integer :: ret
+    if(ismaes) then
+      allocate(mthis)
+      ret = mthis%init(funW, alphacovIn, data_handler, params)
+      if(ret<0) then
+        deallocate(mthis)
+      else
+        obj => mthis
+      endif
+    else
+      allocate(cthis)
+      ret = cthis%init(funW, alphacovIn, covEvery, data_handler, params)
+      if(ret<0) then
+        deallocate(cthis)
+      else
+        obj => cthis
+      endif
+    endif
+  End Function mlf_cmaes_objcreate
 
   integer Function mlf_cmaes_reinit_X(this, X0, sigma0, funW, alphacovIn) result(info)
     class(mlf_cmaes_obj), intent(inout), target :: this

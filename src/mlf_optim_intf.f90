@@ -51,6 +51,7 @@ Contains
   type(c_ptr) Function c_getoptimobj(calgoname, cfunobj, chandler, lambda, &
       mu, sigma) result(cptr) bind(C, name="mlf_getoptimobj")
     type(c_ptr), value :: calgoname, cfunobj, chandler
+    type(mlf_optim_param) :: p
     integer(c_int), value :: lambda, mu
     real(c_double), value :: sigma
     class(mlf_objective_fun), pointer :: funobj
@@ -68,16 +69,17 @@ Contains
     obj => mlf_getobjfromc(chandler)
     if(associated(obj)) then
       select type (obj)
-      class is (mlf_objective_fun)
-        funobj => obj
+      class is (mlf_data_handler)
+        data_handler => obj
       end select
     endif
     obj => NULL()
+    call p%init(funobj, lambda, mu, sigma = sigma)
     select case (algoname)
       case("maes") ! MA-ES
-        obj => mlf_cmaes_objcreate(.TRUE., funobj, sigma0 = sigma, lambdaIn = lambda, muIn = mu, data_handler = data_handler)
+        obj => mlf_cmaes_objcreate(.TRUE., data_handler, p)
       case default ! CMA-ES
-        obj => mlf_cmaes_objcreate(.FALSE., funobj, sigma0 = sigma, lambdaIn = lambda, muIn = mu, data_handler = data_handler)
+        obj => mlf_cmaes_objcreate(.FALSE., data_handler, p)
     end select
     cptr = c_allocate(obj)
   End Function c_getoptimobj

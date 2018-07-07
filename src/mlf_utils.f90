@@ -33,9 +33,14 @@ Module mlf_utils
   IMPLICIT NONE
   PRIVATE
 
-  Public :: Xchange, QSortIdx, QSort, Mean, PrintMatrix, mlf_countcl, mlf_reversecl
+  Public :: Xchange, QSortIdx, QSort, Mean, PrintMatrix, mlf_countcl, mlf_reversecl, SetIf
   Public :: mlf_reverseid, mlf_cumulativefromvect, mlf_di_search, mlf_printmatrix_c, mlf_isSorted
 
+  Interface SetIf
+    module procedure mlf_setIfInt
+    module procedure mlf_setIfInt64
+    module procedure mlf_setIfDouble
+  End Interface SetIf
   Interface Xchange
     module procedure mlf_xchangeInt
     module procedure mlf_xchangeInt64
@@ -61,6 +66,40 @@ Module mlf_utils
   End Interface PrintMatrix
   real(c_double), public, parameter :: mlf_PI = acos(-1d0)
 Contains
+
+  Subroutine mlf_setIfInt(dest, def, val)
+    integer(c_int), intent(out) :: dest
+    integer(c_int), intent(in) :: def
+    integer(c_int), intent(in), optional :: val
+    if(present(val)) then
+      dest = val
+    else
+      dest = def
+    endif
+  End Subroutine mlf_setIfInt
+
+  Subroutine mlf_setIfInt64(dest, def, val)
+    integer(c_int64_t), intent(out) :: dest
+    integer(c_int64_t), intent(in) :: def
+    integer(c_int64_t), intent(in), optional :: val
+    if(present(val)) then
+      dest = val
+    else
+      dest = def
+    endif
+  End Subroutine mlf_setIfInt64
+
+  Subroutine mlf_setIfDouble(dest, def, val)
+    real(c_double), intent(out) :: dest
+    real(c_double), intent(in) :: def
+    real(c_double), intent(in), optional :: val
+    if(present(val)) then
+      dest = val
+    else
+      dest = def
+    endif
+  End Subroutine mlf_setIfDouble
+
 
   ! Utility functions for exchanging to variables
   Pure Elemental Subroutine mlf_xchangeInt(a,b)
@@ -176,7 +215,6 @@ Contains
     integer :: dim
     V = sum(M, dim=dim)/real(size(M,dim), kind=8)
   end function mlf_MeanMV
-
 
   ! Count class apearance within an integer array
   integer(c_int) function mlf_countcl(id, cnt) result(N)

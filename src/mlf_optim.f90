@@ -38,17 +38,31 @@ Module mlf_optim
   PRIVATE
 
   Public :: mlf_optim_init, mlf_optim_reinit, mlf_optim_stopCond
+
+  Type, Public :: mlf_optim_param
+    integer(c_int) :: lambda, mu
+    integer(c_int64_t) :: nevalFunMax
+    real(c_double) :: sigma, targetFun
+    real(c_double), pointer :: XMin(:), XMax(:), X0(:)
+    class(mlf_objective_fun), pointer :: fun
+  Contains
+    procedure :: init => mlf_optim_setparams
+  End Type mlf_optim_param
   
   Type, Public, abstract, extends(mlf_step_obj) :: mlf_optim_obj
-    class(mlf_objective_fun), allocatable :: fun
+    class(mlf_objective_fun), pointer :: fun
     integer(c_int64_t), pointer :: nevalFun, nevalFunMax
-    real(c_double), pointer :: minFun, targetFun, minX(:)
+    real(c_double), pointer :: minFun, targetFun, sigma, minX(:)
     real(c_double), allocatable :: X(:,:), Csr(:,:), Y(:,:)
+    real(c_double), allocatable :: XInitMin(:), XInitMax(:)
+    real(c_double) :: sigma0
+    integer(c_int) :: lambda, mu
     integer, allocatable ::  idx(:)
   Contains
     procedure :: stepF => mlf_optim_stepF
     procedure :: stopCond => mlf_optim_stopCond
     procedure :: constraints_optim =>  mlf_optim_constraints
+    procedure :: randomStartPoint => mlf_optim_startpoint
     procedure (mlf_genX), deferred :: genX
     procedure (mlf_updateY), deferred :: updateY
   End Type mlf_optim_obj
@@ -70,42 +84,54 @@ Module mlf_optim
     End Function mlf_updateY
   End Interface
 Contains
-  integer Function mlf_optim_init(this, lambda, fun, nipar, nrpar, nrsc, ifields, rfields, data_handler) &
+  integer Function mlf_optim_init(this, nipar, nrpar, nrsc, ifields, rfields, data_handler, params) &
       result(info)
     class(mlf_optim_obj), intent(inout), target :: this
-    class(mlf_objective_fun), intent(in) :: fun
+    class(mlf_optim_param), intent(inout) :: params
     integer(c_int64_t), intent(inout) :: nipar, nrpar
     integer, intent(inout) :: nrsc
-    integer, intent(in) :: lambda
-    integer, parameter :: ni = 2, nr = 2, ns = 1
+    integer, parameter :: ni = 2, nr = 3, ns = 1
     integer(c_int64_t) :: nD
     character(len=*,kind=c_char) :: ifields, rfields
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    nD = fun%nD
+    info = -1
+    if(.NOT. ASSOCIATED(params%fun)) RETURN
+    this%fun => params%fun
+    nD = this%fun%nD
     nipar = nipar+ni; nrpar = nrpar+nr; nrsc = nrsc+ns
     info = mlf_step_obj_init(this, nipar, nrpar, nrsc, C_CHAR_"nevalFun;nevalFunMax;"//ifields,&
-      C_CHAR_"minfun;targetFun;"//rfields, data_handler)
+      C_CHAR_"minfun;targetFun;sigma;"//rfields, data_handler)
     if(info < 0) RETURN
     this%nevalFun => this%ipar(nipar)
     this%nevalFunMax => this%ipar(nipar+1)
     this%minFun => this%rpar(nrpar)
     this%targetFun => this%rpar(nrpar+1)
-    this%fun = fun
+    this%sigma => this%rpar(nrpar+2)
+    this%targetFun = params%targetFun
+    this%sigma0 = params%sigma
+    this%lambda = params%lambda
+    if(params%mu <0) then
+      this%mu = MAX(this%lambda/2, MIN(this%lambda, 2))
+    else
+      this%mu = params%mu
+    endif
+    this%nevalFunMax = params%nevalFunMax
     info = this%add_rarray(nrsc, nD, this%minX, C_CHAR_"minX", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
     if(info < 0) RETURN
     nipar = nipar+ni; nrpar = nrpar+nr; nrsc = nrsc+ns
-    ALLOCATE(this%X(fun%ND, lambda), this%Y(fun%nY,lambda), this%idx(lambda))
-    if(fun%nC>0) ALLOCATE(this%Csr(fun%nC, lambda))
+    ALLOCATE(this%X(ND, params%lambda), this%Y(this%fun%nY,params%lambda), this%idx(params%lambda))
+    if(this%fun%nC>0) ALLOCATE(this%Csr(this%fun%nC, params%lambda))
+    if(associated(params%XMin)) ALLOCATE(this%XInitMin, source=params%XMin)
+    if(associated(params%XMax)) ALLOCATE(this%XInitMin, source=params%XMax)
   End Function mlf_optim_init
 
   integer Function mlf_optim_reinit(this) result(info)
     class(mlf_optim_obj), intent(inout), target :: this
     info = mlf_step_obj_reinit(this)
-    this%targetFun = -HUGE(this%targetFun)
     this%minFun = HUGE(this%targetFun)
     this%nevalFun = 0
-    this%nevalFunMax = HUGE(this%nevalFunMax)
+    this%sigma = this%sigma0
   End Function mlf_optim_reinit
 
   Subroutine mlf_optim_constraints(this, targetFun, nevalFunMax)
@@ -187,5 +213,37 @@ Contains
     End Do LIter
     if(present(niter)) niter = i
   End Function mlf_optim_stepF
+
+  Subroutine mlf_optim_startpoint(this, X)
+    class(mlf_optim_obj), intent(inout), target :: this
+    real(c_double), intent(out) :: X(:)
+    if(allocated(this%XInitMin) .AND. allocated(this%XInitMax)) then
+      call random_number(X)
+      X = this%XInitMin+X*this%XInitMax
+    else
+      call randN(X)
+      X = this%sigma0*X
+    endif
+  End Subroutine mlf_optim_startpoint
+
+  Subroutine mlf_optim_setparams(p, fun, lambda, mu, XMin, XMax, X0, nevalFunMax, sigma, targetFun)
+    class(mlf_optim_param), intent(inout) :: p
+    class(mlf_objective_fun), pointer :: fun
+    integer(c_int) :: lambda
+    integer(c_int), optional :: mu
+    integer(c_int64_t), optional :: nevalFunMax
+    real(c_double), optional :: sigma, targetFun
+    real(c_double), optional, pointer :: XMin(:), XMax(:), X0(:)
+    p%fun => fun
+    p%lambda = lambda
+    call SetIf(p%mu, -1, mu)
+    call SetIf(p%nevalFunMax, HUGE(p%nevalFunMax), nevalFunMax)
+    call SetIf(p%sigma, 1d0, sigma)
+    call SetIf(p%targetFun, 1d0, targetFun)
+    p%XMin => NULL(); p%XMax => NULL(); p%X0 => NULL()
+    if(present(XMin)) p%XMin => XMin
+    if(present(XMax)) p%XMax => XMax
+    if(present(X0)) p%X0 => X0
+  End Subroutine mlf_optim_setparams
 End module mlf_optim
 

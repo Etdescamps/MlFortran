@@ -32,9 +32,46 @@ namespace MlFortran {
         return "MlfRessource not readable (shall use a writable structure)";
       case MlfRscErrorType::InvalidAccessType:
         return "MlfRessource invalid MLF_ACCESSTYPE";
+      case MlfRscErrorType::NotFound:
+        return "MlfRessource not found";
       default:
         return "MlfRessource error unknown";
     }
+  }
+
+  bool MlfObject::updateIdMap() {
+    nrsc = getNumRsc();
+    obj_names = std::make_unique<string_view[]>(nrsc+1);
+    for(int i=1; i <= nrsc; ++i) {
+      const char *name = getName(i);
+      obj_names[i] = name ? name : "";
+    }
+    return true;
+  }
+
+  int MlfObject::getIdName(const string &name, bool updated) {
+    if(!obj_names)
+      updated = updateIdMap();
+    for(int i=1; i <= nrsc; ++i) {
+      if(obj_names[i] == name) {
+        if(string_view(getName(i)) != name) {
+          if(updated)
+            throw MlfRscErrorType(MlfRscErrorType::NotFound);
+          return getIdName(name, updateIdMap());
+        }
+        return i;
+      }
+    }
+    if(updated)
+      throw MlfRscErrorType(MlfRscErrorType::NotFound);
+    return getIdName(name, updateIdMap());
+  }
+
+  void MlfStepObject::initOutput() {
+    int idrpar = MlfObject::getIdName("rpar");
+    int idipar = MlfObject::getIdName("ipar");
+    MlfObject::getRsc(idrpar, rdata);
+    MlfObject::getRsc(idipar, idata);
   }
 }
 

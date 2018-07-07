@@ -57,6 +57,8 @@ int mlf_quit();
 // Universal deallocator for C-FORTRAN interface
 int mlf_dealloc(MLF_OBJ *obj);
 
+int mlf_getnumrsc(MLF_OBJ *obj);
+
 // Function for getting ressources
 // Return pointer if dt == mlf_DIRECT, mlf_INDIRECT or mlf_READONLY
 void *mlf_getrsc(MLF_OBJ *obj, int id, MLF_DT *dt, int *rank, int *dim0, void *data);

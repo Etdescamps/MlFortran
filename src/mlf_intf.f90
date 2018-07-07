@@ -273,18 +273,30 @@ Contains
   End Function mlf_getobjfromc
 
   ! Get ressource handler for most of the classes
+  integer(c_int) Function c_getnumrsc(cptr) result(r) bind(C, name="mlf_getnumrsc")
+    type(c_ptr), value :: cptr
+    class (mlf_obj), pointer :: obj
+    obj => mlf_getobjfromc(cptr)
+    r = -1
+    if(.NOT. associated(obj)) RETURN
+    if(.NOT. allocated(obj%v)) RETURN
+    r = size(obj%v)
+  End Function c_getnumrsc
+
+
+  ! Get ressource handler for most of the classes
   type(c_ptr) Function c_getrsc(cptr, id, dt0, nD, D, dataptr) bind(C, name="mlf_getrsc")
     type(c_ptr), value :: cptr, dataptr, dt0
-    type(mlf_cintf), pointer :: this
+    class (mlf_obj), pointer :: obj
     integer(c_int), value :: id
     type(mlf_dt), pointer :: dt
     integer(c_int), intent(out) :: nD, D(*)
-    call C_F_POINTER(cptr, this)
-    call C_F_POINTER(dt0, dt)
+    obj => mlf_getobjfromc(cptr)
     c_getrsc = C_NULL_PTR
-    if(.NOT. associated(this%obj)) RETURN
-    if(.NOT. allocated(this%obj%v)) RETURN
-    Associate(v => this%obj%v)
+    if(.NOT. associated(obj)) RETURN
+    if(.NOT. allocated(obj%v)) RETURN
+    call C_F_POINTER(dt0, dt)
+    Associate(v => obj%v)
       if(id < LBOUND(v,1) .OR. id > UBOUND(v,1)) RETURN
       if(.NOT. allocated(v(id)%r)) RETURN
       c_getrsc = v(id)%r%getd(nD, D, dt, dataptr)

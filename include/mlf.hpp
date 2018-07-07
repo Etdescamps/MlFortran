@@ -29,15 +29,22 @@
 
 #pragma once
 // MlFortran C++ interface
+
+// Standard C Library headers
 #include <cstdint>
 #include <cstdlib>
 #include <cmath>
-#include <string>
 #include <cstring>
+#include <dlfcn.h>
+
+// Standard C++ Library headers
+#include <iostream>
+#include <string>
 #include <exception>
 #include <memory>
 #include <string_view>
-#include <dlfcn.h>
+
+// MLF C interface headers
 #include "mlf_cintf.h"
 #include "mlf_funintf.h"
 
@@ -47,6 +54,7 @@ namespace MlFortran {
   using std::exception;
   using std::shared_ptr;
   using std::unique_ptr;
+  using std::ostream;
 
   template<typename T>
   struct MlfDataType {
@@ -182,10 +190,10 @@ namespace MlFortran {
       }
     public:
       static const MLF_DATATYPE dataType = MlfDataType<Type>::t;
-      Ref operator[](const size_t i) {
+      Ref operator[](const size_t i) const {
         return data[i];
       }
-      Type *getData() {
+      Type *getData() const {
         return data;
       }
       ~MlfData() {
@@ -200,7 +208,7 @@ namespace MlFortran {
     public:
       typedef MlfData<Type,readOnly> Super;
       const static int rank = 1;
-      size_t getSize() {return dim;}
+      size_t getSize() const {return dim;}
       MlfDataAccessType putData(Type *d, int dim0[], MLF_ACCESSTYPE at) {
         dim = dim0[0];
         return Super::_putData(d, getSize(), at);
@@ -208,12 +216,19 @@ namespace MlFortran {
       // WARNING:
       // Fortran geometry (from 1 to N)
       // Not the same as this of the operator[]
-      auto operator()(const size_t i) {
+      auto operator()(const size_t i) const {
         if(i <= 0 || i > dim)
           throw MlfOutOfBounds();
         return Super::operator[](i-1);
       }
   };
+
+  template<typename Type, bool readOnly = true>
+  ostream& operator<<(ostream &os, const MlfDataVector<Type,readOnly> &v) {
+    for(size_t i=1; i <= v.getSize(); ++i)
+      os << v(i) << ";";
+    return os;
+  }
 
   // WARNING:
   // THIS CLASS USE FORTRAN ARRAY CONVENTION!!!!!
@@ -224,12 +239,12 @@ namespace MlFortran {
     public:
       typedef MlfData<Type,readOnly> Super;
       const static int rank = 2;
-      size_t getSize() {return dims[0]*dims[1];}
+      size_t getSize() const {return dims[0]*dims[1];}
       MlfDataAccessType putData(Type *d, int dim0[], MLF_ACCESSTYPE at) {
         dims[0] = dim0[0]; dims[1] = dim0[1];
         return Super::_putData(d, getSize(), at);
       }
-      auto operator()(const size_t i, const size_t j) {
+      auto operator()(const size_t i, const size_t j) const {
         if(i <= 0 || i >= dims[0])
           throw MlfOutOfBounds();
         if(j <= 0 || j >= dims[1])
@@ -247,12 +262,12 @@ namespace MlFortran {
     public:
       typedef MlfData<Type,readOnly> Super;
       const static int rank = 3;
-      size_t getSize() {return dims[0]*dims[1]*dims[2];}
+      size_t getSize() const {return dims[0]*dims[1]*dims[2];}
       MlfDataAccessType putData(Type *d, int dim0[], MLF_ACCESSTYPE at) {
         dims[0] = dim0[0]; dims[1] = dim0[1]; dims[2] = dim0[2];
         return Super::_putData(d, getSize(), at);
       }
-      auto operator()(const size_t i, const size_t j, const size_t k) {
+      auto operator()(const size_t i, const size_t j, const size_t k) const {
         if(i <= 0 || i >= dims[0])
           throw MlfOutOfBounds();
         if(j <= 0 || j >= dims[1])
@@ -274,29 +289,29 @@ namespace MlFortran {
       MlfObject(MLF_OBJ *obj) : obj(obj,
           [](MLF_OBJ *obj) {if(obj) mlf_dealloc(obj);}) {}
       MlfObject(MLF_OBJ *obj, MlfDeleter &deleter) : obj(obj, deleter) {}
-      MLF_OBJ *get() {
+      MLF_OBJ *get() const {
         return obj.get();
       }
-      const char *getName(int id) {
+      const char *getName(int id) const {
         return mlf_getinfo(obj.get(), id, mlf_NAME);
       }
-      const char *getDesc(int id) {
+      const char *getDesc(int id) const {
         return mlf_getinfo(obj.get(), id, mlf_DESC);
       }
-      const char *getFields(int id) {
+      const char *getFields(int id) const {
         return mlf_getinfo(obj.get(), id, mlf_FIELDS);
       }
-      void *getRsc(int id, MLF_DT &dt, int &rank, int dims[], void *data=nullptr) {
+      void *getRsc(int id, MLF_DT &dt, int &rank, int dims[], void *data=nullptr) const {
         return mlf_getrsc(obj.get(), id, &dt, &rank, dims, data);
       }
-      int updateRsc(int id, void *data) {
+      int updateRsc(int id, void *data) const {
         return mlf_updatersc(obj.get(), id, data);
       }
-      int getNumRsc() {
+      int getNumRsc() const {
         return mlf_getnumrsc(obj.get());
       }
       template<typename MData>
-      MlfDataAccessType getRsc(int id, MData &md) {
+      MlfDataAccessType getRsc(int id, MData &md) const {
         typedef typename MData::Type T;
         int rank, dims[MLF_MAXRANK];
         MLF_DT dt;
@@ -322,13 +337,14 @@ namespace MlFortran {
       void initOutput();
     public:
       using MlfObject::MlfObject;
-      int64_t step() {
+      int64_t step() const {
         double dt = 0;
         return mlf_step(MlfObject::get(), &dt, 1);
       }
-      int64_t step(double &dt, int nstep = 1) {
+      int64_t step(double &dt, int nstep = 1) const {
         return mlf_step(MlfObject::get(), &dt, nstep);
       }
+      void printLine(ostream& os) const;
   };
   class MlfOptimObject : public MlfStepObject {
     public:

@@ -73,5 +73,9 @@ namespace MlFortran {
     MlfObject::getRsc(idrpar, rdata);
     MlfObject::getRsc(idipar, idata);
   }
+
+  void MlfStepObject::printLine(ostream& os) const {
+    os << idata << rdata << std::endl;
+  }
 }
 

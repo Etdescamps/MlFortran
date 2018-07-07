@@ -56,6 +56,8 @@ typedef int (*mlf_free_fun)(void *data);
 
 typedef void *(*mlf_getinfo_fun)(void *data, int type);
 
+MLF_OBJ *mlf_getoptimobj(const char *algoname, MLF_OBJ *fun_obj, MLF_OBJ *handler, int lambda, int mu, double sigma);
+
 #ifdef __cplusplus
 }
 #endif

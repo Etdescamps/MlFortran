@@ -266,6 +266,9 @@ namespace MlFortran {
       MlfObject(MLF_OBJ *obj) : obj(obj,
           [](MLF_OBJ *obj) {if(obj) mlf_dealloc(obj);}) {}
       MlfObject(MLF_OBJ *obj, MlfDeleter &deleter) : obj(obj, deleter) {}
+      MLF_OBJ *get() {
+        return obj.get();
+      }
       const char *getName(int id) {
         return mlf_getinfo(obj.get(), id, mlf_NAME);
       }

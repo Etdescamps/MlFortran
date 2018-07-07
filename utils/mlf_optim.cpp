@@ -7,8 +7,10 @@
 
 using namespace std;
 using namespace ToolsDlopen;
+using namespace MlFortran;
 
-int _proceed_optim(MLF_OBJ *obj, int lambda, int mu, double sigma) {
+int _proceed_optim(const char *nalg, MlfObject &fobj, int lambda, int mu, double sigma) {
+  MlfObject obj_optim(mlf_getoptimobj(nalg, fobj.get(), nullptr, lambda, mu, sigma));
   return 0;
 }
 
@@ -87,8 +89,8 @@ int main(int argc, char **argv) {
   if(nmodel.size() == 0)
     return _print_usage(-1, argv[0]);
   LibraryFun lib;
-  MLF_OBJ *obj = lib.init(nmodel, nprefix, LibraryFunType::OptimFun, nparameter, ninput, noutput);
-  _proceed_optim(obj, lambda, mu, sigma);
+  MlfObject obj(lib.init(nmodel, nprefix, LibraryFunType::OptimFun, nparameter, ninput, noutput));
+  _proceed_optim(nalg.c_str(), obj, lambda, mu, sigma);
   return 0;
 }
 

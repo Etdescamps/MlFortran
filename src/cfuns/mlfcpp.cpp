@@ -77,5 +77,11 @@ namespace MlFortran {
   void MlfStepObject::printLine(ostream& os) const {
     os << idata << rdata << std::endl;
   }
+  void MlfStepObject::printFields(ostream& os) {
+    int idrpar = MlfObject::getIdName("rpar");
+    int idipar = MlfObject::getIdName("ipar");
+    os << MlfObject::getFields(idipar) << MlfObject::getFields(idrpar) << std::endl;
+  }
+
 }
 

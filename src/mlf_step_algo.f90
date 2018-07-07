@@ -143,7 +143,7 @@ Contains
   integer(c_int64_t) Function mlf_step_c(cptr, dt, niter) result(info) bind(C, name="mlf_step")
     type(c_ptr), value :: cptr
     real(c_double), intent(out) :: dt
-    integer(c_long), value :: niter
+    integer(c_int64_t), value :: niter
     integer(kind=8) :: niterX
     class(mlf_obj), pointer :: obj
     info = -1
@@ -153,7 +153,6 @@ Contains
     select type(obj)
       class is (mlf_step_obj)
         info = obj%step(dt, niterX)
-        info = niterX
     end select
   End Function mlf_step_c
 End Module mlf_step_algo

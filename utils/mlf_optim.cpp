@@ -3,13 +3,14 @@
 #include <stdexcept>
 #include <string>
 #include <unistd.h>
+#include <limits>
 #include "tools_dlopen.hpp"
 
 using namespace std;
 using namespace ToolsDlopen;
 using namespace MlFortran;
 
-int _proceed_optim(string nalg, MlfObject &fobj, int lambda, int mu, double sigma) {
+int _proceed_optim(string nalg, MlfObject &fobj, int64_t niter, double target, int lambda, int mu, double sigma) {
   MlfOptimObject obj_optim(nalg, fobj, lambda, mu, sigma);
   return 0;
 }
@@ -27,7 +28,9 @@ static int _print_usage(int out, char *name) {
   cerr << "  -o number_of_output   Specify (if required) the number of objective (default 1)" << endl;
   cerr << "  -L lambda             Specify the offspring population size" << endl;
   cerr << "  -M mu                 Specify the selected number of individuals" << endl;
+  cerr << "  -N nstep              Maximum number of iterations" << endl;
   cerr << "  -S sigma              Initial step size (default 1.0)" << endl;
+  cerr << "  -T target             Target value" << endl;
   cerr << "  -h                    Display this help message" << endl;
   return out;
 }
@@ -36,10 +39,11 @@ int main(int argc, char **argv) {
   string nmodel, nparameter, ncheckpoint;
   string nalg = "cmaes", nprefix = "fun";
   int opt, ninput = -1, noutput = -1;
+  int64_t niter = numeric_limits<int64_t>::max();
   int mu = -1, lambda = -1;
-  double sigma = 1.0;
+  double sigma = 1.0, target = -HUGE_VAL;
   try {
-    while((opt = getopt(argc, argv, "m:X:p:c:A:hi:o:L:M:S")) != -1) {
+    while((opt = getopt(argc, argv, "m:X:p:c:A:i:o:L:M:N:T:S:h")) != -1) {
       switch(opt) {
         case 'm':
           nmodel = optarg;
@@ -68,8 +72,15 @@ int main(int argc, char **argv) {
         case 'M':
           mu = stoi(optarg);
           break;
+        case 'N':
+          niter = stoll(optarg);
+          break;
         case 'S':
           sigma = stod(optarg);
+          break;
+        case 'T':
+          target = stod(optarg);
+          break;
         case 'h':
           return _print_usage(0, argv[0]);
         default:
@@ -90,7 +101,7 @@ int main(int argc, char **argv) {
     return _print_usage(-1, argv[0]);
   LibraryFun lib;
   MlfObject obj(lib.init(nmodel, nprefix, LibraryFunType::OptimFun, nparameter, ninput, noutput));
-  _proceed_optim(nalg, obj, lambda, mu, sigma);
+  _proceed_optim(nalg, obj, niter, target, lambda, mu, sigma);
   return 0;
 }
 

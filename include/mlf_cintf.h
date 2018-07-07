@@ -67,7 +67,7 @@ char *mlf_getinfo(MLF_OBJ *obj, int id, int type);
 
 int mlf_updatersc(MLF_OBJ *obj, int id, void *data);
 
-int64_t mlf_step(MLF_OBJ *obj, double *dt, int nstep);
+int64_t mlf_step(MLF_OBJ *obj, double *dt, int64_t nstep);
 
 // Utility functions
 void mlf_randN(double *v, int N);

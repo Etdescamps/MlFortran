@@ -56,6 +56,8 @@ namespace MlFortran {
   using std::unique_ptr;
   using std::ostream;
 
+
+  // Associate C++ datatypes to an MLF_DATATYPE enum
   template<typename T>
   struct MlfDataType {
     static const MLF_DATATYPE t = mlf_RAW;
@@ -79,6 +81,7 @@ namespace MlFortran {
     static const MLF_DATATYPE t = mlf_DOUBLE;
   };
 
+  // Return type (return by reference if readOnly)
   template<typename T, bool readOnly>
   struct MlfRefType {
     typedef T Ref;
@@ -89,7 +92,8 @@ namespace MlFortran {
     typedef T& Ref;
   };
 
-
+  // Main Exception class of MlFortran
+  // It uses the error codes from the Fortran interface
   class MlfException : exception {
     public:
       MLF_ERRORTYPE errorType;
@@ -111,7 +115,6 @@ namespace MlFortran {
       MlfRessourceError(MlfRscErrorType t) : MlfException(), rscError(t) {}
       const char* what() const noexcept override;
   };
-
 
   class MlfLogger {
     public:
@@ -215,7 +218,7 @@ namespace MlFortran {
       }
       // WARNING:
       // Fortran geometry (from 1 to N)
-      // Not the same as this of the operator[]
+      // Not the same as the convention used by the operator[]
       auto operator()(const size_t i) const {
         if(i <= 0 || i > dim)
           throw MlfOutOfBounds();
@@ -231,7 +234,7 @@ namespace MlFortran {
   }
 
   // WARNING:
-  // THIS CLASS USE FORTRAN ARRAY CONVENTION!!!!!
+  // THIS CLASS USES FORTRAN ARRAY CONVENTION!!!!!
   template<typename Type, bool readOnly = true>
   class MlfDataMatrix : public MlfData<Type,readOnly> {
     protected:
@@ -254,7 +257,7 @@ namespace MlFortran {
   };
 
   // WARNING:
-  // THIS CLASS USE FORTRAN ARRAY CONVENTION!!!!!
+  // THIS CLASS USES FORTRAN ARRAY CONVENTION!!!!!
   template<typename Type, bool readOnly = true>
   class MlfData3DMatrix : public MlfData<Type,readOnly> {
     protected:
@@ -341,10 +344,11 @@ namespace MlFortran {
         double dt = 0;
         return mlf_step(MlfObject::get(), &dt, 1);
       }
-      int64_t step(double &dt, int nstep = 1) const {
+      int64_t step(double &dt, int64_t nstep = 1) const {
         return mlf_step(MlfObject::get(), &dt, nstep);
       }
       void printLine(ostream& os) const;
+      void printFields(ostream& os);
   };
   class MlfOptimObject : public MlfStepObject {
     public:

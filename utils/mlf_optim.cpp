@@ -11,7 +11,14 @@ using namespace ToolsDlopen;
 using namespace MlFortran;
 
 int _proceed_optim(string nalg, MlfObject &fobj, int64_t niter, double target, int lambda, int mu, double sigma) {
-  MlfOptimObject obj_optim(nalg, fobj, lambda, mu, sigma);
+  MlfOptimObject obj_optim(nalg, fobj, target, lambda, mu, sigma);
+  obj_optim.printFields(cout);
+  for(int64_t i = 0; i < niter; ++i) {
+    obj_optim.printLine(cout);
+    if(obj_optim.step()<0)
+      break;
+  }
+  obj_optim.printLine(cout);
   return 0;
 }
 

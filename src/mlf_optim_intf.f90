@@ -48,12 +48,12 @@ Module mlf_optim_intf
 
   Public :: c_getoptimobj
 Contains
-  type(c_ptr) Function c_getoptimobj(calgoname, cfunobj, chandler, lambda, &
+  type(c_ptr) Function c_getoptimobj(calgoname, cfunobj, chandler, ftarget, lambda, &
       mu, sigma) result(cptr) bind(C, name="mlf_getoptimobj")
     type(c_ptr), value :: calgoname, cfunobj, chandler
     type(mlf_optim_param) :: p
     integer(c_int), value :: lambda, mu
-    real(c_double), value :: sigma
+    real(c_double), value :: sigma, ftarget
     class(mlf_objective_fun), pointer :: funobj
     class(mlf_obj), pointer :: obj 
     character(len=:, kind=c_char), allocatable, target :: algoname
@@ -74,7 +74,7 @@ Contains
       end select
     endif
     obj => NULL()
-    call p%init(funobj, lambda, mu, sigma = sigma)
+    call p%init(funobj, lambda, mu, sigma = sigma, targetFun = ftarget)
     select case (algoname)
       case("maes") ! MA-ES
         obj => mlf_cmaes_objcreate(.TRUE., data_handler, p)

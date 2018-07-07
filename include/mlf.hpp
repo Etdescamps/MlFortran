@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation and/or
  *    other materials provided with the distribution.
-
+ *
  * 3. Neither the name of the copyright holder nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without specific prior
  *    written permission.
@@ -352,8 +352,8 @@ namespace MlFortran {
   };
   class MlfOptimObject : public MlfStepObject {
     public:
-      MlfOptimObject(const string &nalg, MlfObject &funobj, int lambda, int mu, double sigma)
-        : MlfStepObject(mlf_getoptimobj(nalg.c_str(), funobj.get(), nullptr, lambda, mu, sigma)) {}
+      MlfOptimObject(const string &nalg, MlfObject &funobj, double target, int lambda, int mu, double sigma)
+        : MlfStepObject(mlf_getoptimobj(nalg.c_str(), funobj.get(), nullptr, target, lambda, mu, sigma)) {}
   };
 
 }

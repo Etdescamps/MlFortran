@@ -29,6 +29,7 @@
 
 #pragma once
 // MlFortran C++ interface
+// Implementation is on src/cfuns/mlfcpp.cpp
 
 // Standard C Library headers
 #include <cstdint>
@@ -108,7 +109,7 @@ namespace MlFortran {
       const char* what() const noexcept override;
   };
 
-  enum class MlfRscErrorType : short {NotWritable, NotReadable, InvalidAccessType, NotFound};
+  enum class MlfRscErrorType : short {NotWritable, NotReadable, InvalidAccessType, NotAllocated, NotFound};
   class MlfRessourceError :  MlfException {
     public:
       MlfRscErrorType rscError;
@@ -220,8 +221,12 @@ namespace MlFortran {
       // Fortran geometry (from 1 to N)
       // Not the same as the convention used by the operator[]
       auto operator()(const size_t i) const {
+#ifdef _MLF_BOUND_CHECK
+        if(!Super::data)
+          throw MlfRessourceError(MlfRscErrorType::NotAllocated);
         if(i <= 0 || i > dim)
           throw MlfOutOfBounds();
+#endif
         return Super::operator[](i-1);
       }
   };
@@ -248,10 +253,14 @@ namespace MlFortran {
         return Super::_putData(d, getSize(), at);
       }
       auto operator()(const size_t i, const size_t j) const {
+#ifdef _MLF_BOUND_CHECK
+        if(!Super::data)
+          throw MlfRessourceError(MlfRscErrorType::NotAllocated);
         if(i <= 0 || i >= dims[0])
           throw MlfOutOfBounds();
         if(j <= 0 || j >= dims[1])
           throw MlfOutOfBounds();
+#endif
         return Super::operator[](i-1+(j-1)*dims[0]);
       }
   };
@@ -271,12 +280,16 @@ namespace MlFortran {
         return Super::_putData(d, getSize(), at);
       }
       auto operator()(const size_t i, const size_t j, const size_t k) const {
+#ifdef _MLF_BOUND_CHECK
+        if(!Super::data)
+          throw MlfRessourceError(MlfRscErrorType::NotAllocated);
         if(i <= 0 || i >= dims[0])
           throw MlfOutOfBounds();
         if(j <= 0 || j >= dims[1])
           throw MlfOutOfBounds();
         if(k <= 0 || k >= dims[2])
           throw MlfOutOfBounds();
+#endif
         return Super::operator[](i-1+(j-1)*dims[0]);
       }
   };
@@ -338,6 +351,7 @@ namespace MlFortran {
       MlfDataVector<int64_t> idata;
       MlfDataVector<double> rdata;
       void initOutput();
+      bool is_initData = false;
     public:
       using MlfObject::MlfObject;
       int64_t step() const {
@@ -347,7 +361,7 @@ namespace MlFortran {
       int64_t step(double &dt, int64_t nstep = 1) const {
         return mlf_step(MlfObject::get(), &dt, nstep);
       }
-      void printLine(ostream& os) const;
+      void printLine(ostream& os);
       void printFields(ostream& os);
   };
   class MlfOptimObject : public MlfStepObject {

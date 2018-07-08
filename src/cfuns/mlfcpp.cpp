@@ -32,6 +32,8 @@ namespace MlFortran {
         return "MlfRessource not readable (shall use a writable structure)";
       case MlfRscErrorType::InvalidAccessType:
         return "MlfRessource invalid MLF_ACCESSTYPE";
+      case MlfRscErrorType::NotAllocated:
+        return "MlfRessource not allocated";
       case MlfRscErrorType::NotFound:
         return "MlfRessource not found";
       default:
@@ -72,9 +74,12 @@ namespace MlFortran {
     int idipar = MlfObject::getIdName("ipar");
     MlfObject::getRsc(idrpar, rdata);
     MlfObject::getRsc(idipar, idata);
+    is_initData = true;
   }
 
-  void MlfStepObject::printLine(ostream& os) const {
+  void MlfStepObject::printLine(ostream& os) {
+    if(!is_initData)
+      initOutput();
     os << idata << rdata << std::endl;
   }
   void MlfStepObject::printFields(ostream& os) {

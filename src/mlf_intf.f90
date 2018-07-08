@@ -241,7 +241,7 @@ Contains
     type(c_ptr), value :: cptr
     type(mlf_cintf), pointer :: this
     c_dealloc = -1
-    if(C_ASSOCIATED(cptr)) RETURN
+    if(.NOT. C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
     ! FINAL not yet correctly implemented in GNU Fortran
     if(ASSOCIATED(this%obj)) then
@@ -267,7 +267,7 @@ Contains
     type(mlf_cintf), pointer :: this
     class (mlf_obj), pointer :: obj
     obj => NULL()
-    if(C_ASSOCIATED(cptr)) RETURN
+    if(.NOT. C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
     obj => this%obj
   End Function mlf_getobjfromc

@@ -307,12 +307,12 @@ Contains
   type(c_ptr) Function c_getinfo(cptr, id, itype) bind(C, name="mlf_getinfo")
     type(c_ptr), value :: cptr
     integer(c_int), value :: id, itype
-    type(mlf_cintf), pointer :: this
-    call C_F_POINTER(cptr, this)
+    class (mlf_obj), pointer :: obj
     c_getinfo = C_NULL_PTR
-    if(.NOT. associated(this%obj)) RETURN
-    if(.NOT. allocated(this%obj%v)) RETURN
-    Associate(v => this%obj%v)
+    obj => mlf_getobjfromc(cptr)
+    if(.NOT. associated(obj)) RETURN
+    if(.NOT. allocated(obj%v)) RETURN
+    Associate(v => obj%v)
       if(id < LBOUND(v,1) .OR. id > UBOUND(v,1)) RETURN
       c_getinfo = v(id)%get_str(itype)
     End Associate
@@ -322,12 +322,12 @@ Contains
   integer(c_int) Function c_updatersc(cptr, id, dataptr) bind(C, name="mlf_updatersc")
     type(c_ptr), value :: cptr, dataptr
     integer(c_int), value :: id
-    type(mlf_cintf), pointer :: this
-    call C_F_POINTER(cptr, this)
+    class (mlf_obj), pointer :: obj
     c_updatersc = -1
-    if(.NOT. associated(this%obj)) RETURN
-    if(.NOT. allocated(this%obj%v)) RETURN
-    Associate(v => this%obj%v)
+    obj => mlf_getobjfromc(cptr)
+    if(.NOT. associated(obj)) RETURN
+    if(.NOT. allocated(obj%v)) RETURN
+    Associate(v => obj%v)
       if(id < LBOUND(v,1) .OR. id > UBOUND(v,1)) RETURN
       if(.NOT. allocated(v(id)%r)) RETURN
       c_updatersc = v(id)%r%updated(dataptr)

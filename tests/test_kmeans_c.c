@@ -52,7 +52,8 @@ int main(int argc, char **argv) {
         X[i][j][k] += Mu[i][k];
   MLF_OBJ *obj=mlf_kmeans_c((double *) X, nX*nC, nY, nC, (double *) NULL);
   MLF_DT dt;
-  int info = mlf_step(obj, &t, 32);
+  int64_t nstep = 32;
+  int info = mlf_step(obj, &t, &nstep);
   if(info<0)
     return info;
   int rank, dim0[18];

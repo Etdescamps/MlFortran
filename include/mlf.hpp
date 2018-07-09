@@ -354,12 +354,21 @@ namespace MlFortran {
       bool is_initData = false;
     public:
       using MlfObject::MlfObject;
-      int64_t step() const {
+      int step() const {
         double dt = 0;
-        return mlf_step(MlfObject::get(), &dt, 1);
+        int64_t niter = 1;
+        return mlf_step(MlfObject::get(), &dt, &niter);
       }
-      int64_t step(double &dt, int64_t nstep = 1) const {
-        return mlf_step(MlfObject::get(), &dt, nstep);
+      int step(double &dt) const {
+        int64_t niter = 1;
+        return mlf_step(MlfObject::get(), &dt, &niter);
+      }
+      int step(int64_t &nstep) const {
+        double dt = 0;
+        return mlf_step(MlfObject::get(), &dt, &nstep);
+      }
+      int step(double &dt, int64_t &nstep) const {
+        return mlf_step(MlfObject::get(), &dt, &nstep);
       }
       void printLine(ostream& os);
       void printFields(ostream& os);

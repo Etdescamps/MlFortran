@@ -134,16 +134,16 @@ Contains
     if(present(dt)) dt0 = dt
     if(info < 0) RETURN
     if(this%cputime > this%cpumax .OR. this%realtime > this%realmax) then
-      info = -1
+      info = 1
       return
     endif
   End Function mlf_step_f
 
   ! C interface to step function
-  integer(c_int64_t) Function mlf_step_c(cptr, dt, niter) result(info) bind(C, name="mlf_step")
+  integer(c_int) Function mlf_step_c(cptr, dt, niter) result(info) bind(C, name="mlf_step")
     type(c_ptr), value :: cptr
     real(c_double), intent(out) :: dt
-    integer(c_int64_t), value :: niter
+    integer(c_int64_t), intent(inout) :: niter
     integer(kind=8) :: niterX
     class(mlf_obj), pointer :: obj
     info = -1
@@ -153,6 +153,7 @@ Contains
     select type(obj)
       class is (mlf_step_obj)
         info = obj%step(dt, niterX)
+        niter = niterX
     end select
   End Function mlf_step_c
 End Module mlf_step_algo

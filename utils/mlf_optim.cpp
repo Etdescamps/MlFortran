@@ -15,7 +15,7 @@ int _proceed_optim(string &nalg, MlfObject &fobj, int64_t niter, double target, 
   obj_optim.printFields(cout);
   for(int64_t i = 0; i < niter; ++i) {
     obj_optim.printLine(cout);
-    if(obj_optim.step()<0)
+    if(obj_optim.step() != 0)
       break;
   }
   obj_optim.printLine(cout);

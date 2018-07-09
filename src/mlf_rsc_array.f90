@@ -453,7 +453,7 @@ Contains
     type(mlf_dt), intent(out), pointer :: dt
     type(c_ptr) :: cptr, ptr
     if(associated(dt)) then
-      dt%dt = mlf_DOUBLE; dt%acc = mlf_DIRECT
+      dt%dt = mlf_INT; dt%acc = mlf_DIRECT
     endif
     cptr = mlf_int32_getdata(this%V, nD, D, ptr)
   End Function mlf_int32_1d_getd
@@ -472,7 +472,7 @@ Contains
     type(mlf_dt), intent(out), pointer :: dt
     type(c_ptr) :: cptr, ptr
     if(associated(dt)) then
-      dt%dt = mlf_DOUBLE; dt%acc = mlf_DIRECT
+      dt%dt = mlf_INT64; dt%acc = mlf_DIRECT
     endif
     cptr = mlf_int64_getdata(this%V, nD, D, ptr)
   End Function mlf_int64_1d_getd

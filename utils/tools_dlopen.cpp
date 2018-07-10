@@ -66,7 +66,7 @@ namespace ToolsDlopen {
   }
 
   MLF_OBJ *LibraryFun::getFunObj(const string &path, const string &funPrefix, LibraryFunType typeFun, const string &fileName, int nIn, int nOut) {
-    MLF_OBJ *object;
+    MLF_OBJ *object = nullptr;
     DlLoader::init(path);
     mlf_init_fun finit = DlLoader::getSymOrNull<mlf_init_fun>(funPrefix+"_init");
     ffree = DlLoader::getSymOrNull<mlf_free_fun>(funPrefix+"_free");

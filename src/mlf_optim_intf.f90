@@ -57,7 +57,7 @@ Contains
     class(mlf_objective_fun), pointer :: funobj
     class(mlf_obj), pointer :: obj 
     character(len=:, kind=c_char), allocatable, target :: algoname
-    class(mlf_data_handler), pointer :: data_handler
+    class(mlf_data_handler), pointer :: data_handler => NULL()
     call mlf_stringFromC(calgoname, algoname)
     obj => mlf_getobjfromc(cfunobj)
     if(associated(obj)) then

@@ -6,6 +6,7 @@ set(VERSION 0.0.1)
 
 enable_language(C Fortran CXX)
 
+include(cmake/flags.cmake)
 include(cmake/fortran.cmake)
 include(cmake/c.cmake)
 include(cmake/cpp.cmake)

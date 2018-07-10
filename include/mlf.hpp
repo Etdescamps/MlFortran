@@ -128,6 +128,7 @@ namespace MlFortran {
     public:
       void operator()(MLF_OBJ *obj) const {
         int k = 0;
+        // std::cerr << "unallocate object" << std::endl;
         if(obj)
           k = mlf_dealloc(obj);
         if(k<0 && logger)
@@ -303,7 +304,10 @@ namespace MlFortran {
     public:
       MlfObject(MlfShared &obj) : obj(obj) {}
       MlfObject(MLF_OBJ *obj) : obj(obj,
-          [](MLF_OBJ *obj) {if(obj) mlf_dealloc(obj);}) {}
+          [](MLF_OBJ *obj) {
+            //std::cerr << "unallocate object (2)" << std::endl;
+            if(obj) mlf_dealloc(obj);
+          }) {}
       MlfObject(MLF_OBJ *obj, MlfDeleter &deleter) : obj(obj, deleter) {}
       MLF_OBJ *get() const {
         return obj.get();

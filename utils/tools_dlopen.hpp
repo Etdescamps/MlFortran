@@ -74,9 +74,8 @@ namespace ToolsDlopen {
       void *data = nullptr;
       mlf_free_fun ffree = nullptr;
       const char *description[mlf_FIELDS+1];
-      MLF_OBJ *object = nullptr;
     public:
-      MLF_OBJ *init(const string &path, const string &funPrefix, LibraryFunType typeFun, const string &fileName = "", int nIn = -1, int nOut = -1);
+      MLF_OBJ *getFunObj(const string &path, const string &funPrefix, LibraryFunType typeFun, const string &fileName = "", int nIn = -1, int nOut = -1);
       ~LibraryFun();
   };
 }

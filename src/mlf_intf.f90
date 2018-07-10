@@ -241,6 +241,7 @@ Contains
     type(c_ptr), value :: cptr
     type(mlf_cintf), pointer :: this
     c_dealloc = -1
+    ! print *, "mlf_dealloc"
     if(.NOT. C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
     ! FINAL not yet correctly implemented in GNU Fortran

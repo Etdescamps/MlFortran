@@ -65,12 +65,12 @@ namespace ToolsDlopen {
     }
   }
 
-  MLF_OBJ *LibraryFun::getFunObj(const string &path, const string &funPrefix, LibraryFunType typeFun, const string &fileName, int nIn, int nOut) {
+  
+  DlFunObject::DlFunObject(DlLoader &dl, const string &funPrefix, LibraryFunType typeFun, const string &fileName, int nIn, int nOut) {
     MLF_OBJ *object = nullptr;
-    DlLoader::init(path);
-    mlf_init_fun finit = DlLoader::getSymOrNull<mlf_init_fun>(funPrefix+"_init");
-    ffree = DlLoader::getSymOrNull<mlf_free_fun>(funPrefix+"_free");
-    mlf_getinfo_fun finfo = DlLoader::getSymOrNull<mlf_getinfo_fun>(funPrefix+"_getinfo");
+    mlf_init_fun finit = dl.getSymOrNull<mlf_init_fun>(funPrefix+"_init");
+    ffree = dl.getSymOrNull<mlf_free_fun>(funPrefix+"_free");
+    mlf_getinfo_fun finfo = dl.getSymOrNull<mlf_getinfo_fun>(funPrefix+"_getinfo");
     if(finit)
       data = finit(fileName.c_str());
     void *info = nullptr;
@@ -82,8 +82,8 @@ namespace ToolsDlopen {
     switch(typeFun) {
       case LibraryFunType::OptimFun:
         {
-          mlf_objective_fun fobj = DlLoader::getSym<mlf_objective_fun>(funPrefix+"_objfun");
-          mlf_objective_fun fcstr = DlLoader::getSymOrNull<mlf_objective_fun>(funPrefix+"_cstrfun");
+          mlf_objective_fun fobj = dl.getSym<mlf_objective_fun>(funPrefix+"_objfun");
+          mlf_objective_fun fcstr = dl.getSymOrNull<mlf_objective_fun>(funPrefix+"_cstrfun");
           MLF_OBJFUNINFO nfo = { nIn, -1, nOut};
           if(info) {
             // Get default values of the model
@@ -101,17 +101,17 @@ namespace ToolsDlopen {
         break;
       case LibraryFunType::BasisFun:
         {
-          mlf_basis_fun fbasis = DlLoader::getSym<mlf_basis_fun>(funPrefix+"_basisfun");
+          mlf_basis_fun fbasis = dl.getSym<mlf_basis_fun>(funPrefix+"_basisfun");
           object = mlf_basisfunction(fbasis, data);
         }
         break;
       default:
         throw DlException(DlErrorType::InvalidFunctionType);
     }
-    return object;
+    obj = MlfShared(object, [](MLF_OBJ *obj) {if(obj) mlf_dealloc(obj);});
   }
 
-  LibraryFun::~LibraryFun() {
+  DlFunObject::~DlFunObject() {
     if(data) {
       if(ffree)
         ffree(data);

@@ -38,6 +38,8 @@ namespace ToolsDlopen {
 
   using std::string;
   using MlFortran::MlfException;
+  using MlFortran::MlfObject;
+  using MlFortran::MlfShared;
 
   enum class DlErrorType {FilePathError, InvalidDll, MissingFunctions, DataError, InvalidFunctionType};
   class DlException : MlfException {
@@ -47,11 +49,17 @@ namespace ToolsDlopen {
       const char* what() const noexcept override;
 
   };
+  
+  enum class LibraryFunType {OptimFun, BasisFun};
 
   class DlLoader {
     protected:
       void *handle = nullptr;
     public:
+      DlLoader() {}
+      DlLoader(const string &path) {
+        init(path);
+      }
       void init(const string &path);
       template<typename FType>
       FType getSymOrNull(const string &name) {
@@ -67,16 +75,14 @@ namespace ToolsDlopen {
       ~DlLoader();
   };
 
-  enum class LibraryFunType {OptimFun, BasisFun};
-
-  class LibraryFun : protected DlLoader {
+  class DlFunObject : public MlfObject {
     protected:
       void *data = nullptr;
       mlf_free_fun ffree = nullptr;
       const char *description[mlf_FIELDS+1] = {nullptr};
     public:
-      MLF_OBJ *getFunObj(const string &path, const string &funPrefix, LibraryFunType typeFun, const string &fileName = "", int nIn = -1, int nOut = -1);
-      ~LibraryFun();
+      DlFunObject(DlLoader &dl, const string &funPrefix, LibraryFunType typeFun, const string &fileName = "", int nIn = -1, int nOut = -1);
+      ~DlFunObject();
   };
 }
 

@@ -302,6 +302,7 @@ namespace MlFortran {
       int nrsc;
       bool updateIdMap();
     public:
+      MlfObject() {}
       MlfObject(MlfShared &obj) : obj(obj) {}
       MlfObject(MLF_OBJ *obj) : obj(obj,
           [](MLF_OBJ *obj) {

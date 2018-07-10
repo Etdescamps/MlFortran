@@ -106,8 +106,8 @@ int main(int argc, char **argv) {
   }
   if(nmodel.size() == 0)
     return _print_usage(-1, argv[0]);
-  LibraryFun lib;
-  MlfObject obj(lib.getFunObj(nmodel, nprefix, LibraryFunType::OptimFun, nparameter, ninput, noutput));
+  DlLoader lib(nmodel);
+  DlFunObject obj(lib, nprefix, LibraryFunType::OptimFun, nparameter, ninput, noutput);
   _proceed_optim(nalg, obj, niter, target, lambda, mu, sigma);
   return 0;
 }

@@ -29,44 +29,43 @@
 
 #include <dlfcn.h>
 #include <cstdlib>
-#include "tools_dlopen.hpp"
+#include "mlf_dlopen.hpp"
 
-namespace ToolsDlopen {
-  const char *DlException::what() const noexcept {
+namespace MlFortran {
+  const char *MlfDlException::what() const noexcept {
     switch(errorDl) {
-      case DlErrorType::FilePathError:
+      case MlfDlErrorType::FilePathError:
         return "DlException: Incorrect file path";
-      case DlErrorType::InvalidDll:
+      case MlfDlErrorType::InvalidDll:
         return "DlException: Invalid library file";
-      case DlErrorType::MissingFunctions:
+      case MlfDlErrorType::MissingFunctions:
         return "DlException: Library file is missing functions";
-      case DlErrorType::DataError:
+      case MlfDlErrorType::DataError:
         return "DlException: Error when handling data";
-      case DlErrorType::InvalidFunctionType:
+      case MlfDlErrorType::InvalidFunctionType:
         return "DlException: Invalid function type";
       default:
         return MlfException::what();
     }
   }
 
-  void DlLoader::init(const string &path) {
+  void MlfDlLoader::init(const string &path) {
     if(handle) {
       dlclose(handle);
       handle = nullptr;
     }
     handle = dlopen(path.c_str(), RTLD_LAZY);
     if(!handle)
-      throw DlException(DlErrorType::FilePathError);
+      throw MlfDlException(MlfDlErrorType::FilePathError);
   }
 
-  DlLoader::~DlLoader(){
+  MlfDlLoader::~MlfDlLoader(){
     if(handle) {
       dlclose(handle);
     }
   }
-
   
-  DlFunObject::DlFunObject(DlLoader &dl, const string &funPrefix, LibraryFunType typeFun, const string &fileName, int nIn, int nOut) {
+  MlfFunObject::MlfFunObject(MlfDlLoader &dl, const string &funPrefix, MlfLibraryFunType typeFun, const string &fileName, int nIn, int nOut) {
     MLF_OBJ *object = nullptr;
     mlf_init_fun finit = dl.getSymOrNull<mlf_init_fun>(funPrefix+"_init");
     ffree = dl.getSymOrNull<mlf_free_fun>(funPrefix+"_free");
@@ -80,7 +79,7 @@ namespace ToolsDlopen {
       finfo(data, mlf_FUNINFO);
     }
     switch(typeFun) {
-      case LibraryFunType::OptimFun:
+      case MlfLibraryFunType::OptimFun:
         {
           mlf_objective_fun fobj = dl.getSym<mlf_objective_fun>(funPrefix+"_objfun");
           mlf_objective_fun fcstr = dl.getSymOrNull<mlf_objective_fun>(funPrefix+"_cstrfun");
@@ -99,19 +98,19 @@ namespace ToolsDlopen {
           object = mlf_objfunction(fobj, data, fcstr, &nfo);
         }
         break;
-      case LibraryFunType::BasisFun:
+      case MlfLibraryFunType::BasisFun:
         {
           mlf_basis_fun fbasis = dl.getSym<mlf_basis_fun>(funPrefix+"_basisfun");
           object = mlf_basisfunction(fbasis, data);
         }
         break;
       default:
-        throw DlException(DlErrorType::InvalidFunctionType);
+        throw MlfDlException(MlfDlErrorType::InvalidFunctionType);
     }
     obj = MlfShared(object, [](MLF_OBJ *obj) {if(obj) mlf_dealloc(obj);});
   }
 
-  DlFunObject::~DlFunObject() {
+  MlfFunObject::~MlfFunObject() {
     if(data) {
       if(ffree)
         ffree(data);

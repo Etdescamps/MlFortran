@@ -4,10 +4,9 @@
 #include <string>
 #include <unistd.h>
 #include <limits>
-#include "tools_dlopen.hpp"
+#include "mlf_dlopen.hpp"
 
 using namespace std;
-using namespace ToolsDlopen;
 using namespace MlFortran;
 
 int _proceed_optim(string &nalg, MlfObject &fobj, int64_t niter, double target, int lambda, int mu, double sigma) {
@@ -106,8 +105,8 @@ int main(int argc, char **argv) {
   }
   if(nmodel.size() == 0)
     return _print_usage(-1, argv[0]);
-  DlLoader lib(nmodel);
-  DlFunObject obj(lib, nprefix, LibraryFunType::OptimFun, nparameter, ninput, noutput);
+  MlfDlLoader lib(nmodel);
+  MlfFunObject obj(lib, nprefix, MlfLibraryFunType::OptimFun, nparameter, ninput, noutput);
   _proceed_optim(nalg, obj, niter, target, lambda, mu, sigma);
   return 0;
 }

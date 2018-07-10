@@ -34,30 +34,24 @@
 #include "mlf.hpp"
 
 
-namespace ToolsDlopen {
-
-  using std::string;
-  using MlFortran::MlfException;
-  using MlFortran::MlfObject;
-  using MlFortran::MlfShared;
-
-  enum class DlErrorType {FilePathError, InvalidDll, MissingFunctions, DataError, InvalidFunctionType};
-  class DlException : MlfException {
+namespace MlFortran {
+  enum class MlfDlErrorType {FilePathError, InvalidDll, MissingFunctions, DataError, InvalidFunctionType};
+  class MlfDlException : MlfException {
     public:
-      DlErrorType errorDl;
-      DlException(DlErrorType e) : MlfException(mlf_OTHERERROR), errorDl(e) {}
+      MlfDlErrorType errorDl;
+      MlfDlException(MlfDlErrorType e) : MlfException(mlf_OTHERERROR), errorDl(e) {}
       const char* what() const noexcept override;
 
   };
   
-  enum class LibraryFunType {OptimFun, BasisFun};
+  enum class MlfLibraryFunType {OptimFun, BasisFun};
 
-  class DlLoader {
+  class MlfDlLoader {
     protected:
       void *handle = nullptr;
     public:
-      DlLoader() {}
-      DlLoader(const string &path) {
+      MlfDlLoader() {}
+      MlfDlLoader(const string &path) {
         init(path);
       }
       void init(const string &path);
@@ -69,20 +63,20 @@ namespace ToolsDlopen {
       FType getSym(const string &name) {
         void *address = dlsym(handle, name.c_str());
         if(!address)
-          throw DlException(DlErrorType::MissingFunctions);
+          throw MlfDlException(MlfDlErrorType::MissingFunctions);
         return (FType) address;
       }
-      ~DlLoader();
+      ~MlfDlLoader();
   };
 
-  class DlFunObject : public MlfObject {
+  class MlfFunObject : public MlfObject {
     protected:
       void *data = nullptr;
       mlf_free_fun ffree = nullptr;
       const char *description[mlf_FIELDS+1] = {nullptr};
     public:
-      DlFunObject(DlLoader &dl, const string &funPrefix, LibraryFunType typeFun, const string &fileName = "", int nIn = -1, int nOut = -1);
-      ~DlFunObject();
+      MlfFunObject(MlfDlLoader &dl, const string &funPrefix, MlfLibraryFunType typeFun, const string &fileName = "", int nIn = -1, int nOut = -1);
+      ~MlfFunObject();
   };
 }
 

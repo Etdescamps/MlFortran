@@ -107,7 +107,7 @@ namespace MlFortran {
       default:
         throw MlfDlException(MlfDlErrorType::InvalidFunctionType);
     }
-    obj = MlfShared(object, [](MLF_OBJ *obj) {if(obj) mlf_dealloc(obj);});
+    setObject(object);
   }
 
   MlfFunObject::~MlfFunObject() {

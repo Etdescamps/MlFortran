@@ -29,7 +29,7 @@
 
 #pragma once
 // MlFortran C++ interface
-// Implementation is on src/cfuns/mlfcpp.cpp
+// Implementation is on src/cpp_intf/mlfcpp.cpp
 
 // Standard C Library headers
 #include <cstdint>
@@ -48,6 +48,7 @@
 // MLF C interface headers
 #include "mlf_cintf.h"
 #include "mlf_funintf.h"
+#include "mlf_hdf5.h"
 
 namespace MlFortran {
   using std::string;
@@ -306,10 +307,15 @@ namespace MlFortran {
       MlfObject(MlfShared &obj) : obj(obj) {}
       MlfObject(MLF_OBJ *obj) : obj(obj,
           [](MLF_OBJ *obj) {
-            //std::cerr << "unallocate object (2)" << std::endl;
             if(obj) mlf_dealloc(obj);
           }) {}
       MlfObject(MLF_OBJ *obj, MlfDeleter &deleter) : obj(obj, deleter) {}
+      int setObject(MLF_OBJ *object) {
+        if(!object)
+          return -1;
+        obj = MlfShared(object, [](MLF_OBJ *obj) {if(obj) mlf_dealloc(obj);});
+        return 0;
+      }
       MLF_OBJ *get() const {
         return obj.get();
       }
@@ -382,6 +388,23 @@ namespace MlFortran {
     public:
       MlfOptimObject(const string &nalg, MlfObject &funobj, double target, int lambda, int mu, double sigma)
         : MlfStepObject(mlf_getoptimobj(nalg.c_str(), funobj.get(), nullptr, target, lambda, mu, sigma)) {}
+  };
+  class MlfHdf5 : public MlfObject {
+    protected:
+      bool has_data;
+    public:
+      int createFile(string &fileName, bool trunk = true) {
+        has_data = false;
+        return setObject(mlf_hdf5_createFile(fileName.c_str(), trunk ? 1 : 0));
+      }
+      int openFile(string &fileName, bool rw = true) {
+        has_data = true;
+        return setObject(mlf_hdf5_openFile(fileName.c_str(), rw ? 1 : 0));
+      }
+      int pushState(MlfObject &elt) {
+        return mlf_pushState(get(), elt.get());
+      }
+      bool hasData() {return has_data;}
   };
 
 }

@@ -30,14 +30,14 @@
 #pragma once
 
 #include "mlf_cintf.h"
-#include <hdf5.h>
+//#include <hdf5.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-MLF_OBJ *mlf_hdf5_createFile(const char *fname, unsigned flags);
-MLF_OBJ *mlf_hdf5_openFile(const char *fname, unsigned flags);
+MLF_OBJ *mlf_hdf5_createFile(const char *fname, int trunk);
+MLF_OBJ *mlf_hdf5_openFile(const char *fname, int rw);
 
 #ifdef __cplusplus
 }

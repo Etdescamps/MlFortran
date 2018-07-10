@@ -335,6 +335,19 @@ Contains
     End Associate
   End Function c_updatersc
 
+  integer(c_int) Function c_pushstate(cptr, cobj) bind(C, name="mlf_pushState")
+    type(c_ptr), value :: cptr, cobj
+    class (mlf_obj), pointer :: this, obj
+    c_pushstate = -1
+    obj => mlf_getobjfromc(cobj)
+    this => mlf_getobjfromc(cptr)
+    if((.NOT. associated(obj)) .OR. (.NOT. associated(this))) RETURN
+    select type(this)
+    class is (mlf_rsc_handler)
+      c_pushstate = this%pushState(obj)
+    end select
+  End Function c_pushstate
+
   ! Set a peculiar description string of a ressource
   Subroutine mlf_rsc_setstr(this, itype, str)
     class(mlf_rsc), intent(inout) :: this

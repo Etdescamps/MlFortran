@@ -156,17 +156,21 @@ Contains
     this%obj_name = fname // C_NULL_CHAR
   End Function mlf_hdf5_createFile
 
-  type(c_ptr) Function c_hdf5_createFile(pfname, access_flag) result(cptr) bind(C, name="mlf_hdf5_createFile")
+  type(c_ptr) Function c_hdf5_createFile(pfname, trunk) result(cptr) bind(C, name="mlf_hdf5_createFile")
     type(mlf_hdf5_file), pointer :: this
     class (mlf_obj), pointer :: obj
     type(c_ptr), value :: pfname
     character(len=:, kind=c_char), allocatable, target :: fname
-    integer(c_int), intent(in) :: access_flag
+    integer(c_int), intent(in) :: trunk
     integer :: info
     ALLOCATE(this)
     cptr = c_null_ptr
     call mlf_stringFromC(pfname, fname)
-    info = this%createFile(fname, access_flag)
+    if(trunk == 0) then
+      info = this%createFile(fname, H5F_ACC_EXCL_F)
+    else
+      info = this%createFile(fname)
+    endif
     if(info<0) then
       deallocate(this); RETURN
     endif
@@ -191,17 +195,21 @@ Contains
     this%obj_name = fname // C_NULL_CHAR
   End Function mlf_hdf5_openFile
 
-  type(c_ptr) Function c_hdf5_openFile(pfname, access_flag) result(cptr) bind(C, name="mlf_hdf5_openFile")
+  type(c_ptr) Function c_hdf5_openFile(pfname, rw) result(cptr) bind(C, name="mlf_hdf5_openFile")
     type(mlf_hdf5_file), pointer :: this
     class (mlf_obj), pointer :: obj
     type(c_ptr), value :: pfname
     character(len=:, kind=c_char), allocatable, target :: fname
-    integer(c_int), intent(in) :: access_flag
+    integer(c_int), intent(in) :: rw
     integer :: info
     ALLOCATE(this)
     cptr = c_null_ptr
     call mlf_stringFromC(pfname, fname)
-    info = this%openFile(fname, access_flag)
+    if(rw == 0) then
+      info = this%openFile(fname, H5F_ACC_RDONLY_F)
+    else
+      info = this%openFile(fname)
+    endif
     if(info<0) then
       deallocate(this); RETURN
     endif

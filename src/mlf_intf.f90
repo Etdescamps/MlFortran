@@ -82,6 +82,7 @@ Module mlf_intf
   ! Ressource handler
   Type, Public :: mlf_rsc
     character(:,kind=c_char), allocatable :: r_name, r_desc, r_fields
+    logical :: present_in_file = .FALSE.
     class(mlf_rsc_intf), allocatable :: r
   Contains
     procedure :: set_str => mlf_rsc_setstr
@@ -133,7 +134,7 @@ Module mlf_intf
       use iso_c_binding
       import :: mlf_rsc_handler, mlf_obj
       class(mlf_rsc_handler), intent(inout), target :: this
-      class(mlf_obj), intent(in), target :: obj
+      class(mlf_obj), intent(inout), target :: obj
       integer(c_int) :: mlf_rsc_handler_push
     End Function mlf_rsc_handler_push
   End Interface

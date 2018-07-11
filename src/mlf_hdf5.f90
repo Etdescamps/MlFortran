@@ -240,19 +240,20 @@ Contains
     call mlf_obj_finalize(this)
   End Subroutine mlf_hdf5_file_finalize
 
-  Integer Function mlf_hdf5_createAndWrite(file_id, dims, rname, h5_type, f_ptr) result(info)
+  Integer Function mlf_hdf5_createOrWrite(file_id, dims, rname, h5_type, f_ptr, created) result(info)
     integer(HID_T), intent(in) :: file_id, h5_type
     character(len=*,kind=c_char), intent(in) :: rname
     integer(HSIZE_T), intent(in) :: dims(:)
     type(c_ptr), intent(in) :: f_ptr
+    logical, intent(inout) :: created
     integer(HID_T) :: space_id = -1, data_id = -1
-    info = createSpaceResource(file_id, dims, rname, h5_type, space_id, data_id)
+    info = createSpaceResource(file_id, dims, rname, h5_type, space_id, data_id, created)
     if(info >= 0) then
       call H5Dwrite_f(data_id, h5_type, f_ptr, info)
       if(info<0) write (error_unit, *) 'Error writing resource: '//rname
     endif
     info = min(info, closeHDFIds(data_id, space_id))
-  End Function mlf_hdf5_createAndWrite 
+  End Function mlf_hdf5_createOrWrite 
 
   Integer Function closeHDFIds(data_id, space_id, file_id) result(info)
     integer(HID_T), intent(in), optional :: file_id, space_id, data_id
@@ -273,16 +274,22 @@ Contains
     endif
   End Function closeHDFIds
 
-  Integer Function createSpaceResource(file_id, dims, rname, h5_type, space_id, data_id) &
+  Integer Function createSpaceResource(file_id, dims, rname, h5_type, space_id, data_id, created) &
       result(info)
     integer(HID_T), intent(in) :: file_id, h5_type
     character(len=*,kind=c_char), intent(in) :: rname
     integer(HSIZE_T), intent(in) :: dims(:)
     integer(HID_T), intent(inout) :: space_id, data_id
+    logical, intent(inout) :: created
+    if(created) then
+      call H5Gunlink_f(file_id, rname, info)
+      if(CheckF(info, "Error removing dataset"//rname)) RETURN
+    endif
     call H5Screate_simple_f(size(dims), dims, space_id, info)
     if(CheckF(info, "Error creating dataspace", dims)) RETURN
     call H5Dcreate_f(file_id, rname, h5_type, space_id, data_id, info)
     if(CheckF(info, "Error creating dataset"//rname)) RETURN
+    created = .TRUE.
   End Function createSpaceResource
 
   Integer Function openSpaceResource(file_id, dims, rname, space_id, data_id, fixed_dims) result(info)
@@ -439,10 +446,11 @@ Contains
 
   Integer(c_int) Function mlf_hdf5_pushState(this, obj) result(info)
     class(mlf_hdf5_handler), intent(inout), target :: this
-    class(mlf_obj), intent(in), target :: obj
+    class(mlf_obj), intent(inout), target :: obj
     integer :: i
     type(c_ptr) :: f_ptr
     integer(HID_T) :: gid
+    logical :: created = .FALSE.
     gid = this%getId()
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
@@ -450,30 +458,32 @@ Contains
     if(.NOT. allocated(obj%v)) RETURN
     do i=1,size(obj%v)
       if(.NOT. allocated(obj%v(i)%r)) CYCLE
+      created = obj%v(i)%present_in_file
       associate(x => obj%v(i)%r)
         select type(x)
         class is (mlf_rsc_int64_1d)
           f_ptr = c_loc(x%V)
-          info = mlf_hdf5_createAndWrite(gid, [size(x%V, kind=HSIZE_T)], &
-            obj%v(i)%r_name, h5kind_to_type(c_int64_t, H5_INTEGER_KIND), f_ptr)
+          info = mlf_hdf5_createOrWrite(gid, [size(x%V, kind=HSIZE_T)], &
+            obj%v(i)%r_name, h5kind_to_type(c_int64_t, H5_INTEGER_KIND), f_ptr, created)
         class is (mlf_rsc_int32_1d)
           f_ptr = c_loc(x%V)
-          info = mlf_hdf5_createAndWrite(gid, [size(x%V, kind=HSIZE_T)], &
-            obj%v(i)%r_name, h5kind_to_type(c_int32_t, H5_INTEGER_KIND), f_ptr)
+          info = mlf_hdf5_createOrWrite(gid, [size(x%V, kind=HSIZE_T)], &
+            obj%v(i)%r_name, h5kind_to_type(c_int32_t, H5_INTEGER_KIND), f_ptr, created)
         class is (mlf_rsc_double1d)
           f_ptr = c_loc(x%V)
-          info = mlf_hdf5_createAndWrite(gid, [size(x%V, kind=HSIZE_T)], &
-            obj%v(i)%r_name, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr)
+          info = mlf_hdf5_createOrWrite(gid, [size(x%V, kind=HSIZE_T)], &
+            obj%v(i)%r_name, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, created)
         class is (mlf_rsc_double2d)
           f_ptr = c_loc(x%V)
-          info = mlf_hdf5_createAndWrite(gid, shape(x%V, kind=HSIZE_T), &
-            obj%v(i)%r_name, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr)
+          info = mlf_hdf5_createOrWrite(gid, shape(x%V, kind=HSIZE_T), &
+            obj%v(i)%r_name, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, created)
         class is (mlf_rsc_double3d)
           f_ptr = c_loc(x%V)
-          info = mlf_hdf5_createAndWrite(gid, shape(x%V, kind=HSIZE_T), &
-            obj%v(i)%r_name, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr)
+          info = mlf_hdf5_createOrWrite(gid, shape(x%V, kind=HSIZE_T), &
+            obj%v(i)%r_name, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, created)
         end select
       end associate
+      obj%v(i)%present_in_file = created
     end do
   End Function mlf_hdf5_pushState
 End Module mlf_hdf5

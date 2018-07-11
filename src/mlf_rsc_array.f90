@@ -188,6 +188,7 @@ Contains
         if(present(data_handler)) then
           info = data_handler%getData(ip%V, rsc_name, [nd], fixed_dims)
           if(info<0) RETURN
+          this%v(id)%present_in_file = .TRUE.
         endif
         if(.NOT. allocated(ip%V)) ALLOCATE(ip%V(nd), stat=info)
         if(CheckNZ(info, "Error array allocation", [nd])) RETURN
@@ -216,6 +217,7 @@ Contains
         if(present(data_handler)) then
           info = data_handler%getData(ip%V, rsc_name, [nd], fixed_dims)
           if(info<0) RETURN
+          this%v(id)%present_in_file = .TRUE.
         endif
         if(.NOT. allocated(ip%V)) ALLOCATE(ip%V(nd), stat=info)
         if(CheckNZ(info, "Error array allocation", [nd])) RETURN
@@ -244,6 +246,7 @@ Contains
         if(present(data_handler)) then
           info = data_handler%getData(ip%V, rsc_name, [nd], fixed_dims)
           if(info<0) RETURN
+          this%v(id)%present_in_file = .TRUE.
         endif
         if(.NOT. allocated(ip%V)) ALLOCATE(ip%V(nd), stat=info)
         if(CheckNZ(info, "Error array allocation", [nd])) RETURN
@@ -272,6 +275,7 @@ Contains
         if(present(data_handler)) then
           info = data_handler%getData(ip%V, rsc_name, nd, fixed_dims)
           if(info<0) RETURN
+          this%v(id)%present_in_file = .TRUE.
         endif
         if(.NOT. allocated(ip%V)) ALLOCATE(ip%V(nd(1), nd(2)), stat=info)
         if(CheckNZ(info, "Error matrix allocation", nd)) RETURN
@@ -300,6 +304,7 @@ Contains
         if(present(data_handler)) then
           info = data_handler%getData(ip%V, rsc_name, nd, fixed_dims) 
           if(info<0) RETURN
+          this%v(id)%present_in_file = .TRUE.
         endif
         if(.NOT. allocated(ip%V)) ALLOCATE(ip%V(nd(1), nd(2), nd(3)), stat=info)
         if(CheckNZ(info, "Error matrix allocation", nd)) RETURN

@@ -1,4 +1,5 @@
 #include "mlf.hpp"
+#include <unistd.h>
 
 namespace MlFortran {
   const char *MlfException::what() const noexcept {
@@ -93,10 +94,12 @@ namespace MlFortran {
   }
 
   bool MlfHdf5::readWOrCreate(string &fileName) {
-    if(openFile(fileName) < 0) {
+    if(access(fileName.c_str(), F_OK) < 0) {
       if(createFile(fileName) < 0)
         throw MlfException(mlf_FILEERROR);
     }
+    else if(openFile(fileName) < 0)
+      throw MlfException(mlf_FILEERROR);
     return hasData();
   }
 

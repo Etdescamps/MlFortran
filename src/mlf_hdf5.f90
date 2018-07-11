@@ -161,7 +161,7 @@ Contains
     class (mlf_obj), pointer :: obj
     type(c_ptr), value :: pfname
     character(len=:, kind=c_char), allocatable, target :: fname
-    integer(c_int), intent(in) :: trunk
+    integer(c_int), value :: trunk
     integer :: info
     ALLOCATE(this)
     cptr = c_null_ptr
@@ -200,7 +200,7 @@ Contains
     class (mlf_obj), pointer :: obj
     type(c_ptr), value :: pfname
     character(len=:, kind=c_char), allocatable, target :: fname
-    integer(c_int), intent(in) :: rw
+    integer(c_int), value :: rw
     integer :: info
     ALLOCATE(this)
     cptr = c_null_ptr

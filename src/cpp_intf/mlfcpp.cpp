@@ -13,6 +13,10 @@ namespace MlFortran {
         return "MlfException: Wrong type of object";
       case mlf_WRONGRANK:
         return "MlfException: Wrong rank";
+      case mlf_FILENOTFOUND:
+        return "MlfException: File not found";
+      case mlf_FILEERROR:
+        return "MlfException: Cannot access file";
       case mlf_OTHERERROR:
         return "MlfException: Other error type (shall use a different exception class?)";
       default:
@@ -86,6 +90,14 @@ namespace MlFortran {
     int idrpar = MlfObject::getIdName("rpar");
     int idipar = MlfObject::getIdName("ipar");
     os << MlfObject::getFields(idipar) << MlfObject::getFields(idrpar) << std::endl;
+  }
+
+  bool MlfHdf5::readWOrCreate(string &fileName) {
+    if(openFile(fileName) < 0) {
+      if(createFile(fileName) < 0)
+        throw MlfException(mlf_FILEERROR);
+    }
+    return hasData();
   }
 
 }

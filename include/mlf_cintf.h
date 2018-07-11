@@ -42,7 +42,7 @@ typedef void MLF_OBJ;
 typedef enum {mlf_UNK = 0, mlf_BOOL = 1, mlf_INT = 2, mlf_INT64 = 3, mlf_SIZE = 4, mlf_FLOAT = 5, mlf_DOUBLE = 6, mlf_SIZEPARAM = 7, mlf_RAW = 8} MLF_DATATYPE;
 typedef enum {mlf_DIRECT = 1, mlf_INDIRECT = 2, mlf_READONLY = 3, mlf_COPYONLY = 4, mlf_WRITEONLY = 5} MLF_ACCESSTYPE;
 typedef enum {mlf_NAME = 1, mlf_DESC = 2, mlf_FIELDS = 3, mlf_FUNINFO} MLF_INFOTYPE;
-typedef enum {mlf_OK = 0, mlf_UNINIT = -1, mlf_FUNERROR = -2, mlf_WRONGTYPE = -3, mlf_WRONGRANK = -4, mlf_OTHERERROR = -5} MLF_ERRORTYPE;
+typedef enum {mlf_OK = 0, mlf_UNINIT = -1, mlf_FUNERROR = -2, mlf_WRONGTYPE = -3, mlf_WRONGRANK = -4, mlf_FILENOTFOUND = -5, mlf_FILEERROR = -6, mlf_OTHERERROR = -7} MLF_ERRORTYPE;
 
 typedef struct {
   short dt; // MLF_DATATYPE

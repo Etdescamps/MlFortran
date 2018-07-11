@@ -384,28 +384,39 @@ namespace MlFortran {
       void printLine(ostream& os);
       void printFields(ostream& os);
   };
-  class MlfOptimObject : public MlfStepObject {
-    public:
-      MlfOptimObject(const string &nalg, MlfObject &funobj, double target, int lambda, int mu, double sigma)
-        : MlfStepObject(mlf_getoptimobj(nalg.c_str(), funobj.get(), nullptr, target, lambda, mu, sigma)) {}
-  };
+
   class MlfHdf5 : public MlfObject {
     protected:
-      bool has_data;
+      bool has_data = false, is_init = false;
     public:
       int createFile(string &fileName, bool trunk = true) {
+        int r = setObject(mlf_hdf5_createFile(fileName.c_str(), trunk ? 1 : 0));
+        is_init = r >= 0;
         has_data = false;
-        return setObject(mlf_hdf5_createFile(fileName.c_str(), trunk ? 1 : 0));
+        return r;
       }
       int openFile(string &fileName, bool rw = true) {
-        has_data = true;
-        return setObject(mlf_hdf5_openFile(fileName.c_str(), rw ? 1 : 0));
+        int r = setObject(mlf_hdf5_openFile(fileName.c_str(), rw ? 1 : 0));
+        is_init = r >= 0;
+        has_data = is_init;
+        return r;
       }
       int pushState(MlfObject &elt) {
         return mlf_pushState(get(), elt.get());
       }
+      bool readWOrCreate(string &fileName);
       bool hasData() {return has_data;}
+      bool isInit() {return is_init;}
   };
 
+  class MlfOptimObject : public MlfStepObject {
+    public:
+      int setAlgo(const string &nalg, MlfObject &funobj, double target, int lambda, int mu, double sigma = 1.0) {
+        return setObject(mlf_getoptimobj(nalg.c_str(), funobj.get(), nullptr, target, lambda, mu, sigma));
+      }
+      int setAlgo(const string &nalg, MlfObject &funobj, MlfHdf5 &handler, double target, int lambda, int mu, double sigma = 1.0) {
+        return setObject(mlf_getoptimobj(nalg.c_str(), funobj.get(), handler.hasData() ? handler.get() : nullptr, target, lambda, mu, sigma));
+      }
+  };
 }
 

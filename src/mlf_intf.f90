@@ -54,7 +54,8 @@ Module mlf_intf
   End Enum
   Enum, bind(C)
     enumerator :: mlf_OK = 0, mlf_UNINIT = -1, mlf_FUNERROR = -2, mlf_WRONGTYPE = -3
-    enumerator :: mlf_WRONGRANK = -4, mlf_OTHERERROR = -5
+    enumerator :: mlf_WRONGRANK = -4, mlf_FILENOTFOUND = -5, mlf_FILEERROR = -6
+    enumerator :: mlf_OTHERERROR = -7
   End Enum
 
   Public :: mlf_BOOL, mlf_INT, mlf_INT64, mlf_SIZE, mlf_FLOAT, mlf_DOUBLE, mlf_SIZEPARAM, mlf_RAW

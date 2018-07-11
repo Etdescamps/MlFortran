@@ -9,11 +9,14 @@
 using namespace std;
 using namespace MlFortran;
 
-int _proceed_optim(string &nalg, MlfObject &fobj, int64_t niter, double target, int lambda, int mu, double sigma) {
-  MlfOptimObject obj_optim(nalg, fobj, target, lambda, mu, sigma);
+int _proceed_optim(string &nalg, MlfObject &fobj, int64_t niter, double target, int lambda, int mu, double sigma, MlfHdf5 &handler, int cEvery) {
+  MlfOptimObject obj_optim;
+  obj_optim.setAlgo(nalg, fobj, handler, target, lambda, mu, sigma);
   obj_optim.printFields(cout);
   for(int64_t i = 0; i < niter; ++i) {
     obj_optim.printLine(cout);
+    if(handler.isInit() && (i %cEvery) == 0)
+      handler.pushState(fobj);
     if(obj_optim.step() != 0)
       break;
   }
@@ -27,6 +30,7 @@ static int _print_usage(int out, char *name) {
   cerr << "  -X prefix_name        Prefix name used by the function" << endl;
   cerr << "  -p m_parameter.dat    Parameter file used for model initialisation" << endl;
   cerr << "  -c checkpoint.h5      Checkpoint file that save the optimisation" << endl;
+  cerr << "  -C checkpointEvery    Set the number of steps between each checkpoint" << endl;
   cerr << "  -A algorithm          Select an algorithm for optimization" << endl;
   cerr << "                        Possible algorithms: cmaes (default), maes" << endl;
   cerr << "                        Restart at the last saved state if provided" << endl;
@@ -44,12 +48,12 @@ static int _print_usage(int out, char *name) {
 int main(int argc, char **argv) {
   string nmodel, nparameter, ncheckpoint;
   string nalg = "cmaes", nprefix = "fun";
-  int opt, ninput = -1, noutput = -1;
+  int opt, ninput = -1, noutput = -1, cEvery = 16;
   int64_t niter = numeric_limits<int64_t>::max();
   int mu = -1, lambda = -1;
   double sigma = 1.0, target = -HUGE_VAL;
   try {
-    while((opt = getopt(argc, argv, "m:X:p:c:A:i:o:L:M:N:T:S:h")) != -1) {
+    while((opt = getopt(argc, argv, "m:X:p:c:C:A:i:o:L:M:N:T:S:h")) != -1) {
       switch(opt) {
         case 'm':
           nmodel = optarg;
@@ -62,6 +66,9 @@ int main(int argc, char **argv) {
           break;
         case 'c':
           ncheckpoint = optarg;
+          break;
+        case 'C':
+          cEvery = stoi(optarg);
           break;
         case 'A':
           nalg = optarg;
@@ -106,8 +113,11 @@ int main(int argc, char **argv) {
   if(nmodel.size() == 0)
     return _print_usage(-1, argv[0]);
   MlfDlLoader lib(nmodel);
+  MlfHdf5 handler;
+  if(ncheckpoint.size() > 0)
+    handler.readWOrCreate(ncheckpoint);
   MlfFunObject obj(lib, nprefix, MlfLibraryFunType::OptimFun, nparameter, ninput, noutput);
-  _proceed_optim(nalg, obj, niter, target, lambda, mu, sigma);
+  _proceed_optim(nalg, obj, niter, target, lambda, mu, sigma, handler, cEvery);
   return 0;
 }
 

@@ -49,7 +49,10 @@ int _proceed_optim(string &nalg, MlfObject &fobj, int64_t niter, double target, 
     if(obj_optim.step() != 0)
       break;
   }
+  if(handler.isInit())
+    handler.pushState(obj_optim);
   obj_optim.printLine(cout);
+  obj_optim.printMinX(cout);
   return 0;
 }
 

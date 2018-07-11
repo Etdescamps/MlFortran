@@ -103,5 +103,13 @@ namespace MlFortran {
     return hasData();
   }
 
+  void MlfOptimObject::printMinX(ostream& os) {
+    if(!minX.associated()) {
+      int id = MlfObject::getIdName("minX");
+      MlfObject::getRsc(id, minX);
+    }
+    os << minX << std::endl;
+  }
+
 }
 

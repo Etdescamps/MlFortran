@@ -205,6 +205,9 @@ namespace MlFortran {
       ~MlfData() {
         _cleanAlloc();
       }
+      bool associated() {
+        return data != nullptr;
+      }
   };
 
   template<typename Type, bool readOnly = true>
@@ -410,6 +413,8 @@ namespace MlFortran {
   };
 
   class MlfOptimObject : public MlfStepObject {
+    protected:
+      MlfDataVector<double> minX;
     public:
       int setAlgo(const string &nalg, MlfObject &funobj, double target, int lambda, int mu, double sigma = 1.0) {
         return setObject(mlf_getoptimobj(nalg.c_str(), funobj.get(), nullptr, target, lambda, mu, sigma));
@@ -417,6 +422,7 @@ namespace MlFortran {
       int setAlgo(const string &nalg, MlfObject &funobj, MlfHdf5 &handler, double target, int lambda, int mu, double sigma = 1.0) {
         return setObject(mlf_getoptimobj(nalg.c_str(), funobj.get(), handler.hasData() ? handler.get() : nullptr, target, lambda, mu, sigma));
       }
+      void printMinX(ostream& os);
   };
 }
 

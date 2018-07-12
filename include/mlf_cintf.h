@@ -65,7 +65,7 @@ void *mlf_getrsc(MLF_OBJ *obj, int id, MLF_DT *dt, int *rank, int *dim0, void *d
 
 char *mlf_getinfo(MLF_OBJ *obj, int id, int type);
 
-int mlf_pushState(MLF_OBJ *handler, MLF_OBJ *obj);
+int mlf_pushState(MLF_OBJ *handler, MLF_OBJ *obj, int overwrite);
 
 int mlf_updatersc(MLF_OBJ *obj, int id, void *data);
 

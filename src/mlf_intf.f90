@@ -82,7 +82,6 @@ Module mlf_intf
   ! Ressource handler
   Type, Public :: mlf_rsc
     character(:,kind=c_char), allocatable :: r_name, r_desc, r_fields
-    logical :: present_in_file = .FALSE.
     class(mlf_rsc_intf), allocatable :: r
   Contains
     procedure :: set_str => mlf_rsc_setstr
@@ -130,12 +129,13 @@ Module mlf_intf
       integer(c_int) :: mlf_cupdatedata
     End Function mlf_cupdatedata
 
-    Function mlf_rsc_handler_push(this, obj)
+    Function mlf_rsc_handler_push(this, obj, override)
       use iso_c_binding
       import :: mlf_rsc_handler, mlf_obj
       class(mlf_rsc_handler), intent(inout), target :: this
-      class(mlf_obj), intent(inout), target :: obj
+      class(mlf_obj), intent(in), target :: obj
       integer(c_int) :: mlf_rsc_handler_push
+      logical, intent(in), optional :: override
     End Function mlf_rsc_handler_push
   End Interface
 
@@ -337,16 +337,17 @@ Contains
     End Associate
   End Function c_updatersc
 
-  integer(c_int) Function c_pushstate(cptr, cobj) bind(C, name="mlf_pushState")
+  integer(c_int) Function c_pushstate(cptr, cobj, override) bind(C, name="mlf_pushState")
     type(c_ptr), value :: cptr, cobj
     class (mlf_obj), pointer :: this, obj
+    integer(c_int), value :: override
     c_pushstate = -1
     obj => mlf_getobjfromc(cobj)
     this => mlf_getobjfromc(cptr)
     if((.NOT. associated(obj)) .OR. (.NOT. associated(this))) RETURN
     select type(this)
     class is (mlf_rsc_handler)
-      c_pushstate = this%pushState(obj)
+      c_pushstate = this%pushState(obj, override /= 0)
     end select
   End Function c_pushstate
 

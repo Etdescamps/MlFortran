@@ -54,6 +54,10 @@ namespace MlFortran {
     }
   }
 
+  const char *MlfFinalizeCopy::what() const noexcept {
+    return "MlfFinalizeCopy";
+  }
+
   const char *MlfOutOfBounds::what() const noexcept {
     return "MlfOutOfBounds";
   }

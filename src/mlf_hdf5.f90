@@ -300,6 +300,7 @@ Contains
     integer(HSIZE_T) :: max_dims(size(dims)), orig_dims(size(dims))
     integer :: frank0, frank
     integer(HID_T), intent(inout) :: space_id, data_id
+    info = 0
     frank = size(dims)
     call H5Dopen_f(file_id, rname, data_id, info)
     if(CheckF(info, "Error opening resource")) RETURN
@@ -334,6 +335,7 @@ Contains
     integer(HID_T) :: space_id = -1, data_id = -1, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
+    info = 0
     gid = this%getId()
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
@@ -358,6 +360,7 @@ Contains
     integer(HID_T) :: space_id = -1, data_id = -1, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
+    info = 0
     gid = this%getId()
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
@@ -382,6 +385,7 @@ Contains
     integer(HID_T) :: space_id = -1, data_id = -1, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
+    info = 0
     gid = this%getId()
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
@@ -406,6 +410,7 @@ Contains
     integer(HID_T) :: space_id = -1, data_id = -1, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
+    info = 0
     gid = this%getId()
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
@@ -430,6 +435,7 @@ Contains
     integer(HID_T) :: space_id = -1, data_id = -1, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
+    info = 0
     gid = this%getId()
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN

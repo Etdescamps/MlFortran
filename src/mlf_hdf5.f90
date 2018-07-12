@@ -281,14 +281,12 @@ Contains
     integer(HSIZE_T), intent(in) :: dims(:)
     integer(HID_T), intent(inout) :: space_id, data_id
     logical, intent(in) :: created
+    call H5Screate_simple_f(size(dims), dims, space_id, info)
+    if(CheckF(info, "Error creating dataspace: ", dims)) RETURN
     if(created) then
       call H5Dopen_f(file_id, rname, data_id, info)
       if(CheckF(info, "Error opening resource "//rname)) RETURN
-      call H5Dget_space_f(data_id, space_id, info)
-      if(CheckF(info, "Error getting space_id")) RETURN
     else
-      call H5Screate_simple_f(size(dims), dims, space_id, info)
-      if(CheckF(info, "Error creating dataspace: ", dims)) RETURN
       call H5Dcreate_f(file_id, rname, h5_type, space_id, data_id, info)
       if(CheckF(info, "Error creating dataset: "//rname)) RETURN
     endif

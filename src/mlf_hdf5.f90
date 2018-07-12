@@ -152,7 +152,6 @@ Contains
       ! By default, delete the file
       call H5Fcreate_f(fname, H5F_ACC_TRUNC_F, this%file_id, hdferr)
     endif
-    print *, this%file_id
     if(hdferr<0) write (error_unit, *) 'Error while creating file: ', fname
     this%obj_name = fname // C_NULL_CHAR
   End Function mlf_hdf5_createFile
@@ -175,7 +174,6 @@ Contains
     if(info<0) then
       deallocate(this); RETURN
     endif
-    print *, this%file_id
     obj => this
     cptr = c_allocate(obj)
   End Function c_hdf5_createFile

@@ -412,7 +412,7 @@ namespace MlFortran {
     public:
       int createFile(string &fileName, bool trunk = true) {
         int r = setObject(mlf_hdf5_createFile(fileName.c_str(), trunk ? 1 : 0));
-        std::cout << "Creating " << fileName << r << std::endl;
+        //std::cout << "Creating " << fileName << r << std::endl;
         is_init = r >= 0;
         overwrite = 0;
         has_data = false;
@@ -420,7 +420,7 @@ namespace MlFortran {
       }
       int openFile(string &fileName, bool rw = true) {
         int r = setObject(mlf_hdf5_openFile(fileName.c_str(), rw ? 1 : 0));
-        std::cout << "Opening " << fileName << r << std::endl;
+        //std::cout << "Opening " << fileName << r << std::endl;
         is_init = r >= 0;
         overwrite = 1;
         has_data = is_init;
@@ -428,7 +428,7 @@ namespace MlFortran {
       }
       int pushState(MlfObject &elt) {
         int r = mlf_pushState(get(), elt.get(), overwrite);
-        std::cout << "PushState " << overwrite << std::endl;
+        //std::cout << "PushState " << overwrite << std::endl;
         if(r >= 0)
           overwrite = 1;
         return r;

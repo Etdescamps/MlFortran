@@ -6,6 +6,10 @@ set(VERSION 0.0.1)
 
 enable_language(C Fortran CXX)
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Select the type of build: Debug Release" FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
 include(cmake/flags.cmake)
 include(cmake/fortran.cmake)
 include(cmake/c.cmake)
@@ -30,4 +34,5 @@ add_subdirectory(utils)
 add_subdirectory(examples)
 
 install(DIRECTORY include/ DESTINATION include/MlFortran FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY include/ DESTINATION include/MlFortran FILES_MATCHING PATTERN "*.hpp")
 

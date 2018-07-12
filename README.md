@@ -32,7 +32,7 @@ After having clone this repository, you can compile the project using CMake:
 ```console
 foo@bar:MlFortran$ mkdir build 
 foo@bar:MlFortran$ cd build
-foo@bar:build$ cmake .. -DCMAKE_BUILD_TYPE=Release
+foo@bar:build$ cmake ..
 ```
 
 For the instance, only a few demo are present for testing purposes.

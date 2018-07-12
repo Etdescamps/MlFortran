@@ -35,4 +35,5 @@ add_subdirectory(examples)
 
 install(DIRECTORY include/ DESTINATION include/MlFortran FILES_MATCHING PATTERN "*.h")
 install(DIRECTORY include/ DESTINATION include/MlFortran FILES_MATCHING PATTERN "*.hpp")
+install(FILES cmake/MlFortran-config.cmake DESTINATION share/MlFortran)
 

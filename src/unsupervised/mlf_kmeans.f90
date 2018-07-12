@@ -104,7 +104,7 @@ Contains
       info = -1; RETURN
     endif
     this%X => X
-    info = this%add_rmatrix(nrsc, nd, this%Mu, C_CHAR_"Mu", data_handler = data_handler, &
+    info = this%add_rmatrix(nrsc+1, nd, this%Mu, C_CHAR_"Mu", data_handler = data_handler, &
       fixed_dims = fixed_dims)
     if(CheckF(info, "Error adding Mu")) RETURN
     if(present(data_handler)) then

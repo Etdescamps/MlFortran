@@ -118,7 +118,7 @@ Contains
       this%mu = params%mu
     endif
     this%nevalFunMax = params%nevalFunMax
-    info = this%add_rarray(nrsc, nD, this%minX, C_CHAR_"minX", &
+    info = this%add_rarray(nrsc+1, nD, this%minX, C_CHAR_"minX", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
     if(info < 0) RETURN
     nipar = nipar+ni; nrpar = nrpar+nr; nrsc = nrsc+ns

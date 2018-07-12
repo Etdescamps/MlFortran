@@ -89,15 +89,15 @@ Contains
     if(info < 0) RETURN
     nY = size(X,1); nX = size(X,2); nC2 = nC
     ndMu = [nY, nC2]; ndC = [nY, nY, nC2]
-    info = this%add_rmatrix(nrsc, ndMu, this%Mu, C_CHAR_"Mu", &
+    info = this%add_rmatrix(nrsc+1, ndMu, this%Mu, C_CHAR_"Mu", &
       data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
     if(CheckF(info, "emgmm: error creating Mu")) RETURN
     ndC(3) = ndMu(2)
-    info = this%add_rmatrix3d(nrsc+1, ndC, this%Cov, C_CHAR_"Cov", &
+    info = this%add_rmatrix3d(nrsc+2, ndC, this%Cov, C_CHAR_"Cov", &
       data_handler = data_handler, fixed_dims = [.TRUE., .TRUE., .TRUE.])
     if(CheckF(info, "emgmm: error creating Cov")) RETURN
     nC2 = ndMu(2)
-    info = this%add_rarray(nrsc+2, nC2, this%lambda, C_CHAR_"lambda", &
+    info = this%add_rarray(nrsc+3, nC2, this%lambda, C_CHAR_"lambda", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
     if(CheckF(info, "emgmm: error creating lambda")) RETURN
     nC = int(nC2, kind=4)

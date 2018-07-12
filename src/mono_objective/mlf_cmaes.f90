@@ -107,11 +107,11 @@ Contains
     nipar = nipar+ni; nrpar = nrpar+nr; nrsc = nrsc+ns
     info = mlf_optim_init(this, nipar, nrpar, nrsc, ifields, &
       C_CHAR_"alphacov;"//rfields, data_handler, params)
-    info = this%add_rmatrix(nrsc, CND, this%M, C_CHAR_"M", data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
-    info = this%add_rarray(nrsc+1, nD, this%X0, C_CHAR_"X0", data_handler = data_handler, fixed_dims = [.TRUE.])
-    info = this%add_rarray(nrsc+2, nD, this%ps, C_CHAR_"ps", data_handler = data_handler, fixed_dims = [.TRUE.])
+    info = this%add_rmatrix(nrsc+1, CND, this%M, C_CHAR_"M", data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
+    info = this%add_rarray(nrsc+2, nD, this%X0, C_CHAR_"X0", data_handler = data_handler, fixed_dims = [.TRUE.])
+    info = this%add_rarray(nrsc+3, nD, this%ps, C_CHAR_"ps", data_handler = data_handler, fixed_dims = [.TRUE.])
     mu = this%mu
-    info = this%add_rarray(nrsc+3, mu, this%W, C_CHAR_"W", data_handler = data_handler)
+    info = this%add_rarray(nrsc+4, mu, this%W, C_CHAR_"W", data_handler = data_handler)
     this%mu = int(mu, kind=c_int)
     this%alphacov => this%rpar(nrpar+1)
     nipar = nipar+ni; nrpar = nrpar+nr; nrsc = nrsc+ns
@@ -225,8 +225,8 @@ Contains
     if(CheckF(info, 'mlf_cmaes_init: Error init matrix_es')) RETURN
     lambda = size(this%Z, 2); ND = size(this%Z, 1)
     CND = ND
-    info = this%add_rmatrix(nrsc, CND, this%C, C_CHAR_"C", data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
-    info = this%add_rarray(nrsc+1, ND, this%pc, C_CHAR_"pc", data_handler = data_handler, fixed_dims = [.TRUE.])
+    info = this%add_rmatrix(nrsc+1, CND, this%C, C_CHAR_"C", data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
+    info = this%add_rarray(nrsc+2, ND, this%pc, C_CHAR_"pc", data_handler = data_handler, fixed_dims = [.TRUE.])
     this%lastCov => this%ipar(nipar)
     this%covEvery => this%ipar(nipar+1)
     if(present(data_handler)) then

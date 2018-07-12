@@ -127,16 +127,16 @@ Contains
       write (error_unit, *) 'mlf_funbasis(init) error: no input parameter nor data_handler'
       info = -1; RETURN
     endif
-    info = this%add_rmatrix(nrsc, ndP, this%P, C_CHAR_"P", data_handler = data_handler)
+    info = this%add_rmatrix(nrsc+1, ndP, this%P, C_CHAR_"P", data_handler = data_handler)
     if(info /= 0) RETURN
     ndW(1) = ndP(2)
-    info = this%add_rmatrix(nrsc+1, ndW, this%W, C_CHAR_"W", data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
+    info = this%add_rmatrix(nrsc+2, ndW, this%W, C_CHAR_"W", data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
     if(info /= 0) RETURN
     ndV(1) = ndW(2)
-    info = this%add_rmatrix(nrsc+2, ndV, this%Vals, C_CHAR_"Vals", data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
+    info = this%add_rmatrix(nrsc+3, ndV, this%Vals, C_CHAR_"Vals", data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
     if(info /= 0) RETURN
     nX0 = ndV(2)
-    info = this%add_rarray(nrsc+3, nX0, this%X, C_CHAR_"X", data_handler = data_handler, fixed_dims = [.TRUE.])
+    info = this%add_rarray(nrsc+4, nX0, this%X, C_CHAR_"X", data_handler = data_handler, fixed_dims = [.TRUE.])
     if(info /= 0) RETURN
     if(present(data_handler)) RETURN
     this%fun => f

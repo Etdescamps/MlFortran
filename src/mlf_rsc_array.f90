@@ -322,7 +322,7 @@ Contains
     info = this%add_rarray(2, nrpar, this%rpar, C_CHAR_"rpar", rfields, &
       data_handler = data_handler, fixed_dims = [.TRUE.])
     if(CheckF(info, "Error creating rpar")) RETURN
-    nipar = 1; nrpar = 1; nrsc = 3
+    nipar = 1; nrpar = 1; nrsc = 2
   End Function mlf_arr_init
 
   ! Generic interface for int arrays

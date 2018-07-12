@@ -152,6 +152,7 @@ int main(int argc, char **argv) {
       handler.readWOrCreate(ncheckpoint);
     MlfFunObject obj(lib, nprefix, MlfLibraryFunType::OptimFun, nparameter, ninput, noutput);
     _proceed_optim(nalg, obj, niter, target, lambda, mu, sigma, handler, cEvery);
+    handler.finalize();
   }
   mlf_quit();
   return 0;

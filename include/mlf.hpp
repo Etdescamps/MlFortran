@@ -137,8 +137,6 @@ namespace MlFortran {
       }
   };
 
-  typedef shared_ptr<MLF_OBJ> MlfShared;
-
   enum class MlfDataAccessType : short {Direct, InDirect, NotLoaded, WriteOnly};
 
   template<typename T, bool readOnly = true>
@@ -300,45 +298,52 @@ namespace MlFortran {
   };
 
   class MlfObject {
+    private:
+      // Make this kind of object non copiable (required by MLF_OBJ Fortran interface)
+      MlfObject(const MlfObject&) = delete;
+      MlfObject &operator=(const MlfObject&) = delete;
     protected:
-      MlfShared obj;
+      MLF_OBJ *obj = nullptr;
       unique_ptr<string_view[]> obj_names;
       int nrsc;
       bool updateIdMap();
     public:
-      MlfObject() {}
-      MlfObject(MlfShared &obj) : obj(obj) {}
-      MlfObject(MLF_OBJ *obj) : obj(obj,
-          [](MLF_OBJ *obj) {
-            if(obj) mlf_dealloc(obj);
-          }) {}
-      MlfObject(MLF_OBJ *obj, MlfDeleter &deleter) : obj(obj, deleter) {}
+      MlfObject() = default;
+      MlfObject(MLF_OBJ *obj) :  obj(obj) {}
       int setObject(MLF_OBJ *object) {
         if(!object)
           return -1;
-        obj = MlfShared(object, [](MLF_OBJ *obj) {if(obj) mlf_dealloc(obj);});
+        obj = object;
         return 0;
       }
+      ~MlfObject() {
+        finalize();
+      }
+      virtual void finalize() {
+        if(obj)
+          mlf_dealloc(obj);
+        obj = nullptr;
+      }
       MLF_OBJ *get() const {
-        return obj.get();
+        return obj;
       }
       const char *getName(int id) const {
-        return mlf_getinfo(obj.get(), id, mlf_NAME);
+        return mlf_getinfo(obj, id, mlf_NAME);
       }
       const char *getDesc(int id) const {
-        return mlf_getinfo(obj.get(), id, mlf_DESC);
+        return mlf_getinfo(obj, id, mlf_DESC);
       }
       const char *getFields(int id) const {
-        return mlf_getinfo(obj.get(), id, mlf_FIELDS);
+        return mlf_getinfo(obj, id, mlf_FIELDS);
       }
       void *getRsc(int id, MLF_DT &dt, int &rank, int dims[], void *data=nullptr) const {
-        return mlf_getrsc(obj.get(), id, &dt, &rank, dims, data);
+        return mlf_getrsc(obj, id, &dt, &rank, dims, data);
       }
       int updateRsc(int id, void *data) const {
-        return mlf_updatersc(obj.get(), id, data);
+        return mlf_updatersc(obj, id, data);
       }
       int getNumRsc() const {
-        return mlf_getnumrsc(obj.get());
+        return mlf_getnumrsc(obj);
       }
       template<typename MData>
       MlfDataAccessType getRsc(int id, MData &md) const {
@@ -371,18 +376,18 @@ namespace MlFortran {
       int step() const {
         double dt = 0;
         int64_t niter = 1;
-        return mlf_step(MlfObject::get(), &dt, &niter);
+        return mlf_step(get(), &dt, &niter);
       }
       int step(double &dt) const {
         int64_t niter = 1;
-        return mlf_step(MlfObject::get(), &dt, &niter);
+        return mlf_step(get(), &dt, &niter);
       }
       int step(int64_t &nstep) const {
         double dt = 0;
-        return mlf_step(MlfObject::get(), &dt, &nstep);
+        return mlf_step(get(), &dt, &nstep);
       }
       int step(double &dt, int64_t &nstep) const {
-        return mlf_step(MlfObject::get(), &dt, &nstep);
+        return mlf_step(get(), &dt, &nstep);
       }
       void printLine(ostream& os);
       void printFields(ostream& os);

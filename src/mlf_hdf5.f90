@@ -283,12 +283,12 @@ Contains
     logical, intent(inout) :: created
     if(created) then
       call H5Gunlink_f(file_id, rname, info)
-      if(CheckF(info, "Error removing dataset"//rname)) RETURN
+      if(CheckF(info, "Error removing dataset: "//rname)) RETURN
     endif
     call H5Screate_simple_f(size(dims), dims, space_id, info)
-    if(CheckF(info, "Error creating dataspace", dims)) RETURN
+    if(CheckF(info, "Error creating dataspace: ", dims)) RETURN
     call H5Dcreate_f(file_id, rname, h5_type, space_id, data_id, info)
-    if(CheckF(info, "Error creating dataset"//rname)) RETURN
+    if(CheckF(info, "Error creating dataset: "//rname)) RETURN
     created = .TRUE.
   End Function createSpaceResource
 
@@ -343,7 +343,7 @@ Contains
       allocate(rsc_data(dims0(1)))
       f_ptr = C_LOC(rsc_data)
       call H5Dread_f(data_id, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, info)
-      dumb = CheckF(info, "Error reading data"//rsc_name)
+      dumb = CheckF(info, "Error reading data: "//rsc_name)
     endif
     info = min(info, closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getDouble1d
@@ -367,7 +367,7 @@ Contains
       allocate(rsc_data(dims0(1), dims0(2)))
       f_ptr = C_LOC(rsc_data)
       call H5Dread_f(data_id, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, info)
-      dumb = CheckF(info, "Error reading data"//rsc_name)
+      dumb = CheckF(info, "Error reading data: "//rsc_name)
     endif
     info = min(info, closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getDouble2d
@@ -391,7 +391,7 @@ Contains
       allocate(rsc_data(dims0(1), dims0(2), dims0(3)))
       f_ptr = C_LOC(rsc_data)
       call H5Dread_f(data_id, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, info)
-      dumb = CheckF(info, "Error reading data"//rsc_name)
+      dumb = CheckF(info, "Error reading data: "//rsc_name)
     endif
     info = min(info, closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getDouble3d
@@ -415,7 +415,7 @@ Contains
       allocate(rsc_data(dims0(1)))
       f_ptr = C_LOC(rsc_data)
       call H5Dread_f(data_id, h5kind_to_type(c_int64_t, H5_INTEGER_KIND), f_ptr, info)
-      dumb = CheckF(info, "Error reading data"//rsc_name)
+      dumb = CheckF(info, "Error reading data: "//rsc_name)
     endif
     info = min(info, closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getInt64
@@ -439,7 +439,7 @@ Contains
       allocate(rsc_data(dims0(1)))
       f_ptr = C_LOC(rsc_data)
       call H5Dread_f(data_id, h5kind_to_type(c_int32_t, H5_INTEGER_KIND), f_ptr, info)
-      dumb = CheckF(info, "Error reading data"//rsc_name)
+      dumb = CheckF(info, "Error reading data: "//rsc_name)
     endif
     info = min(info, closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getInt32
@@ -453,7 +453,7 @@ Contains
     logical :: created = .FALSE.
     gid = this%getId()
     if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    if(CheckF(info, "mlf_hdf5: error getting id: ")) RETURN
     info = 0
     if(.NOT. allocated(obj%v)) RETURN
     do i=1,size(obj%v)

@@ -212,8 +212,8 @@ Contains
         this%minX = this%X(:,idMin)
       endif
       this%nevalFun = this%nevalFun + lambda
+      if(present(niter)) niter = i
     End Do LIter
-    if(present(niter)) niter = i
   End Function mlf_optim_stepF
 
   Subroutine mlf_optim_startpoint(this, X)

@@ -229,11 +229,7 @@ Contains
       difFact = eDiff
       Y0 = 0
       ! We made the sum backward for avoiding catastrophic cancellation
-      if(eAEnd > 0) then
-        info = ComputeCoeff(this%fun, this%xEnd, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
-      else
-        Y0 = 0
-      endif
+      info = ComputeCoeff(this%fun, this%xEnd, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
       info = ComputeCoeff(this%fun, eAEnd-eDiff, this%P, Y, Y0, fb_icoeff(2)*difFact, M)
       info = ComputeCoeff(this%fun, eAEnd-2*eDiff, this%P, Y, Y0, fb_icoeff(3)*difFact, M)
       do i=3,N-4

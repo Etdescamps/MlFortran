@@ -47,8 +47,6 @@
 
 // MLF C interface headers
 #include "mlf_cintf.h"
-#include "mlf_funintf.h"
-#include "mlf_hdf5.h"
 
 namespace MlFortran {
   using std::string;

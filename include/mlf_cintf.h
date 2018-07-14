@@ -77,6 +77,48 @@ void mlf_randN(double *v, int N);
 // Display a matrix using FORTRAN representation
 void mlf_printMat(double *M, int nL, int nC);
 
+// Objective function type used for multi/mono objective optimisation
+typedef int (*mlf_objective_fun)(const double *x, double *y, int nD, int nY, int lambda, void *ptr);
+
+typedef struct {
+  int nDimIn, nDimCstr, nDimOut;
+} MLF_OBJFUNINFO;
+
+MLF_OBJ *mlf_objfunction(mlf_objective_fun f, void *ptr, mlf_objective_fun cstr, MLF_OBJFUNINFO *info);
+
+// Basis function type used for dimension reduction
+typedef int (*mlf_basis_fun)(const double *x, const double *rpar, double *y, int nX, int nPar, int sPar, void *ptr);
+
+MLF_OBJ *mlf_basisfunction(mlf_basis_fun f, void *ptr);
+
+// Init/free function for .so binding using a data filename
+typedef void *(*mlf_init_fun)(const char *filename);
+
+typedef int (*mlf_free_fun)(void *data);
+
+typedef void *(*mlf_getinfo_fun)(void *data, int type);
+
+MLF_OBJ *mlf_getoptimobj(const char *algoname, MLF_OBJ *fun_obj, MLF_OBJ *handler, double target, int lambda, int mu, double sigma);
+
+MLF_OBJ *mlf_hdf5_createFile(const char *fname, int trunk);
+MLF_OBJ *mlf_hdf5_openFile(const char *fname, int rw);
+
+// Model interface
+int mlf_getClass(MLF_OBJ *obj, const double *X, int *Cl, int nX, int nIn, int nCl);
+int mlf_getNumClasses(MLF_OBJ *obj);
+int mlf_getProba(MLF_OBJ *obj, const double *X, double *Cl, int nX, int nIn);
+int mlf_getProj(MLF_OBJ *obj, const double *Y, double *W, int nIn, int nDimIn, int nDimOut);
+double mlf_getValue(MLF_OBJ *obj, const double *W, double t, int nDimOut);
+
+// Function reduction
+MLF_OBJ *mlf_funBasisInit(MLF_OBJ *fobj, int nFPar, double alpha, double x0, double xEnd, double *P, int nP, int sizeBase, int nX, double *WP);
+
+// Unsupervised models
+MLF_OBJ *mlf_kmeans_c(double *X, int nX, int nY, int nC, const double *Mu);
+double mlf_evalGaussian(int nD, int nX, const double *X, const double *Proba, double *mu, double *C);
+int mlf_maxGaussian(int nD, int nX, const double *X, double *Proba, const double *mu, const double *C, double lambda, double *sumLL);
+
+
 #ifdef __cplusplus
 }
 #endif

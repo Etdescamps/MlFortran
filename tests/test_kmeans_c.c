@@ -27,7 +27,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mlf_unsupervised.h"
+#include "mlf_cintf.h"
 #include <stdio.h>
 #define nX 1024
 #define nY 16

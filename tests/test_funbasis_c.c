@@ -3,9 +3,9 @@
 #include "mlf_model.h"
 #include "mlf_funintf.h"
 
-#define NG 16
-#define NR 32
-#define NPAR 16
+#define NG 64
+#define NR 128
+#define NPAR 32
 
 double params[NG][NR][2], weights[NG][NR];
 
@@ -37,14 +37,14 @@ int main(int argc, char **argv) {
       weights[i][j] = w1*(1.0-y)+w2*y;
     }
   }
-  double alpha = 0.5;
-  MLF_OBJ *fbasis = mlf_funBasisInit(fobj, 2, alpha, 0.0, HUGE_VAL, (double *) params, NR*NG, NPAR, 2000000, (double *) weights);
+  double alpha = 0.0;
+  MLF_OBJ *fbasis = mlf_funBasisInit(fobj, 2, alpha, 0.0, 4.0, (double *) params, NR*NG, NPAR, 32768, (double *) weights);
   double Y[2];
   for(Y[0] = 1; Y[0] > 0.1; Y[0] *= 0.85)
     for(Y[1] = 0.5; Y[1] < 3; Y[1] *= 1.5) {
       printf("Function %f %f:\n", Y[0], Y[1]);
       mlf_getProj(fbasis, (double*) Y, (double*) W, 1, 2, NPAR);
-      for(double x = 0.1; x<4.0; x*=1.1) {
+      for(double x = 0.1; x<4.0; x+=0.3) {
         double vx = mlf_getValue(fbasis, (double*) W, x, NPAR), vy;
         fBasis_invExp(&x, (double*) Y, &vy, 1, 1, 2, NULL);
         printf("x: %f vx: %f vy: %f error: %f exp: %f\n", x, vx, vy, 2.0*(vx-vy)/(fabs(vx)+fabs(vy)), exp(-alpha*x));

@@ -222,30 +222,52 @@ Contains
     M = size(C,1)
     P = M*(M+1)/2
     allocate(Y(1,M), Y0(P))
-    eA0 = exp(-this%alpha*this%x0)
-    invAlpha = 1/this%alpha
-    if(ieee_is_finite(this%xEnd)) then
-      eAEnd = exp(-this%alpha*this%xEnd)
-    else
-      eAEnd = 0
-    endif
-    eDiff = (eA0-eAEnd)/real(N-1, kind=8)
-    difFact = eDiff*invAlpha
-    Y0 = 0
-    ! We made the sum backward for avoiding catastrophic cancellation
-    if(eAEnd > 0) then
-      info = ComputeCoeff(this%fun, this%xEnd, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
-    else
+    if(this%alpha == 0) then
+      eA0 = this%x0
+      eAEnd = this%xEnd
+      eDiff = (eAEnd-eA0)/real(N-1, kind=8)
+      difFact = eDiff
       Y0 = 0
+      ! We made the sum backward for avoiding catastrophic cancellation
+      if(eAEnd > 0) then
+        info = ComputeCoeff(this%fun, this%xEnd, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
+      else
+        Y0 = 0
+      endif
+      info = ComputeCoeff(this%fun, eAEnd-eDiff, this%P, Y, Y0, fb_icoeff(2)*difFact, M)
+      info = ComputeCoeff(this%fun, eAEnd-2*eDiff, this%P, Y, Y0, fb_icoeff(3)*difFact, M)
+      do i=3,N-4
+        info = ComputeCoeff(this%fun, eAEnd-i*eDiff, this%P, Y, Y0, difFact, M)
+      end do
+      info = ComputeCoeff(this%fun, eA0+2*eDiff, this%P, Y, Y0, fb_icoeff(3)*difFact, M)
+      info = ComputeCoeff(this%fun, eA0+eDiff, this%P, Y, Y0, fb_icoeff(2)*difFact, M)
+      info = ComputeCoeff(this%fun, this%x0, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
+    else
+      eA0 = exp(-this%alpha*this%x0)
+      invAlpha = 1/this%alpha
+      if(ieee_is_finite(this%xEnd)) then
+        eAEnd = exp(-this%alpha*this%xEnd)
+      else
+        eAEnd = 0
+      endif
+      eDiff = (eA0-eAEnd)/real(N-1, kind=8)
+      difFact = eDiff*invAlpha
+      Y0 = 0
+      ! We made the sum backward for avoiding catastrophic cancellation
+      if(eAEnd > 0) then
+        info = ComputeCoeff(this%fun, this%xEnd, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
+      else
+        Y0 = 0
+      endif
+      info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+eDiff), this%P, Y, Y0, fb_icoeff(2)*difFact, M)
+      info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+2*eDiff), this%P, Y, Y0, fb_icoeff(3)*difFact, M)
+      do i=3,N-4
+        info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+i*eDiff), this%P, Y, Y0, difFact, M)
+      end do
+      info = ComputeCoeff(this%fun, -invAlpha*log(eA0-2*eDiff), this%P, Y, Y0, fb_icoeff(3)*difFact, M)
+      info = ComputeCoeff(this%fun, -invAlpha*log(eA0-eDiff), this%P, Y, Y0, fb_icoeff(2)*difFact, M)
+      info = ComputeCoeff(this%fun, this%x0, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
     endif
-    info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+eDiff), this%P, Y, Y0, fb_icoeff(2)*difFact, M)
-    info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+2*eDiff), this%P, Y, Y0, fb_icoeff(3)*difFact, M)
-    do i=3,N-4
-      info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+i*eDiff), this%P, Y, Y0, difFact, M)
-    end do
-    info = ComputeCoeff(this%fun, -invAlpha*log(eA0-2*eDiff), this%P, Y, Y0, fb_icoeff(3)*difFact, M)
-    info = ComputeCoeff(this%fun, -invAlpha*log(eA0-eDiff), this%P, Y, Y0, fb_icoeff(2)*difFact, M)
-    info = ComputeCoeff(this%fun, this%x0, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
     k = 1
     do i=1,M
       do j=i,M
@@ -265,18 +287,22 @@ Contains
     real(c_double), optional, intent(out) :: Aerror(:,:)
     real(c_double), allocatable :: F(:,:), P(:)
     integer :: np, nx, ny, i, j
-    real(c_double) :: invAlpha
+    real(c_double) :: coeff
     np = size(this%top%W, 2)
     ny = size(Y, 2)
     nx = size(this%top%X)
     allocate(F(nx,ny), P(nx))
-    invAlpha = 1d0/this%top%alpha
     info = this%top%fun%eval(this%top%X, Y, F)
     if(info<0) RETURN
+    if(this%top%alpha == 0) then
+      coeff = this%top%eDiff
+    else
+      coeff = this%top%eDiff/this%top%alpha
+    endif
     do i = 1,np
       P =  this%top%Vals(i,:)
       do j = 1,ny
-        W(i,j) = this%top%eDiff*invAlpha*ComputeDotProduct(F(:,j), P, this%top%xEnd)
+        W(i,j) = coeff*ComputeDotProduct(F(:,j), P, this%top%xEnd)
         ! It is not essential to remove this part (the function basis is orthonormal)
         ! but the remaining value can be used for estimating the error of the approximation
         F(:,j) = F(:,j)-W(i,j)*P
@@ -301,25 +327,38 @@ Contains
   pure real(c_double) Function mlf_FunBasisFunValue(this, W, x) result(Y)
     class(mlf_algo_funbasis), intent(in) :: this
     real(c_double), intent(in) :: x, W(:)
-    real(c_double) :: t, Y1, Y2, dX
+    real(c_double) :: t, Y1, Y2, Y3, Y4, dX, X1, X2, X3, X4
     integer :: i
     ! The X are dreasingly ordered
-    if(x>=this%X(1)) then
-      Y1 = dot_product(this%Vals(:,1), W)
-      Y2 = dot_product(this%Vals(:,2), W)
-      Y =  Y1*exp(log(Y1/Y2)/(this%X(1)-this%X(2))*(x-this%X(1)))
-      return
+    if(this%alpha == 0) then
+      i = INT((x-this%x0)/this%eDiff)+1
+      i = max(2,min(i,size(this%X)-2))
+      X1 = x-this%X(i-1); X2 = x-this%X(i); X3 = x-this%X(i+1); X4 = x-this%X(i+2)
+      Y1 = dot_product(this%Vals(:,i-1), W)
+      Y2 = dot_product(this%Vals(:,i), W)
+      Y3 = dot_product(this%Vals(:,i+1), W)
+      Y4 = dot_product(this%Vals(:,i+2), W)
+      Y = 1.0/6.0*X2*X3*(X1*Y4-X4*Y1)
+      Y = Y+0.5*X1*X4*(X3*Y2-X2*Y3)
+      Y = Y/(this%eDiff*this%eDiff*this%eDiff)
+    else
+      if(x>=this%X(1)) then
+        Y1 = dot_product(this%Vals(:,1), W)
+        Y2 = dot_product(this%Vals(:,2), W)
+        Y =  Y1*exp(log(Y1/Y2)/(this%X(1)-this%X(2))*(x-this%X(1)))
+        return
+      endif
+      i = 1+INT((exp(-this%alpha*x)-this%eAEnd)/this%eDiff)
+      if(i >= size(this%X, 1)) i = size(this%X, 1)-1
+      dX = this%X(i)-this%X(i+1)
+      ! We define t as (x-X(i+1))/dX
+      !  so when t=0 -> x=X(i+1) and t=1 -> x=X(i)
+      t = (x-this%X(i+1))/dX
+      ! We get values Y1=F_W(X(i+1)) and Y2=F_W(X(i))
+      Y1 = dot_product(this%Vals(:,i+1), W)
+      Y2 = dot_product(this%Vals(:,i), W)
+      Y =  (1d0-t)*Y1+t*Y2
     endif
-    i = 1+INT((exp(-this%alpha*x)-this%eAEnd)/this%eDiff)
-    if(i >= size(this%X, 1)) i = size(this%X, 1)-1
-    dX = this%X(i)-this%X(i+1)
-    ! We define t as (x-X(i+1))/dX
-    !  so when t=0 -> x=X(i+1) and t=1 -> x=X(i)
-    t = (x-this%X(i+1))/dX
-    ! We get values Y1=F_W(X(i+1)) and Y2=F_W(X(i)) 
-    Y1 = dot_product(this%Vals(:,i+1), W)
-    Y2 = dot_product(this%Vals(:,i), W)
-    Y =  (1d0-t)*Y1+t*Y2
   End Function mlf_FunBasisFunValue
 
   ! Compute the vectors X and V from the structure
@@ -331,24 +370,29 @@ Contains
     real(c_double), allocatable :: Y(:,:)
     M = size(this%P,2)
     allocate(Y(1,M))
-    eA0 = exp(-this%alpha*this%x0)
-    invAlpha = 1d0/this%alpha
-    if(ieee_is_finite(this%xEnd)) then
-      eAEnd = exp(-this%alpha*this%xEnd)
-      eDiff = (eA0-eAEnd)/real(N-1, kind=8)
-      this%X(1) = this%xEnd
+    if(this%alpha == 0) then
+      this%eDiff = (this%xEnd-this%x0)/real(N-1, kind=8)
+      forall(i=1:N) this%X(i) = real(i-1, kind=8)*this%eDiff+this%x0 
     else
-      eDiff = eA0/real(N, kind=8)
-      eAEnd = eDiff
-      this%X(1) = -invAlpha*log(eDiff)
+      eA0 = exp(-this%alpha*this%x0)
+      invAlpha = 1d0/this%alpha
+      if(ieee_is_finite(this%xEnd)) then
+        eAEnd = exp(-this%alpha*this%xEnd)
+        eDiff = (eA0-eAEnd)/real(N-1, kind=8)
+        this%X(1) = this%xEnd
+      else
+        eDiff = eA0/real(N, kind=8)
+        eAEnd = eDiff
+        this%X(1) = -invAlpha*log(eDiff)
+      endif
+      this%eA0 = eA0
+      this%eAEnd = eAEnd
+      this%eDiff = eDiff
+      this%X(N) = this%x0
+      do i = 2,N-1
+        this%X(i) = -invAlpha*log(eAEnd+(i-1)*eDiff)
+      end do
     endif
-    this%eA0 = eA0
-    this%eAEnd = eAEnd
-    this%eDiff = eDiff
-    this%X(N) = this%x0
-    do i = 2,N-1
-      this%X(i) = -invAlpha*log(eAEnd+(i-1)*eDiff)
-    end do
     do i = 1,N
       info = this%fun%eval(this%X(i:i), this%P, Y)
       this%Vals(:,i) = matmul(Y(1,:),this%W)

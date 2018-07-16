@@ -39,6 +39,7 @@ Module mlf_intf
   
   Public :: c_dealloc, c_allocate, c_getrsc, c_getinfo, c_updatersc
   Public :: mlf_init, mlf_quit
+  Public :: mlf_obj_finalize, mlf_getobjfromc, mlf_getrawfromc
 
   ! Datatype descriptor for C handling functions
   Enum, bind(C)
@@ -61,7 +62,6 @@ Module mlf_intf
   Public :: mlf_BOOL, mlf_INT, mlf_INT64, mlf_SIZE, mlf_FLOAT, mlf_DOUBLE, mlf_SIZEPARAM, mlf_RAW
   Public :: mlf_DIRECT, mlf_INDIRECT, mlf_READONLY, mlf_COPYONLY, mlf_WRITEONLY
   Public :: mlf_OK, mlf_UNINIT, mlf_FUNERROR, mlf_WRONGTYPE, mlf_NAME, mlf_DESC, mlf_FIELDS
-  Public :: mlf_obj_finalize, mlf_getobjfromc
 
   Type, Public, bind(C) :: mlf_dt
     integer(c_short) :: dt
@@ -109,7 +109,7 @@ Module mlf_intf
 
   ! Universal container. Permits the use of polymorphism
   Type, Public :: mlf_cintf
-    class (mlf_obj), pointer :: obj
+    class (*), pointer :: obj
   End Type mlf_cintf
 
   Abstract Interface
@@ -242,15 +242,20 @@ Contains
   integer(c_int) Function c_dealloc(cptr) bind(C, name="mlf_dealloc")
     type(c_ptr), value :: cptr
     type(mlf_cintf), pointer :: this
+    class (*), pointer :: obj
     c_dealloc = -1
     ! print *, "mlf_dealloc"
     if(.NOT. C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
-    ! FINAL not yet correctly implemented in GNU Fortran
-    if(ASSOCIATED(this%obj)) then
-      CALL this%obj%finalize()
-      DEALLOCATE(this%obj)
-    endif
+    obj => this%obj
+    select type(obj)
+      class is (mlf_obj)
+      ! FINAL not yet correctly implemented in GNU Fortran
+      if(ASSOCIATED(this%obj)) then
+        CALL obj%finalize()
+        DEALLOCATE(obj)
+      endif
+    end select
     DEALLOCATE(this)
     c_dealloc = 0
   End Function c_dealloc
@@ -259,11 +264,21 @@ Contains
   Function c_allocate(obj) result(cptr)
     type(c_ptr) :: cptr
     type(mlf_cintf), pointer :: this
-    class (mlf_obj), pointer :: obj
+    class (*), pointer :: obj
     ALLOCATE(this)
     this%obj => obj
     cptr = C_LOC(this)
   End Function c_allocate
+
+  Function mlf_getrawfromc(cptr) result(obj)
+    type(c_ptr) :: cptr
+    type(mlf_cintf), pointer :: this
+    class (*), pointer :: obj
+    obj => NULL()
+    if(.NOT. C_ASSOCIATED(cptr)) RETURN
+    call C_F_POINTER(cptr, this)
+    obj => this%obj
+  End Function mlf_getrawfromc
 
   Function mlf_getobjfromc(cptr) result(obj)
     type(c_ptr) :: cptr
@@ -272,7 +287,13 @@ Contains
     obj => NULL()
     if(.NOT. C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
-    obj => this%obj
+    if(.NOT. ASSOCIATED(this%obj)) RETURN
+    associate(o => this%obj)
+      select type (o)
+        class is (mlf_obj)
+          obj => o
+      end select
+    end associate
   End Function mlf_getobjfromc
 
   ! Get ressource handler for most of the classes

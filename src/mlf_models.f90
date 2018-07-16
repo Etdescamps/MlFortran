@@ -122,14 +122,16 @@ Contains
 
   Function c_getModel(cptr) result(model)
     type(c_ptr), value :: cptr
-    class(mlf_obj), pointer :: obj
+    class(*), pointer :: obj
     class(mlf_model), pointer :: model
     model => NULL()
-    obj => mlf_getobjfromc(cptr)
+    obj => mlf_getrawfromc(cptr)
     if(.NOT. associated(obj)) RETURN
     select type(obj)
       class is (mlf_obj_model)
         if(allocated(obj%model)) model => obj%model
+      class is (mlf_model)
+        model => obj
     end select
   End Function c_getModel
 

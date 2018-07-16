@@ -304,18 +304,17 @@ namespace MlFortran {
 
   class MlfObject {
     private:
-      // Make this kind of object non copiable (required by MLF_OBJ Fortran interface)
       MlfObject(const MlfObject&) = delete;
       MlfObject &operator=(const MlfObject&) = delete;
     protected:
       MLF_OBJ *obj = nullptr;
       unique_ptr<string_view[]> obj_names;
       int nrsc;
-      bool is_copy = 0;
+      bool is_copy = false;
       bool updateIdMap();
     public:
       MlfObject() = default;
-      MlfObject(MLF_OBJ *obj) :  obj(obj) {}
+      MlfObject(MLF_OBJ *obj, bool isCopy = false) :  obj(obj), is_copy(isCopy) {}
       int setObject(MLF_OBJ *object, bool isCopy = false) {
         if(!object)
           return -1;

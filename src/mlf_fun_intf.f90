@@ -186,7 +186,7 @@ Contains
     type(mlf_objfuninfo) :: funinfo
     type(c_funptr), value :: cfun, ccst
     type(mlf_objective_fun_c), pointer :: x
-    class (mlf_obj), pointer :: obj
+    class (*), pointer :: obj
     ALLOCATE(x)
     x%ptr = cptr
     x%nD = funinfo%nDimIn; x%nY = funinfo%nDimOut; x%nC = funinfo%nDimCstr
@@ -200,7 +200,7 @@ Contains
     type(c_ptr), value :: cptr
     type(c_funptr), value :: cfun
     type(mlf_basis_fun_c), pointer :: x
-    class (mlf_obj), pointer :: obj
+    class (*), pointer :: obj
     ALLOCATE(x)
     x%ptr = cptr
     if(C_ASSOCIATED(cfun)) call C_F_PROCPOINTER(cfun, x%evalC)

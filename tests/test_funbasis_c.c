@@ -3,8 +3,8 @@
 #include "mlf_cintf.h"
 
 #define NG 64
-#define NR 128
-#define NPAR 32
+#define NR 64
+#define NPAR 16
 
 double params[NG][NR][2], weights[NG][NR];
 

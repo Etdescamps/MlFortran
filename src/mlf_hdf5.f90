@@ -158,7 +158,7 @@ Contains
 
   type(c_ptr) Function c_hdf5_createFile(pfname, trunk) result(cptr) bind(C, name="mlf_hdf5_createFile")
     type(mlf_hdf5_file), pointer :: this
-    class (mlf_obj), pointer :: obj
+    class (*), pointer :: obj
     type(c_ptr), value :: pfname
     character(len=:, kind=c_char), allocatable, target :: fname
     integer(c_int), value :: trunk
@@ -197,7 +197,7 @@ Contains
 
   type(c_ptr) Function c_hdf5_openFile(pfname, rw) result(cptr) bind(C, name="mlf_hdf5_openFile")
     type(mlf_hdf5_file), pointer :: this
-    class (mlf_obj), pointer :: obj
+    class (*), pointer :: obj
     type(c_ptr), value :: pfname
     character(len=:, kind=c_char), allocatable, target :: fname
     integer(c_int), value :: rw

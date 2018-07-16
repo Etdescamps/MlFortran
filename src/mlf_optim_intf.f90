@@ -55,7 +55,7 @@ Contains
     integer(c_int), value :: lambda, mu
     real(c_double), value :: sigma, ftarget
     class(mlf_objective_fun), pointer :: funobj
-    class(mlf_obj), pointer :: obj 
+    class(*), pointer :: obj 
     character(len=:, kind=c_char), allocatable, target :: algoname
     class(mlf_data_handler), pointer :: data_handler => NULL()
     call mlf_stringFromC(calgoname, algoname)

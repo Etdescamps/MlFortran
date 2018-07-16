@@ -34,7 +34,7 @@ Module test_rsc
 Contains
   type(c_ptr) Function c_alloctest() bind(C, name="c_alloctest")
     type(mlf_obj), pointer :: r
-    class(mlf_obj), pointer :: obj
+    class(*), pointer :: obj
     type(mlf_rsc_double1d) :: ar
     integer :: i, info
     info = mlf_init()

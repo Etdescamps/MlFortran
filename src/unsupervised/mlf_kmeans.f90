@@ -129,7 +129,7 @@ Contains
     integer(c_int), value :: nX, nY, nC
     integer :: info
     type(mlf_algo_kmeans), pointer :: this
-    class (mlf_obj), pointer :: obj
+    class (*), pointer :: obj
     ALLOCATE(this)
     call C_F_POINTER(pX, X, [nY, nX])
     if(C_ASSOCIATED(pMu)) then

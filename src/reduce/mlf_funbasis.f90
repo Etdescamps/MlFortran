@@ -81,7 +81,7 @@ Contains
     type(c_ptr), value :: cfobj, cP, cWP
     class(mlf_obj), pointer :: fobj
     type(mlf_algo_funbasis), pointer :: x
-    class (mlf_obj), pointer :: obj
+    class (*), pointer :: obj
     real(c_double), value :: alpha, x0, xEnd
     integer(c_int), value :: nFPar, nP, sizeBase, nX
     real(c_double), pointer :: WP(:), P(:,:)
@@ -317,7 +317,7 @@ Contains
   real(c_double) Function mlf_model_FunBasisFunValue(this, W, x) result(Y)
     class(mlf_model_funbasis), intent(in) :: this
     real(c_double), intent(in) :: x, W(:)
-    Y = this%top%getValue(W,x)
+    Y = mlf_FunBasisFunValue(this%top,W,x)
   end Function mlf_model_FunBasisFunValue
 
   pure real(c_double) Function mlf_FunBasisFunValue(this, W, x) result(Y)

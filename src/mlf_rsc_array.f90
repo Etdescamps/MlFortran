@@ -85,7 +85,7 @@ Module mlf_rsc_array
     procedure :: print_ipar => mlf_print_ipar
     procedure :: add_i64array => mlf_obj_addI64array
     procedure :: add_i32array => mlf_obj_addI32array
-    procedure :: add_rarray => mlf_obj_addRarray
+    procedure :: add_rarray => mlf_obj_addRArray
     procedure :: add_rmatrix => mlf_obj_addRMatrix
     procedure :: add_rmatrix3D => mlf_obj_addRMatrix3D
   End Type mlf_arr_obj
@@ -225,7 +225,7 @@ Contains
     End Associate
   End Function mlf_obj_addI32array
 
-  Integer Function mlf_obj_addRarray(this, id, nd, pnt, rsc_name, rsc_fields, &
+  Integer Function mlf_obj_addRArray(this, id, nd, pnt, rsc_name, rsc_fields, &
       data_handler, fixed_dims) result(info)
     class(mlf_arr_obj), intent(inout), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
@@ -251,9 +251,9 @@ Contains
         if(present(pnt)) pnt => ip%V
       end select
     End Associate
-  End Function mlf_obj_addRarray
+  End Function mlf_obj_addRArray
 
-  Integer Function mlf_obj_addRmatrix(this, id, nd, pnt, rsc_name, rsc_fields, &
+  Integer Function mlf_obj_addRMatrix(this, id, nd, pnt, rsc_name, rsc_fields, &
       data_handler, fixed_dims) result(info)
     class(mlf_arr_obj), intent(inout), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
@@ -279,9 +279,9 @@ Contains
         if(present(pnt)) pnt => ip%V
       end select
     End Associate
-  End Function mlf_obj_addRmatrix
+  End Function mlf_obj_addRMatrix
 
-  Integer Function mlf_obj_addRmatrix3D(this, id, nd, pnt, rsc_name, rsc_fields, &
+  Integer Function mlf_obj_addRMatrix3D(this, id, nd, pnt, rsc_name, rsc_fields, &
       data_handler, fixed_dims) result(info)
     class(mlf_arr_obj), intent(inout), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
@@ -307,7 +307,7 @@ Contains
         if(present(pnt)) pnt => ip%V
       end select
     End Associate
-  End Function mlf_obj_addRmatrix3D
+  End Function mlf_obj_addRMatrix3D
      
   Integer Function mlf_arr_init(this, nipar, nrpar, nrsc, ifields, rfields, data_handler) result(info)
     class(mlf_arr_obj), intent(inout), target :: this
@@ -322,7 +322,7 @@ Contains
     info = this%add_rarray(2, nrpar, this%rpar, C_CHAR_"rpar", rfields, &
       data_handler = data_handler, fixed_dims = [.TRUE.])
     if(CheckF(info, "Error creating rpar")) RETURN
-    nipar = 1; nrpar = 1; nrsc = 2
+    nipar = 0; nrpar = 0; nrsc = 2
   End Function mlf_arr_init
 
   ! Generic interface for int arrays

@@ -72,12 +72,12 @@ Contains
     info = mlf_arr_init(this, nipar, nrpar, nrsc, C_CHAR_"niter;nitermax;"//ifields, &
       C_CHAR_"cputime;realtime;cpumax;realmax;"//rfields, data_handler)
     if(info < 0) RETURN
-    this%niter => this%ipar(nipar)
-    this%nitermax => this%ipar(nipar+1)
-    this%cputime => this%rpar(nrpar)
-    this%realtime => this%rpar(nrpar+1)
-    this%cpumax => this%rpar(nrpar+2)
-    this%realmax => this%rpar(nrpar+3)
+    this%niter => this%ipar(nipar+1)
+    this%nitermax => this%ipar(nipar+2)
+    this%cputime => this%rpar(nrpar+1)
+    this%realtime => this%rpar(nrpar+2)
+    this%cpumax => this%rpar(nrpar+3)
+    this%realmax => this%rpar(nrpar+4)
     nipar = nipar+ni; nrpar = nrpar+nr
   End Function mlf_step_obj_init
   integer Function mlf_step_obj_reinit(this) result(info)

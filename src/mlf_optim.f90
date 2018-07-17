@@ -104,11 +104,11 @@ Contains
     info = mlf_step_obj_init(this, nipar, nrpar, nrsc, C_CHAR_"nevalFun;nevalFunMax;"//ifields,&
       C_CHAR_"minfun;targetFun;sigma;"//rfields, data_handler)
     if(info < 0) RETURN
-    this%nevalFun => this%ipar(nipar)
-    this%nevalFunMax => this%ipar(nipar+1)
-    this%minFun => this%rpar(nrpar)
-    this%targetFun => this%rpar(nrpar+1)
-    this%sigma => this%rpar(nrpar+2)
+    this%nevalFun => this%ipar(nipar+1)
+    this%nevalFunMax => this%ipar(nipar+2)
+    this%minFun => this%rpar(nrpar+1)
+    this%targetFun => this%rpar(nrpar+2)
+    this%sigma => this%rpar(nrpar+3)
     this%targetFun = params%targetFun
     this%sigma0 = params%sigma
     this%lambda = params%lambda

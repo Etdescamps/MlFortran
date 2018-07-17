@@ -35,6 +35,8 @@ Module mlf_models
   PRIVATE
 
   Public :: mlf_getClass, mlf_getProba, mlf_getNumClasses, mlf_getValue, mlf_getProj
+  Public :: mlf_getModel
+
   Type, public :: mlf_model
   End Type mlf_model
   
@@ -63,7 +65,6 @@ Module mlf_models
   Contains
     procedure (mlf_model_getValue), deferred :: getValue
   End Type mlf_approx_model
-
 
   Abstract Interface
     integer Function mlf_model_getClass(this, X, Cl)
@@ -104,8 +105,6 @@ Module mlf_models
       real(c_double), intent(in) :: W(:), x
       real(c_double) :: Y
     End Function mlf_model_getValue
-
-
   End Interface
 Contains
   integer Function mlf_model_getClass_proba(this, X, Cl) result(info)
@@ -120,7 +119,7 @@ Contains
     cl = maxloc(Proba, dim=2)
   End Function mlf_model_getClass_proba
 
-  Function c_getModel(cptr) result(model)
+  Function mlf_getModel(cptr) result(model)
     type(c_ptr), value :: cptr
     class(*), pointer :: obj
     class(mlf_model), pointer :: model
@@ -133,7 +132,7 @@ Contains
       class is (mlf_model)
         model => obj
     end select
-  End Function c_getModel
+  End Function mlf_getModel
 
   integer(c_int) Function mlf_getClass(model, X, Cl) result(info)
     class(mlf_model), intent(inout) :: model
@@ -153,7 +152,7 @@ Contains
     class(mlf_model), pointer :: model
     integer(c_int), pointer :: Cl(:)
     info = -1
-    model => c_getModel(cptr)
+    model => mlf_getModel(cptr)
     if(.NOT. associated(model)) RETURN
     call C_F_POINTER(cX, X, [nX, nIn])
     call C_F_POINTER(cCl, Cl, [nIn])
@@ -177,7 +176,7 @@ Contains
     class(mlf_model), pointer :: model
     real(c_double), pointer :: X(:,:), Cl(:,:)
     info = -1
-    model => c_getModel(cptr)
+    model => mlf_getModel(cptr)
     if(.NOT. associated(model)) RETURN
     call C_F_POINTER(cX, X, [nX, nIn])
     call C_F_POINTER(cCl, Cl, [nCl, nIn])
@@ -197,7 +196,7 @@ Contains
     type(c_ptr), value :: cptr
     class(mlf_model), pointer :: model
     info = -1
-    model => c_getModel(cptr)
+    model => mlf_getModel(cptr)
     if(.NOT. associated(model)) RETURN
     info = mlf_getNumClasses(model)
   End Function c_getNumClasses
@@ -221,7 +220,7 @@ Contains
     real(c_double), pointer :: Y(:,:), W(:,:)
     integer(c_int), value :: nDimIn, nDimOut
     info = -1
-    model => c_getModel(cptr)
+    model => mlf_getModel(cptr)
     if(.NOT. associated(model)) RETURN
     call C_F_POINTER(cY, Y, [nDimIn, nIn])
     call C_F_POINTER(cW, W, [nDimOut, nIn])
@@ -245,7 +244,7 @@ Contains
     real(c_double), pointer :: W(:)
     integer(c_int), value :: nDimOut
     Y = IEEE_VALUE(Y, IEEE_QUIET_NAN)
-    model => c_getModel(cptr)
+    model => mlf_getModel(cptr)
     if(.NOT. associated(model)) RETURN
     call C_F_POINTER(cW, W, [nDimOut])
     Y = mlf_getValue(model, W, t)

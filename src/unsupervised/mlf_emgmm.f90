@@ -102,7 +102,7 @@ Contains
     if(CheckF(info, "emgmm: error creating lambda")) RETURN
     nC = int(nC2, kind=4)
     ALLOCATE(this%ProbaC(nX, nC))
-    this%sumLL => this%rpar(nrpar)
+    this%sumLL => this%rpar(nrpar+1)
     if(present(data_handler)) then
       this%initialized = .TRUE.
     else

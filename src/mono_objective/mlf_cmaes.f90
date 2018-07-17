@@ -97,7 +97,7 @@ Contains
     integer(c_int64_t), intent(inout) :: nipar, nrpar
     character(len=*,kind=c_char) :: ifields, rfields
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    integer, parameter :: ni = 0, nr = 2, ns = 4
+    integer, parameter :: ni = 0, nr = 1, ns = 4
     integer(c_int64_t) :: nD, CND(2), mu
     nD = params%fun%nD
     CND = nD
@@ -227,8 +227,8 @@ Contains
     CND = ND
     info = this%add_rmatrix(nrsc+1, CND, this%C, C_CHAR_"C", data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
     info = this%add_rarray(nrsc+2, ND, this%pc, C_CHAR_"pc", data_handler = data_handler, fixed_dims = [.TRUE.])
-    this%lastCov => this%ipar(nipar)
-    this%covEvery => this%ipar(nipar+1)
+    this%lastCov => this%ipar(nipar+1)
+    this%covEvery => this%ipar(nipar+2)
     if(present(data_handler)) then
       call this%updateW()
       this%cp = (this%mueff/ND+4.0D0)/(2.0D0*this%mueff/ND+ND+4d0)

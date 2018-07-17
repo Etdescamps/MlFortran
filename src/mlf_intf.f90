@@ -110,6 +110,7 @@ Module mlf_intf
   ! Universal container. Permits the use of polymorphism
   Type, Public :: mlf_cintf
     class (*), pointer :: obj
+    logical :: do_deallocate = .TRUE.
   End Type mlf_cintf
 
   Abstract Interface
@@ -250,23 +251,31 @@ Contains
     obj => this%obj
     select type(obj)
       class is (mlf_obj)
-      ! FINAL not yet correctly implemented in GNU Fortran
-      if(ASSOCIATED(this%obj)) then
-        CALL obj%finalize()
-        DEALLOCATE(obj)
-      endif
+        ! FINAL not yet correctly implemented in GNU Fortran
+        if(this%do_deallocate .AND. ASSOCIATED(this%obj)) then
+          CALL obj%finalize()
+          DEALLOCATE(obj)
+        endif
+      class default
+        if(this%do_deallocate .AND. ASSOCIATED(this%obj)) DEALLOCATE(obj)
     end select
     DEALLOCATE(this)
     c_dealloc = 0
   End Function c_dealloc
 
   ! Utility function for C wrappers
-  Function c_allocate(obj) result(cptr)
+  Function c_allocate(obj, do_deallocate) result(cptr)
     type(c_ptr) :: cptr
     type(mlf_cintf), pointer :: this
     class (*), pointer :: obj
+    logical, optional, intent(in) :: do_deallocate
     ALLOCATE(this)
     this%obj => obj
+    if(present(do_deallocate)) then
+      this%do_deallocate = do_deallocate
+    else
+      this%do_deallocate = .TRUE. ! Default behaviour
+    endif
     cptr = C_LOC(this)
   End Function c_allocate
 

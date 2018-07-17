@@ -118,7 +118,7 @@ Contains
     endif
     if(CheckF(info, "Error reinit")) RETURN
     ALLOCATE(this%minDist(nX), this%cl(nX))
-    this%MDist => this%rpar(nrpar)
+    this%MDist => this%rpar(nrpar+1)
     call mlf_model_kmean_init(this%model, this)
   End Function mlf_algo_kmeans_init
 

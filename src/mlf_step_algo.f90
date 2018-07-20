@@ -32,23 +32,36 @@ Module mlf_step_algo
   Use mlf_intf
   Use mlf_rsc_array
   Use mlf_models
+  Use mlf_errors
   IMPLICIT NONE
   PRIVATE
 
   PUBLIC :: mlf_step_obj_init, mlf_step_obj_reinit
 
+  Type, Public, extends(mlf_rsc_numFields) :: mlf_step_numFields
+    integer(c_int64_t) :: nIVar
+    integer(c_int64_t) :: nRVar
+  Contains
+    procedure :: addFields => mlf_step_addFields
+    procedure :: initFields => mlf_step_initFields
+  End Type mlf_step_numFields
+
   ! Object handling timer and step evaluations
   Type, Public, extends(mlf_obj_model), abstract :: mlf_step_obj
     integer(kind=8) :: start_time
     real :: cpu_start
-    integer(c_int64_t), pointer :: niter, nitermax
-    real(c_double), pointer :: cputime, realtime, cpumax, realmax
+    integer :: idRVar, idIVar
+    real(c_double), pointer :: rVar(:)
+    integer(c_int64_t), pointer :: niter, niterMax, iVar(:)
+    real(c_double), pointer :: cpuTime, realTime, cpuMax, realMax
   Contains
     procedure :: start_timer => mlf_step_start_timer
     procedure :: stop_timer => mlf_step_stop_timer
     procedure :: step =>  mlf_step_f
     procedure :: constraints_step =>  mlf_step_constraints
     procedure :: reinit => mlf_step_obj_reinit
+    procedure :: addRVar => mlf_step_obj_addRVar
+    procedure :: addIVar => mlf_step_obj_addIVar
     procedure(mlf_step_fun), deferred :: stepF
   End Type mlf_step_obj
 
@@ -60,26 +73,74 @@ Module mlf_step_algo
     End Function mlf_step_fun
   End Interface
 Contains
-  ! Init function for the step object
-  integer Function mlf_step_obj_init(this, nipar, nrpar, nrsc, ifields, rfields, data_handler) result(info)
+
+  Subroutine mlf_step_addFields(this, nIPar, nRPar, nRsc, nIVar, nRVar)
+    class(mlf_step_numFields), intent(inout) :: this
+    integer, intent(in), optional :: nIPar, nRPar, nRsc, nIVar, nRVar
+    if(present(nIPar)) this%nIPar = this%nIPar+nIPar
+    if(present(nRPar)) this%nRPar = this%nRPar+nRPar
+    if(present(nRsc)) this%nRsc = this%nRsc+nRsc
+    if(present(nIVar)) this%nIVar = this%nIVar+nIVar
+    if(present(nRVar)) this%nRVar = this%nRVar+nRVar
+  End Subroutine mlf_step_addFields
+
+  Subroutine mlf_step_initFields(this, nIPar, nRPar, nRsc, nIVar, nRVar)
+    class(mlf_step_numFields), intent(inout) :: this
+    integer, intent(in), optional :: nIPar, nRPar, nRsc, nIVar, nRVar
+    this%nIPar = 0; this%nRPar = 0; this%nRsc = 0
+    this%nIVar = 0; this%nRVar = 0
+    if(present(nIPar)) this%nIPar = nIPar
+    if(present(nRPar)) this%nRPar = nRPar
+    if(present(nRsc)) this%nRsc = nRsc
+    if(present(nIVar)) this%nIVar = nIVar
+    if(present(nRVar)) this%nRVar = nRVar
+  End Subroutine mlf_step_initFields
+
+  Subroutine mlf_step_obj_addRVar(this, numFields, pnt, field)
     class(mlf_step_obj), intent(inout), target :: this
-    integer(c_int64_t), intent(inout) :: nipar, nrpar
-    integer, intent(inout) :: nrsc
-    integer, parameter :: ni = 2, nr = 4
-    character(len=*,kind=c_char) :: ifields, rfields
+    class(mlf_step_numFields), intent(inout) :: numFields
+    real(c_double), intent(out), pointer :: pnt
+    character(len=*,kind=c_char), optional :: field
+    numFields%nRVar = numFields%nRVar+1
+    pnt => this%rVar(numFields%nRVar)
+    if(present(field)) call this%v(this%idRVar)%addField(field)
+  End Subroutine mlf_step_obj_addRVar
+
+  Subroutine mlf_step_obj_addIVar(this, numFields, pnt, field)
+    class(mlf_step_obj), intent(inout), target :: this
+    class(mlf_step_numFields), intent(inout) :: numFields
+    integer(c_int64_t), intent(out), pointer :: pnt
+    character(len=*,kind=c_char), optional :: field
+    numFields%nIVar = numFields%nIVar+1
+    pnt => this%iPar(numFields%nIVar)
+    if(present(field)) call this%v(this%idIVar)%addField(field)
+  End Subroutine mlf_step_obj_addIVar
+  
+  ! Init function for the step object
+  integer Function mlf_step_obj_init(this, numFields, data_handler) result(info)
+    class(mlf_step_obj), intent(inout), target :: this
+    class(mlf_step_numFields), intent(inout) :: numFields
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    nipar = nipar+ni; nrpar = nrpar+nr
-    info = mlf_arr_init(this, nipar, nrpar, nrsc, C_CHAR_"niter;nitermax;"//ifields, &
-      C_CHAR_"cputime;realtime;cpumax;realmax;"//rfields, data_handler)
+    call numFields%addFields(nIPar = 1, nRPar = 2, nRsc = 2, nIVar = 1, nRVar = 2)
+    info = mlf_arr_init(this, numFields, data_handler)
     if(info < 0) RETURN
-    this%niter => this%ipar(nipar+1)
-    this%nitermax => this%ipar(nipar+2)
-    this%cputime => this%rpar(nrpar+1)
-    this%realtime => this%rpar(nrpar+2)
-    this%cpumax => this%rpar(nrpar+3)
-    this%realmax => this%rpar(nrpar+4)
-    nipar = nipar+ni; nrpar = nrpar+nr
+    info = this%add_i64array(numFields, numFields%niVar, this%iVar, C_CHAR_"iVar", &
+      data_handler = data_handler, fixed_dims = [.TRUE.])
+    if(CheckF(info, "Error creating iVar")) RETURN
+    this%idIVar = numFields%nRsc
+    info = this%add_rarray(numFields, numFields%nrVar, this%rVar, C_CHAR_"rVar", &
+      data_handler = data_handler, fixed_dims = [.TRUE.])
+    if(CheckF(info, "Error creating rVar")) RETURN
+    this%idRVar = numFields%nRsc
+    numFields%nIVar = 0; numFields%nRVar = 0 ! Reinit these fields to zero
+    call this%addIVar(numFields, this%niter, "niter")
+    call this%addIPar(numFields, this%niterMax, "niterMax")
+    call this%addRVar(numFields, this%cpuTime, "cpuTime")
+    call this%addRVar(numFields, this%realTime, "realTime")
+    call this%addRPar(numFields, this%cpuMax, "cpuMax")
+    call this%addRPar(numFields, this%realMax, "realMax")
   End Function mlf_step_obj_init
+
   integer Function mlf_step_obj_reinit(this) result(info)
     class(mlf_step_obj), intent(inout), target :: this
     this%niter = 0

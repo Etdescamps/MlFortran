@@ -36,6 +36,14 @@ Module mlf_rsc_array
   PRIVATE
   Public :: mlf_arr_init
 
+  Type, Public :: mlf_rsc_numFields
+    integer(c_int64_t) :: nIPar
+    integer(c_int64_t) :: nRPar
+    integer(c_int) :: nRsc
+  Contains
+    procedure :: incNRsc => mlf_rsc_incNRsc
+  End Type mlf_rsc_numFields
+
   ! Integer (64) ressource handler
   Type, Public, extends(mlf_rsc_intf) :: mlf_rsc_int64_1d
     integer(c_int64_t), allocatable :: V(:)
@@ -78,8 +86,8 @@ Module mlf_rsc_array
 
   ! Generic object handler containing main parameters
   Type, Public, extends(mlf_obj) :: mlf_arr_obj
-    integer(c_int64_t), pointer :: ipar(:)
-    real(c_double), pointer :: rpar(:)
+    integer(c_int64_t), pointer :: iPar(:)
+    real(c_double), pointer :: rPar(:)
   Contains
     procedure :: print_rpar => mlf_print_rpar
     procedure :: print_ipar => mlf_print_ipar
@@ -88,6 +96,8 @@ Module mlf_rsc_array
     procedure :: add_rarray => mlf_obj_addRArray
     procedure :: add_rmatrix => mlf_obj_addRMatrix
     procedure :: add_rmatrix3D => mlf_obj_addRMatrix3D
+    procedure :: addRPar => mlf_obj_addRPar
+    procedure :: addIPar => mlf_obj_addIPar
   End Type mlf_arr_obj
 
   ! Data handler for the HDF5 data import
@@ -168,17 +178,24 @@ Contains
     print *, this%ipar
   End Subroutine mlf_print_ipar
 
+  Integer Function mlf_rsc_incNRsc(this) result(id)
+    class(mlf_rsc_numFields), intent(inout) :: this
+    id = this%nRsc+1
+    this%nRsc = id
+  End Function mlf_rsc_incNRsc
 
-  Integer Function mlf_obj_addI64array(this, id, nd, pnt, rsc_name, rsc_fields, &
+  Integer Function mlf_obj_addI64array(this, numFields, nd, pnt, rsc_name, rsc_fields, &
       data_handler, fixed_dims) result(info)
     class(mlf_arr_obj), intent(inout), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
+    class(mlf_rsc_numFields), intent(inout) :: numFields
     integer(c_int64_t), intent(out), pointer, optional :: pnt(:)
-    integer, intent (in) :: id
     integer(c_int64_t), intent (inout) :: nd
     character(len=*,kind=c_char), optional :: rsc_name, rsc_fields
     logical, intent(in), optional :: fixed_dims(:)
+    integer :: id
     type(mlf_rsc_int64_1d) :: rsc_int
+    id = numFields%incNRsc()
     this%v(id)%r = rsc_int
     if(present(rsc_name)) call this%v(id)%set_str(mlf_NAME, rsc_name)
     if(present(rsc_fields)) call this%v(id)%set_str(mlf_FIELDS, rsc_fields)
@@ -197,16 +214,18 @@ Contains
     End Associate
   End Function mlf_obj_addI64array
 
-  Integer Function mlf_obj_addI32array(this, id, nd, pnt, rsc_name, rsc_fields, &
+  Integer Function mlf_obj_addI32array(this, numFields, nd, pnt, rsc_name, rsc_fields, &
       data_handler, fixed_dims) result(info)
     class(mlf_arr_obj), intent(inout), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
     integer(c_int32_t), intent(out), pointer, optional :: pnt(:)
-    integer, intent (in) :: id
+    class(mlf_rsc_numFields), intent(inout) :: numFields
+    integer :: id
     integer(c_int64_t), intent (inout) :: nd
     character(len=*,kind=c_char), optional :: rsc_name, rsc_fields
     logical, intent(in), optional :: fixed_dims(:)
     type(mlf_rsc_int32_1d) :: rsc_int
+    id = numFields%incNRsc()
     this%v(id)%r = rsc_int
     if(present(rsc_name)) call this%v(id)%set_str(mlf_NAME, rsc_name)
     if(present(rsc_fields)) call this%v(id)%set_str(mlf_FIELDS, rsc_fields)
@@ -225,16 +244,18 @@ Contains
     End Associate
   End Function mlf_obj_addI32array
 
-  Integer Function mlf_obj_addRArray(this, id, nd, pnt, rsc_name, rsc_fields, &
+  Integer Function mlf_obj_addRArray(this, numFields, nd, pnt, rsc_name, rsc_fields, &
       data_handler, fixed_dims) result(info)
     class(mlf_arr_obj), intent(inout), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
     real(c_double), intent(out), pointer, optional :: pnt(:)
-    integer, intent (in) :: id
+    class(mlf_rsc_numFields), intent(inout) :: numFields
+    integer :: id
     integer(c_int64_t), intent (inout) :: nd
     character(len=*,kind=c_char), optional :: rsc_name, rsc_fields
     logical, intent(in), optional :: fixed_dims(:)
     type(mlf_rsc_double1d) :: rsc_double
+    id = numFields%incNRsc()
     this%v(id)%r = rsc_double
     if(present(rsc_name)) call this%v(id)%set_str(mlf_NAME, rsc_name)
     if(present(rsc_fields)) call this%v(id)%set_str(mlf_FIELDS, rsc_fields)
@@ -253,16 +274,18 @@ Contains
     End Associate
   End Function mlf_obj_addRArray
 
-  Integer Function mlf_obj_addRMatrix(this, id, nd, pnt, rsc_name, rsc_fields, &
+  Integer Function mlf_obj_addRMatrix(this, numFields, nd, pnt, rsc_name, rsc_fields, &
       data_handler, fixed_dims) result(info)
     class(mlf_arr_obj), intent(inout), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
     real(c_double), intent(out), pointer, optional :: pnt(:,:)
-    integer, intent (in) :: id
+    class(mlf_rsc_numFields), intent(inout) :: numFields
+    integer :: id
     integer(c_int64_t), intent (inout) :: nd(2)
     character(len=*,kind=c_char), optional :: rsc_name, rsc_fields
     logical, intent(in), optional :: fixed_dims(:)
     type(mlf_rsc_double2d) :: rsc_double
+    id = numFields%incNRsc()
     this%v(id)%r = rsc_double
     if(present(rsc_name)) call this%v(id)%set_str(mlf_NAME, rsc_name)
     if(present(rsc_fields)) call this%v(id)%set_str(mlf_FIELDS, rsc_fields)
@@ -281,16 +304,18 @@ Contains
     End Associate
   End Function mlf_obj_addRMatrix
 
-  Integer Function mlf_obj_addRMatrix3D(this, id, nd, pnt, rsc_name, rsc_fields, &
+  Integer Function mlf_obj_addRMatrix3D(this, numFields, nd, pnt, rsc_name, rsc_fields, &
       data_handler, fixed_dims) result(info)
     class(mlf_arr_obj), intent(inout), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
     real(c_double), intent(out), pointer, optional :: pnt(:,:, :)
-    integer, intent (in) :: id
+    class(mlf_rsc_numFields), intent(inout) :: numFields
+    integer :: id
     integer(c_int64_t), intent (inout) :: nd(3)
     character(len=*,kind=c_char), optional :: rsc_name, rsc_fields
     logical, intent(in), optional :: fixed_dims(:)
     type(mlf_rsc_double3d) :: rsc_double
+    id = numFields%incNRsc()
     this%v(id)%r = rsc_double
     if(present(rsc_name)) call this%v(id)%set_str(mlf_NAME, rsc_name)
     if(present(rsc_fields)) call this%v(id)%set_str(mlf_FIELDS, rsc_fields)
@@ -309,21 +334,42 @@ Contains
     End Associate
   End Function mlf_obj_addRMatrix3D
      
-  Integer Function mlf_arr_init(this, nipar, nrpar, nrsc, ifields, rfields, data_handler) result(info)
+  Integer Function mlf_arr_init(this, numFields, data_handler) result(info)
     class(mlf_arr_obj), intent(inout), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    integer(c_int64_t), intent(inout) :: nipar, nrpar
-    integer, intent(inout) :: nrsc
-    character(len=*,kind=c_char) :: ifields, rfields
-    ALLOCATE(this%v(2+nrsc))
-    info = this%add_i64array(1, nipar, this%ipar, C_CHAR_"ipar", ifields, &
+    class(mlf_rsc_numFields), intent(inout) :: numFields
+    integer(c_int64_t) :: nIPar, nRPar, nRsc
+    nIPar = numFields%nIPar; nRPar = numFields%nRPar; nRsc = numFields%nRsc+2
+    ALLOCATE(this%v(nRsc))
+    ! Reinit numFields
+    numFields%nIPar = 0; numFields%nRPar = 0; numFields%nRsc = 0
+    info = this%add_i64array(numFields, nIPar, this%iPar, C_CHAR_"iPar", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
     if(CheckF(info, "Error creating ipar")) RETURN
-    info = this%add_rarray(2, nrpar, this%rpar, C_CHAR_"rpar", rfields, &
+    info = this%add_rarray(numFields, nRPar, this%rPar, C_CHAR_"rPar", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
-    if(CheckF(info, "Error creating rpar")) RETURN
-    nipar = 0; nrpar = 0; nrsc = 2
+    if(CheckF(info, "Error creating rpar")) RETURN 
   End Function mlf_arr_init
+
+  Subroutine mlf_obj_addRPar(this, numFields, pnt, field)
+    class(mlf_arr_obj), intent(inout), target :: this
+    class(mlf_rsc_numFields), intent(inout) :: numFields
+    real(c_double), intent(out), pointer :: pnt
+    character(len=*,kind=c_char), optional :: field
+    numFields%nRPar = numFields%nRPar+1
+    pnt => this%rPar(numFields%nRPar)
+    if(present(field)) call this%v(2)%addField(field)
+  End Subroutine mlf_obj_addRPar
+
+  Subroutine mlf_obj_addIPar(this, numFields, pnt, field)
+    class(mlf_arr_obj), intent(inout), target :: this
+    class(mlf_rsc_numFields), intent(inout) :: numFields
+    integer(c_int64_t), intent(out), pointer :: pnt
+    character(len=*,kind=c_char), optional :: field
+    numFields%nIPar = numFields%nIPar+1
+    pnt => this%iPar(numFields%nIPar)
+    if(present(field)) call this%v(1)%addField(field)
+  End Subroutine mlf_obj_addIPar
 
   ! Generic interface for int arrays
   Function mlf_int32_getdata(array, nD, D, ptr) result(rptr)
@@ -426,6 +472,7 @@ Contains
       rptr = c_memcpy(ptr, rptr, N)
     endif
   End Function mlf_double_getdata
+
   Function mlf_double_updatedata(array, ptr) result(info)
     real(c_double), intent(inout), target :: array(..)
     real(c_double) :: r

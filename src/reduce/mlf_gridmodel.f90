@@ -92,21 +92,20 @@ Contains
     real(c_double), intent(in), optional :: XMin, XMax, YMin, YMax
     integer(c_int), intent(in), optional :: nX0, nY0, nW
     real(c_double), allocatable :: X(:,:,:)
-    integer :: nrsc, i
-    integer(c_int64_t) :: nipar, nrpar, ndGrid(3)
+    type(mlf_rsc_numFields) :: numFields = mlf_rsc_numFields(0,4,1)
+    integer :: i
+    integer(c_int64_t) :: ndGrid(3)
     ndGrid = -1
     if(present(nW)) ndGrid(1) = nW
     if(present(nX0)) ndGrid(2) = nX0
     if(present(nY0)) ndGrid(3) = nY0
-    nipar = 0; nrpar = 4; nrsc = 1
-    info = mlf_arr_init(this, nipar, nrpar, nrsc, C_CHAR_"", &
-      C_CHAR_"XMin;XMax;YMin;YMax;", data_handler)
+    info = mlf_arr_init(this, numFields, data_handler)
     if(info < 0) RETURN
-    this%XMin => this%rpar(nrpar+1)
-    this%XMax => this%rpar(nrpar+2)
-    this%YMin => this%rpar(nrpar+3)
-    this%YMax => this%rpar(nrpar+4)
-    info = this%add_RMatrix3D(nrsc+1, ndGrid, this%grid, C_CHAR_"grid", data_handler = data_handler)
+    call this%addRPar(numFields, this%XMin, "XMin")
+    call this%addRPar(numFields, this%XMax, "XMax")
+    call this%addRPar(numFields, this%YMin, "YMin")
+    call this%addRPar(numFields, this%YMax, "YMax")
+    info = this%add_RMatrix3D(numFields, ndGrid, this%grid, C_CHAR_"grid", data_handler = data_handler)
     if(info < 0) RETURN
     this%funmodel => fmodel
     if(.NOT. present(data_handler)) then

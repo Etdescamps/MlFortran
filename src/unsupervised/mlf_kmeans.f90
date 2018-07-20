@@ -44,7 +44,7 @@ Module mlf_kmeans
 
   ! Kmean object type
   Type, Public, extends(mlf_step_obj) :: mlf_algo_kmeans
-    real(c_double), pointer :: X(:,:), Mu(:,:), MDist
+    real(c_double), pointer :: X(:,:), Mu(:,:), meanDist
     real(c_double), allocatable :: minDist(:)
     integer(c_int32_t), allocatable :: cl(:)
     logical :: initialized
@@ -81,11 +81,11 @@ Contains
     real(c_double), target :: X(:,:)
     real(c_double),  optional :: Mu(:,:)
     integer, intent(in), optional :: nC
+    type(mlf_step_numFields) :: numFields
     logical :: fixed_dims(2) = [.TRUE., .FALSE.]
-    integer(c_int64_t) :: nipar, nrpar, nY, nX, nd(2)
-    integer :: nrsc
-    nipar = 0; nrpar = 1; nrsc = 1
-    info = mlf_step_obj_init(this, nipar, nrpar, nrsc, C_CHAR_"", C_CHAR_"Mdist;", data_handler = data_handler)
+    integer(c_int64_t) :: nY, nX, nd(2)
+    call numFields%initFields(nRVar = 1, nRsc = 1)
+    info = mlf_step_obj_init(this, numFields, data_handler = data_handler)
     if(info < 0) RETURN
     nX = size(X,2); nY = size(X,1)
     nd(1) = nY
@@ -104,7 +104,7 @@ Contains
       info = -1; RETURN
     endif
     this%X => X
-    info = this%add_rmatrix(nrsc+1, nd, this%Mu, C_CHAR_"Mu", data_handler = data_handler, &
+    info = this%add_rmatrix(numFields, nd, this%Mu, C_CHAR_"Mu", data_handler = data_handler, &
       fixed_dims = fixed_dims)
     if(CheckF(info, "Error adding Mu")) RETURN
     if(present(data_handler)) then
@@ -118,7 +118,7 @@ Contains
     endif
     if(CheckF(info, "Error reinit")) RETURN
     ALLOCATE(this%minDist(nX), this%cl(nX))
-    this%MDist => this%rpar(nrpar+1)
+    call this%addRVar(numFields, this%meanDist, "meanDist")
     call mlf_model_kmean_init(this%model, this)
   End Function mlf_algo_kmeans_init
 
@@ -163,7 +163,7 @@ Contains
         this%initialized = .TRUE.
       else
         call EvaluateClass(this%X, this%Mu, this%cl, this%minDist)
-        this%MDist = mean(this%minDist)
+        this%meanDist = mean(this%minDist)
         call EvaluateCentres(this%X, this%Mu, this%cl)
       endif
     end do

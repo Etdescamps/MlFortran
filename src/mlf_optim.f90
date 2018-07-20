@@ -54,8 +54,8 @@ Module mlf_optim
   Type, Public, abstract, extends(mlf_step_obj) :: mlf_optim_obj
     class(mlf_objective_fun), pointer :: fun
     integer(c_int64_t), pointer :: nevalFun, nevalFunMax
-    real(c_double), pointer :: minFun, targetFun, sigma, minX(:)
-    real(c_double), allocatable :: X(:,:), Csr(:,:), Y(:,:)
+    real(c_double), pointer :: minFun, targetFun, sigma, X(:,:), minX(:)
+    real(c_double), allocatable :: Csr(:,:), Y(:,:)
     real(c_double), allocatable :: XInitMin(:), XInitMax(:)
     real(c_double) :: sigma0
     integer(c_int) :: lambda, mu
@@ -86,46 +86,45 @@ Module mlf_optim
     End Function mlf_updateY
   End Interface
 Contains
-  integer Function mlf_optim_init(this, nipar, nrpar, nrsc, ifields, rfields, data_handler, params) &
+  integer Function mlf_optim_init(this, numFields, data_handler, params) &
       result(info)
     class(mlf_optim_obj), intent(inout), target :: this
-    class(mlf_optim_param), intent(inout) :: params
-    integer(c_int64_t), intent(inout) :: nipar, nrpar
-    integer, intent(inout) :: nrsc
-    integer, parameter :: ni = 2, nr = 3, ns = 1
-    integer(c_int64_t) :: nD
-    character(len=*,kind=c_char) :: ifields, rfields
+    class(mlf_step_numFields), intent(inout) :: numFields
     class(mlf_data_handler), intent(inout), optional :: data_handler
+    class(mlf_optim_param), intent(inout) :: params
+    integer(c_int64_t) :: nD, nLambdaND(2)
     info = -1
     if(.NOT. ASSOCIATED(params%fun)) RETURN
     this%fun => params%fun
     nD = this%fun%nD
-    nipar = nipar+ni; nrpar = nrpar+nr; nrsc = nrsc+ns
-    info = mlf_step_obj_init(this, nipar, nrpar, nrsc, C_CHAR_"nevalFun;nevalFunMax;"//ifields,&
-      C_CHAR_"minfun;targetFun;sigma;"//rfields, data_handler)
+    call numFields%addFields(nIPar = 1, nRPar = 1, nRsc = 2, nIVar = 1, nRVar = 2)
+    info = mlf_step_obj_init(this, numFields, data_handler)
     if(info < 0) RETURN
-    this%nevalFun => this%ipar(nipar+1)
-    this%nevalFunMax => this%ipar(nipar+2)
-    this%minFun => this%rpar(nrpar+1)
-    this%targetFun => this%rpar(nrpar+2)
-    this%sigma => this%rpar(nrpar+3)
+    call this%addIVar(numFields, this%nevalFun, "nevalFun")
+    call this%addIPar(numFields, this%nevalFunMax, "nevalFunMax")
+    call this%addRVar(numFields, this%minFun, "minFun")
+    call this%addRVar(numFields, this%sigma, "sigma")
+    call this%addRPar(numFields, this%targetFun, "targetFun")
     this%targetFun = params%targetFun
     this%sigma0 = params%sigma
     this%lambda = params%lambda
-    if(params%mu <0) then
+    this%nevalFunMax = params%nevalFunMax
+    info = this%add_rarray(numFields, nD, this%minX, C_CHAR_"minX", &
+      data_handler = data_handler, fixed_dims = [.TRUE.])
+    if(info < 0) RETURN
+    nLambdaND = [ND, int(this%lambda, kind=c_int64_t)]
+    info = this%add_rmatrix(numFields, nLambdaND, this%X, C_CHAR_"X", &
+      data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
+    this%lambda = int(nLambdaND(2), kind=4)
+    if(params%mu <0 .AND. this%lambda > 0) then
       this%mu = MAX(this%lambda/2, MIN(this%lambda, 2))
     else
       this%mu = params%mu
     endif
-    this%nevalFunMax = params%nevalFunMax
-    info = this%add_rarray(nrsc+1, nD, this%minX, C_CHAR_"minX", &
-      data_handler = data_handler, fixed_dims = [.TRUE.])
-    if(info < 0) RETURN
-    nipar = nipar+ni; nrpar = nrpar+nr; nrsc = nrsc+ns
-    ALLOCATE(this%X(ND, params%lambda), this%Y(this%fun%nY,params%lambda), this%idx(params%lambda))
+    ALLOCATE(this%Y(this%fun%nY,params%lambda), this%idx(params%lambda))
     if(this%fun%nC>0) ALLOCATE(this%Csr(this%fun%nC, params%lambda))
     if(associated(params%XMin)) ALLOCATE(this%XInitMin, source=params%XMin)
-    if(associated(params%XMax)) ALLOCATE(this%XInitMin, source=params%XMax)
+    if(associated(params%XMax)) ALLOCATE(this%XInitMax, source=params%XMax)
   End Function mlf_optim_init
 
   integer Function mlf_optim_reinit(this) result(info)

@@ -81,28 +81,28 @@ Contains
     class(mlf_data_handler), intent(inout), optional :: data_handler
     real(c_double), target :: X(:,:)
     integer, intent(inout) :: nC
-    integer :: nrsc
-    integer(c_int64_t) :: nipar, nrpar, nY, nX, ndMu(2), ndC(3), nC2
-    nipar = 0; nrpar = 1; nrsc = 3
-    info = mlf_step_obj_init(this, nipar, nrpar, nrsc, C_CHAR_"", C_CHAR_"sumLL;", data_handler = data_handler)
+    type(mlf_step_numFields) :: numFields
+    integer(c_int64_t) :: nY, nX, ndMu(2), ndC(3), nC2
+    call numFields%initFields(nRVar = 1, nRsc = 3)
+    info = mlf_step_obj_init(this, numFields, data_handler = data_handler)
     this%X => X
     if(info < 0) RETURN
     nY = size(X,1); nX = size(X,2); nC2 = nC
     ndMu = [nY, nC2]; ndC = [nY, nY, nC2]
-    info = this%add_rmatrix(nrsc+1, ndMu, this%Mu, C_CHAR_"Mu", &
+    info = this%add_rmatrix(numFields, ndMu, this%Mu, C_CHAR_"Mu", &
       data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
     if(CheckF(info, "emgmm: error creating Mu")) RETURN
     ndC(3) = ndMu(2)
-    info = this%add_rmatrix3d(nrsc+2, ndC, this%Cov, C_CHAR_"Cov", &
+    info = this%add_rmatrix3d(numFields, ndC, this%Cov, C_CHAR_"Cov", &
       data_handler = data_handler, fixed_dims = [.TRUE., .TRUE., .TRUE.])
     if(CheckF(info, "emgmm: error creating Cov")) RETURN
     nC2 = ndMu(2)
-    info = this%add_rarray(nrsc+3, nC2, this%lambda, C_CHAR_"lambda", &
+    info = this%add_rarray(numFields, nC2, this%lambda, C_CHAR_"lambda", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
     if(CheckF(info, "emgmm: error creating lambda")) RETURN
     nC = int(nC2, kind=4)
     ALLOCATE(this%ProbaC(nX, nC))
-    this%sumLL => this%rpar(nrpar+1)
+    call this%addRVar(numFields, this%sumLL, "sumLL")
     if(present(data_handler)) then
       this%initialized = .TRUE.
     else

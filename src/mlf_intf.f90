@@ -85,6 +85,7 @@ Module mlf_intf
     class(mlf_rsc_intf), allocatable :: r
   Contains
     procedure :: set_str => mlf_rsc_setstr
+    procedure :: addField => mlf_rsc_addField
     procedure :: get_str => mlf_rsc_getstr
   End Type mlf_rsc
 
@@ -380,6 +381,17 @@ Contains
       c_pushstate = this%pushState(obj, override /= 0)
     end select
   End Function c_pushstate
+
+  Subroutine mlf_rsc_addField(this, str)
+    class(mlf_rsc), intent(inout) :: this
+    character(len=*,kind=c_char) :: str
+    if(allocated(this%r_fields)) then
+      this%r_fields = this%r_fields(1:len(this%r_fields)-1) // C_CHAR_";" &
+        // trim(str) // C_NULL_CHAR
+    else
+      this%r_fields = str // C_NULL_CHAR
+    endif
+  End Subroutine mlf_rsc_addField
 
   ! Set a peculiar description string of a ressource
   Subroutine mlf_rsc_setstr(this, itype, str)

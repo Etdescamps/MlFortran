@@ -114,11 +114,10 @@ Contains
     real(c_double), intent(in), optional :: WP(:), P(:,:)
     integer, intent(in), optional :: sizeBase, nX
     real(c_double), allocatable :: C(:,:), LD(:), LB(:,:)
-    integer :: nrsc, i, j, nP, N
-    integer(c_int64_t) :: nipar, nrpar, ndP(2), ndW(2), ndV(2), nX0
-    nipar = 0; nrpar = 0; nrsc = 4
-    info = mlf_arr_init(this, nipar, nrpar, nrsc, C_CHAR_"", &
-      C_CHAR_"", data_handler)
+    type(mlf_rsc_numFields) :: numFields = mlf_rsc_numFields(0,0,4)
+    integer :: i, j, nP, N
+    integer(c_int64_t) :: ndP(2), ndW(2), ndV(2), nX0
+    info = mlf_arr_init(this, numFields, data_handler)
     if(present(P)) then
       nP = size(P,1); N = size(P,2)
       ndP = int([nP, N], kind=8); ndW = int([N, sizeBase], kind=8)
@@ -127,16 +126,19 @@ Contains
       write (error_unit, *) 'mlf_funbasis(init) error: no input parameter nor data_handler'
       info = -1; RETURN
     endif
-    info = this%add_rmatrix(nrsc+1, ndP, this%P, C_CHAR_"P", data_handler = data_handler)
+    info = this%add_rmatrix(numFields, ndP, this%P, C_CHAR_"P", data_handler = data_handler)
     if(info /= 0) RETURN
     ndW(1) = ndP(2)
-    info = this%add_rmatrix(nrsc+2, ndW, this%W, C_CHAR_"W", data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
+    info = this%add_rmatrix(numFields, ndW, this%W, C_CHAR_"W", &
+      data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
     if(info /= 0) RETURN
     ndV(1) = ndW(2)
-    info = this%add_rmatrix(nrsc+3, ndV, this%Vals, C_CHAR_"Vals", data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
+    info = this%add_rmatrix(numFields, ndV, this%Vals, C_CHAR_"Vals", &
+      data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
     if(info /= 0) RETURN
     nX0 = ndV(2)
-    info = this%add_rarray(nrsc+4, nX0, this%X, C_CHAR_"X", data_handler = data_handler, fixed_dims = [.TRUE.])
+    info = this%add_rarray(numFields, nX0, this%X, C_CHAR_"X", &
+      data_handler = data_handler, fixed_dims = [.TRUE.])
     if(info /= 0) RETURN
     if(present(data_handler)) RETURN
     this%fun => f

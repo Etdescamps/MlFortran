@@ -49,7 +49,7 @@ Module mlf_cmaes
     real(c_double), pointer :: X0(:) ! Center of the sampling: X(:,i) = D(:,i)+X0(:)
     real(c_double), pointer :: ps(:) ! Isotropically path (that comes from the best mu element of Z)
     real(c_double), pointer :: W(:) ! weight used by the methods on best mu element
-    real(c_double), pointer :: alphacov
+    real(c_double), pointer :: alphaCov
     real(c_double), allocatable :: Z(:,:) ! Vectors sampled using Norm(0,Id_N)
     real(c_double), allocatable :: D(:,:) ! Previous vectors multiplied by M (D = MZ)
     real(c_double), allocatable :: Dw(:), DM(:,:)
@@ -89,32 +89,25 @@ Module mlf_cmaes
     End Function mlf_matrix_updateF
   End Interface
 Contains
-  Integer Function mlf_matrix_es_obj_init(this, nipar, nrpar, nrsc, ifields, rfields, &
-    data_handler, params) result(info)
+  Integer Function mlf_matrix_es_obj_init(this, numFields, data_handler, params) result(info)
     class(mlf_matrix_es_obj), intent(inout), target :: this
-    class(mlf_optim_param), intent(inout) :: params
-    integer, intent(inout) :: nrsc
-    integer(c_int64_t), intent(inout) :: nipar, nrpar
-    character(len=*,kind=c_char) :: ifields, rfields
+    class(mlf_step_numFields), intent(inout) :: numFields
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    integer, parameter :: ni = 0, nr = 1, ns = 4
+    class(mlf_optim_param), intent(inout) :: params
     integer(c_int64_t) :: nD, CND(2), mu
     nD = params%fun%nD
     CND = nD
     if(params%lambda <= 0) then
       params%lambda = 4 + floor(3.0*log(real(ND)))
     end if
-    nipar = nipar+ni; nrpar = nrpar+nr; nrsc = nrsc+ns
-    info = mlf_optim_init(this, nipar, nrpar, nrsc, ifields, &
-      C_CHAR_"alphacov;"//rfields, data_handler, params)
-    info = this%add_rmatrix(nrsc+1, CND, this%M, C_CHAR_"M", data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
-    info = this%add_rarray(nrsc+2, nD, this%X0, C_CHAR_"X0", data_handler = data_handler, fixed_dims = [.TRUE.])
-    info = this%add_rarray(nrsc+3, nD, this%ps, C_CHAR_"ps", data_handler = data_handler, fixed_dims = [.TRUE.])
+    info = mlf_optim_init(this, numFields, data_handler, params)
+    info = this%add_rmatrix(numFields, CND, this%M, C_CHAR_"M", data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
+    info = this%add_rarray(numFields, nD, this%X0, C_CHAR_"X0", data_handler = data_handler, fixed_dims = [.TRUE.])
+    info = this%add_rarray(numFields, nD, this%ps, C_CHAR_"ps", data_handler = data_handler, fixed_dims = [.TRUE.])
     mu = this%mu
-    info = this%add_rarray(nrsc+4, mu, this%W, C_CHAR_"W", data_handler = data_handler)
+    info = this%add_rarray(numFields, mu, this%W, C_CHAR_"W", data_handler = data_handler)
     this%mu = int(mu, kind=c_int)
-    this%alphacov => this%rpar(nrpar+1)
-    nipar = nipar+ni; nrpar = nrpar+nr; nrsc = nrsc+ns
+    call this%addRPar(numFields, this%alphaCov, "alphaCov")
     ALLOCATE(this%Z(ND, this%lambda), this%D(ND, this%lambda), this%Dw(ND), this%DM(ND,ND))
   End Function mlf_matrix_es_obj_init
 
@@ -194,13 +187,12 @@ Contains
   Integer Function mlf_maes_init(this, funW, alphacovIn, data_handler, params) result(info)
     class(mlf_maes_obj), intent(inout), target :: this
     class(mlf_optim_param), intent(inout) :: params
-    integer(c_int64_t) :: nipar = 0, nrpar = 0
-    integer :: nrsc = 0
     class(mlf_weight_fun), optional, intent(in) :: funW
     real(c_double), intent(in), optional :: alphacovIn
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    info = mlf_matrix_es_obj_init(this, nipar, nrpar, nrsc, C_CHAR_"", &
-      C_CHAR_"", data_handler, params)
+    type(mlf_step_numFields) :: numFields
+    call numFields%initFields()
+    info = mlf_matrix_es_obj_init(this, numFields, data_handler, params)
     if(CheckF(info, 'mlf_maes_init: Error init matrix_es')) RETURN
     if(present(data_handler)) then
       call this%updateW()
@@ -212,23 +204,24 @@ Contains
   Integer Function mlf_cmaes_init(this, funW, alphacovIn, covEvery, data_handler, params) result(info)
     class(mlf_cmaes_obj), intent(inout), target :: this
     class(mlf_optim_param), intent(inout) :: params
-    integer(c_int64_t) :: nipar = 2, nrpar = 0, ND, CND(2)
-    integer :: nrsc = 2
+    integer(c_int64_t) :: ND, CND(2)
     class(mlf_weight_fun), optional, intent(in) :: funW
     real(c_double), intent(in), optional :: alphacovIn
     integer, intent(in), optional :: covEvery
     class(mlf_data_handler), intent(inout), optional :: data_handler
     integer :: lambda
-     
-    info = mlf_matrix_es_obj_init(this, nipar, nrpar, nrsc, C_CHAR_"lastCov;covEvery;", &
-      C_CHAR_"", data_handler, params)
+    type(mlf_step_numFields) :: numFields
+    call numFields%initFields(nIPar = 1, nRsc = 2, nIVar =1)
+    info = mlf_matrix_es_obj_init(this, numFields, data_handler, params)
     if(CheckF(info, 'mlf_cmaes_init: Error init matrix_es')) RETURN
     lambda = size(this%Z, 2); ND = size(this%Z, 1)
     CND = ND
-    info = this%add_rmatrix(nrsc+1, CND, this%C, C_CHAR_"C", data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
-    info = this%add_rarray(nrsc+2, ND, this%pc, C_CHAR_"pc", data_handler = data_handler, fixed_dims = [.TRUE.])
-    this%lastCov => this%ipar(nipar+1)
-    this%covEvery => this%ipar(nipar+2)
+    info = this%add_rmatrix(numFields, CND, this%C, C_CHAR_"C", &
+      data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
+    info = this%add_rarray(numFields, ND, this%pc, C_CHAR_"pc", &
+      data_handler = data_handler, fixed_dims = [.TRUE.])
+    call this%addIPar(numFields, this%lastCov, "lastCov")
+    call this%addIPar(numFields, this%covEvery, "covEvery")
     if(present(data_handler)) then
       call this%updateW()
       this%cp = (this%mueff/ND+4.0D0)/(2.0D0*this%mueff/ND+ND+4d0)

@@ -82,8 +82,43 @@ Module mlf_fun_intf
     procedure :: eval => mlf_weight_simple_ev
   End Type mlf_weight_simple_fun
 
+  ! ODE function evaluator
+  Type, Public, abstract, extends(mlf_obj) :: mlf_ode_fun
+  Contains
+    procedure (mlf_ode_eval), deferred :: eval
+  End Type mlf_ode_fun
+
+  ! ODE function evaluator
+  Type, Public, abstract, extends(mlf_obj) :: mlf_odecond_fun
+  Contains
+    procedure (mlf_odecond_eval), deferred :: eval
+  End Type mlf_odecond_fun
+
+
 
   Abstract Interface
+
+    ! Abstract ODE function type
+    Subroutine mlf_ode_eval(this, t, X, k)
+      Use iso_c_binding
+      import :: mlf_ode_fun
+      class(mlf_ode_fun), intent(in), target :: this
+      real(c_double), intent(in) :: t
+      real(c_double), intent(in), target :: X(:)
+      real(c_double), intent(out), target :: k(:)
+    End Subroutine mlf_ode_eval
+
+    ! Abstract ODE function type with time condition
+    Function mlf_odecond_eval(this, t, X, k)
+      Use iso_c_binding
+      import :: mlf_odecond_fun
+      class(mlf_odecond_fun), intent(in), target :: this
+      real(c_double), intent(in) :: t
+      real(c_double) :: mlf_odecond_eval
+      real(c_double), intent(in), target :: X(:)
+      real(c_double), intent(out), target :: k(:)
+    End Function mlf_odecond_eval
+
     ! Abstract objective function type
     integer Function mlf_obj_eval(this, X, Y)
       Use iso_c_binding

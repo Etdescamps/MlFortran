@@ -376,8 +376,8 @@ namespace MlFortran {
 
   class MlfStepObject : public MlfObject {
     protected:
-      MlfDataVector<int64_t> iPar, iVar;
-      MlfDataVector<double> rPar, rVar;
+      MlfDataVector<int64_t> iVar;
+      MlfDataVector<double> rVar;
       void initOutput();
       bool is_initData = false;
     public:

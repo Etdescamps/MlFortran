@@ -112,7 +112,7 @@ Contains
     integer(c_int64_t), intent(out), pointer :: pnt
     character(len=*,kind=c_char), optional :: field
     numFields%nIVar = numFields%nIVar+1
-    pnt => this%iPar(numFields%nIVar)
+    pnt => this%iVar(numFields%nIVar)
     if(present(field)) call this%v(this%idIVar)%addField(field)
   End Subroutine mlf_step_obj_addIVar
   

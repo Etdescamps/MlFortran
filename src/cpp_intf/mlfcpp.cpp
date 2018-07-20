@@ -108,14 +108,10 @@ namespace MlFortran {
   }
 
   void MlfStepObject::initOutput() {
-    int idrpar = MlfObject::getIdName("rPar");
-    int idipar = MlfObject::getIdName("iPar");
-    int idrvar = MlfObject::getIdName("rVar");
-    int idivar = MlfObject::getIdName("iVar");
-    MlfObject::getRsc(idrpar, rPar);
-    MlfObject::getRsc(idipar, iPar);
-    MlfObject::getRsc(idrvar, rVar);
-    MlfObject::getRsc(idivar, iVar);
+    int idRVar = MlfObject::getIdName("rVar");
+    int idIVar = MlfObject::getIdName("iVar");
+    MlfObject::getRsc(idRVar, rVar);
+    MlfObject::getRsc(idIVar, iVar);
     is_initData = true;
   }
 
@@ -125,9 +121,9 @@ namespace MlFortran {
     os << iVar << rVar << std::endl;
   }
   void MlfStepObject::printFields(ostream& os) {
-    int idrvar = MlfObject::getIdName("rVar");
-    int idivar = MlfObject::getIdName("iVar");
-    os << MlfObject::getFields(idivar) << MlfObject::getFields(idrvar) << std::endl;
+    int idRVar = MlfObject::getIdName("rVar");
+    int idIVar = MlfObject::getIdName("iVar");
+    os << MlfObject::getFields(idIVar) << ';' <<MlfObject::getFields(idRVar) << std::endl;
   }
 
   bool MlfHdf5::readWOrCreate(string &fileName) {

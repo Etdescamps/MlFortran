@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
   if(info<0)
     return info;
   int rank, dim0[18];
-  double *V = (double *) mlf_getrsc(obj, 3, &dt, &rank, dim0, NULL);
+  double *V = (double *) mlf_getrsc(obj, 5, &dt, &rank, dim0, NULL);
   printf("%f\n", t);
   mlf_printMat(V, nY, nC);
   mlf_dealloc(obj);

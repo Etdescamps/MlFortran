@@ -100,6 +100,7 @@ Contains
     if(params%lambda <= 0) then
       params%lambda = 4 + floor(3.0*log(real(ND)))
     end if
+    call numFields%addFields(nRPar = 1, nRsc = 4)
     info = mlf_optim_init(this, numFields, data_handler, params)
     info = this%add_rmatrix(numFields, CND, this%M, C_CHAR_"M", data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
     info = this%add_rarray(numFields, nD, this%X0, C_CHAR_"X0", data_handler = data_handler, fixed_dims = [.TRUE.])
@@ -220,7 +221,7 @@ Contains
       data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
     info = this%add_rarray(numFields, ND, this%pc, C_CHAR_"pc", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
-    call this%addIPar(numFields, this%lastCov, "lastCov")
+    call this%addIVar(numFields, this%lastCov, "lastCov")
     call this%addIPar(numFields, this%covEvery, "covEvery")
     if(present(data_handler)) then
       call this%updateW()

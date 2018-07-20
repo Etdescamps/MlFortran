@@ -110,8 +110,7 @@ Program test_cmaes
   endif
   call fTest%init(optFun, ND)
   ALLOCATE(X0(ND))
-  X0 = 1d0 
-  call p%init(fTest, lambda, X0 = X0)
+  call p%init(fTest, lambda)
   Select Type(optObj)
   class is (mlf_maes_obj)
     info = optObj%init(params = p)

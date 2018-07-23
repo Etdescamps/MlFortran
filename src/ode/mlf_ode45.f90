@@ -185,15 +185,26 @@ Contains
   real(c_double) Function mlf_ode45_findRoot(this, id) result(t)
     class(mlf_ode45_obj), intent(inout) :: this
     integer, intent(in) :: id
-    real(c_double) :: a0, a1, a2, a3, a4
+    integer :: i
+    real(c_double) :: Q0, Q1, Q2, Q3, Q4, Q5, Q6
+    real(c_double) :: th, th1, fth, t0, t1, t2, U
     if(this%lastT < this%t) call this%updateDense()
+    t0 = 0d0; t1 = 1d0; t2 = 0.5d0
     ASSOCIATE(X0 => this%X0, X => this%X, A => this%Cont)
-      a0 = X0(id); a1 = X(id)-X0(id)+A(id,1)
-      a2 = A(id,2)+A(id,3)-A(id,1)
-      a3 = -2d0*A(id,3)-A(id,2)
-      a4 = A(id,3)
+      Q0 = X0(id); Q1 = X(id)-X0(id)
+      Q2 = A(id,1); Q3 = A(id,2); Q4 = A(id,3)
+      Q5 = -4d0*Q4-2d0*Q3; Q6 = Q4+Q3-Q2
+      U = Q1+0.5d0*Q2+0.25*Q3+0.125*Q4
+      th = Q0+0.5d0*U; fth = U-0.25d0*Q4-Q2
+      th = th-th/fth ! Newton-Ralphson polishing
+      Do i=1,4
+        th1 = 1d0-th
+        U = Q1+th1*(Q2+th*(Q3+th1*Q4))
+        fth = U+th*(th*(3d0*Q4*th+Q5)+Q6)
+        th = Q0+th*U
+        th = th-th/fth
+      End Do
     END ASSOCIATE
-    t = mlf_solve4DPoly(0d0, a0, a1, a2, a3, a4)
   End Function mlf_ode45_findRoot
 
   Subroutine mlf_ode45_denseEvaluation(this, t, Y)

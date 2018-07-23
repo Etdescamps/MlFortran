@@ -194,6 +194,7 @@ CONTAINS
     nr = nr + DRootsQuadratic(A(nr+1:), -u, 0.5d0*p+m+v, eps)
   End Function DRootsFerrari
 
+  ! Classical method for solving the root of a polynomial using a companion Matrix
   Integer Function DRootsCompanion(A, R, eps) result(nr)
     real(c_double), intent(in) :: A(:), eps
     real(c_double), intent(out) :: R(:)
@@ -201,14 +202,15 @@ CONTAINS
     integer :: N, LWORK, INFO, i
     nr = 0
     N = size(A)
-    LWORK = N*N
+    LWORK = N*max(N,11)
     allocate(M(N,N), Work(LWORK), WR(N), WI(N))
     M = 0
     forall(i=1:N-1) M(i+1,i) = 1d0
     M(:,N) = -A
-    call DGEEV('N', 'N', N, M, N, WR, WI, C_NULL_PTR, N, C_NULL_PTR, N, Work, LWORK, INFO)
+    !call DGEEV('N', 'N', N, M, N, WR, WI, C_NULL_PTR, N, C_NULL_PTR, N, Work, LWORK, INFO)
+    call DHSEQR('E', 'N', N, 1, N, M, N, WR, WI, C_NULL_PTR, N, WORK, LWORK, INFO)
     if(info < 0) RETURN
-    Do i=info+1,N
+    Do i=N,info+1,-1
       if(abs(WI(i))<eps) then
         nr = nr +1
         R(nr) = WR(i)

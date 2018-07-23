@@ -33,7 +33,7 @@ Module mlf_cfuns
 
   PRIVATE
   Public :: c_qsort, c_qsort_neg, c_qsort_unify, c_memcpy, c_strncmp, c_strlen
-  Public :: mlf_stringFromC
+  Public :: mlf_stringFromC, c_cbrt
 
   Interface
     Subroutine c_qsort(V, idSorted, N, ND, L, mu) bind(C, name="mlf_qsort")
@@ -72,6 +72,11 @@ Module mlf_cfuns
       type(c_ptr), value :: s1
       integer(c_size_t) ::  c_strlen
     End Function c_strlen
+    Function c_cbrt(r) result(x) bind(C, name="cbrt")
+      Use iso_c_binding
+      real(c_double), value :: r
+      real(c_double) :: x
+    End Function c_cbrt
   End Interface
 Contains
   Subroutine mlf_stringFromC(cptr, string)

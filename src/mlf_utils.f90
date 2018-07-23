@@ -35,6 +35,7 @@ Module mlf_utils
 
   Public :: Xchange, QSortIdx, QSort, Mean, PrintMatrix, mlf_countcl, mlf_reversecl, SetIf
   Public :: mlf_reverseid, mlf_cumulativefromvect, mlf_di_search, mlf_printmatrix_c, mlf_isSorted
+  Public :: mlf_solve4DPoly, mlf_rootsPoly, mlf_polyFromRoots, mlf_polyVal
 
   Interface SetIf
     module procedure mlf_setIfInt
@@ -135,6 +136,211 @@ Contains
     a = b
     b = k
   End Subroutine mlf_xchangeFloat
+
+  Integer Function rootsQuadratic(R, b, c) result(nr)
+    real(c_double), intent(in) :: b, c
+    real(c_double), intent(out) :: R(:)
+    real(c_double) :: delta
+    nr = 0
+    delta = 0.25d0*b**2-c
+    if(abs(delta) < 1d-12*abs(c)) then
+      R(1) = -0.5d0*b
+      nr = 1
+      RETURN
+    endif
+    if(delta<0d0) RETURN
+    delta = sqrt(delta)
+    R(1) = -0.5d0*b-delta
+    R(2) = -0.5d0*b+delta
+    nr = 2
+  End Function rootsQuadratic
+
+  ! Find the real solutions of the equation x^3+p*x+q=0
+  Integer Function rootsCardano(R, p, q) result(nr)
+    real(c_double), intent(in) :: p, q
+    real(c_double), intent(out) :: R(:)
+    real(c_double) :: delta
+    complex(c_double) :: a
+    complex(c_double), parameter :: j = (-0.5d0, 8.660254037844386467869d-1)
+    nr = 1 ! At least one solution
+    delta = -4d0*p**3-27d0*q**2
+    if(abs(delta)<1d-12*abs(p+q)) then ! discriminant = 0
+      if(abs(p) < 1d-12) then ! p == q == 0, so only the solution z=0
+        R(1) = 0
+      else
+        R(1) = 3d0*q/p
+        R(2) = (-3d0*q)/(2d0*p) ! The double root of the equation
+        ! So in this case: x^3+p*x+q=(x-R(1)*(x-R(2))^2
+        nr = 2
+      endif
+      RETURN
+    endif
+    if(delta<0) then ! One real solution (+ 2 complex solutions)
+      delta = sqrt(-delta/27d0)
+      R(1) = c_cbrt(0.5d0*(-q+delta))+c_cbrt(0.5d0*(-q-delta))
+    else ! Three real solutions
+      nr = 3
+      a = cmplx(-0.5d0*q, 0.5*sqrt(delta/27d0), kind=c_double)**(1d0/3d0)
+      ! Get one complex root of (-q+i*sqrt(delta/27))/2
+      ! the other complex roots are a*j and a*j^2
+      ! The solutions have the form a*j^k+conjg(a*j^k) = 2*real(a*j^k)
+      R(1) = 2d0*REAL(a, kind= c_double)
+      a = a*j
+      R(2) = 2d0*REAL(a, kind= c_double)
+      a = a*j
+      R(3) = 2d0*REAL(a, kind= c_double)
+    endif
+  End Function rootsCardano
+
+  ! Roots of a depressed quartic using Ferrari's method
+  Integer Function rootsFerrari(A, p, q, r) result(nr)
+    real(c_double), intent(in) :: p, q, r
+    real(c_double), intent(out) :: A(:)
+    real(c_double) :: u, v, mv, R2(3), m
+    integer :: i, j
+    nr = 0
+    mv = max(abs(p), abs(q), abs(r))
+    if(abs(q) < 1d-12*mv) then
+      ! Solve x**4+p*x**2+r=0
+      j = rootsQuadratic(R2, p, r)
+      Do i=1,j
+        if(R2(i) < -1d-12*mv) CYCLE
+        if(R2(i) < 1d-12*mv) then
+          nr = nr+1
+          A(nr) = 0d0
+        else
+          nr = nr+2
+          u = sqrt(R2(i))
+          A(nr-1:nr) = [-u, u]
+        endif
+      End Do
+      RETURN
+    endif
+    ASSOCIATE(b => p, c => (0.25d0*p**2-r), d => (1d0/8d0*q**2))
+      ! Equation P(x)=x^3+b*x^2+c*x+d is transformed in depressed form:
+      ! x is replaced by z = x+b/3, so the equation has the form z^3+p*z+q
+      j = rootsCardano(R2, c-(b**2)/3d0, b/27d0*(2d0*b**2-9d0*c)+d)
+      R2(1:j) = R2(1:j) - b/3d0 ! x = z-b/3
+    END ASSOCIATE
+    m = Maxval(R2(1:j))
+    if(m<-1d-12*mv) RETURN ! No solutions
+    if(m<1d-12*mv) then
+      nr = rootsQuadratic(A, 0d0, 0.5*p)
+      RETURN
+    endif
+    u = sqrt(2d0*m)
+    v = 0.5d0*q/u
+    nr = rootsQuadratic(A, u, 0.5d0*p+m-v)
+    nr = nr + rootsQuadratic(A(nr+1:), -u, 0.5d0*p+m+v)
+  End Function rootsFerrari
+
+  ! Find real roots of a polynomial
+  Integer Function rootsPoly(A, R) result(nr)
+    real(c_double), intent(in) :: A(:)
+    real(c_double), intent(out) :: R(:)
+    real(c_double) :: delta
+    integer :: N
+    N = size(A)
+    nr = 0
+    select case (N)
+      case(0)
+        RETURN
+      case(1)
+        R(1) = -A(1)
+        nr = 1
+      case(2) ! Solve analytically the second order equation
+        delta = 0.25d0*A(2)**2-A(1)
+        if(abs(delta) < 1d-12*abs(A(1))) then
+          R(1) = -0.5d0*A(2)
+          nr = 1
+          RETURN
+        endif
+        if(delta<0d0) RETURN
+        delta = sqrt(delta)
+        R(1) = -0.5d0*A(2)-delta
+        R(2) = -0.5d0*A(2)+delta
+        nr = 2
+      case(3) ! Use Cardano's method for 3rd order equations
+        ASSOCIATE(b => A(3), c => A(2), d => A(1))
+          ! Equation P(x)=x^3+b*x^2+c*x+d is transformed in depressed form:
+          ! x is replaced by z = x+b/3, so the equation has the form z^3+p*z+q
+          nr = rootsCardano(R, c-(b**2)/3d0, b/27d0*(2d0*b**2-9d0*c)+d)
+          R(1:nr) = R(1:nr) - b/3d0 ! x = z-b/3
+        END ASSOCIATE
+      case(4) ! Use Ferrari's method
+        ASSOCIATE(b => A(4), c => A(3), d => A(2), e => A(1))
+          nr = rootsFerrari(R, c-3d0/8d0*b**2, 1d0/8d0*b**3-0.5*b*c+d, &
+            e-3d0/256d0*b**4-0.25*b*d+1d0/16d0*b**2*c)
+          R(1:nr) = R(1:nr) - b/4d0
+        END ASSOCIATE
+      case default
+    end select
+  End Function rootsPoly
+
+  ! Interface for rootsPoly, check if the top coefficent of A can be negleted
+  Integer Function mlf_rootsPoly(A, R) result(nr)
+    real(c_double), intent(in) :: A(:)
+    real(c_double), intent(out) :: R(:)
+    real(c_double) :: m
+    integer :: i, N
+    m = maxval(abs(A))
+    N = size(A)
+    nr = 0
+    Do i=N,1,-1
+      if(abs(A(i)) > m*1e-12) EXIT
+    End Do
+    if(i>1) nr = rootsPoly(A(1:i-1)/A(i), R)
+  End Function mlf_rootsPoly
+
+  real(c_double) Function mlf_solve4DPoly(t, a0, a1, a2, a3, a4) result(x)
+    real(c_double), intent(in) :: t, a0, a1, a2, a3, a4
+    real(c_double) :: R(4)
+    integer :: nr, i=-1,j
+    nr = mlf_rootsPoly([a0, a1, a2, a3, a4], R)
+    Do i=1,nr
+      if(R(i)>t) EXIT
+    End Do
+    Do j=i+1,nr
+      if(R(j)>t .AND. R(j)<R(i)) i = j
+    End Do
+    if(i>0) then
+      x = R(i)
+    else
+      x = IEEE_VALUE(x, IEEE_QUIET_NAN)
+    endif
+  End Function mlf_solve4DPoly
+
+  Pure real(c_double) Function mlf_polyVal(P, x) result(Y)
+    real(c_double), intent(in) :: P(:), x
+    integer :: N, i
+    N =size(P)
+    Y = P(N)
+    Do i=N-1,1,-1
+      Y = x*Y+P(i)
+    End Do
+  End Function mlf_polyVal
+
+  Subroutine mlf_polyFromRoots(R, P)
+    real(c_double), intent(in) :: R(:)
+    real(c_double), intent(out) :: P(:)
+    real(c_double) :: a
+    integer :: k, N
+    N = size(R)
+    if(N == 1) then
+      P(1) = -R(1)
+      P(2) = 1d0
+      RETURN
+    endif
+    P(1) = R(1)*R(2)
+    P(2) = -R(1)-R(2)
+    Do k=3,N
+      a = R(k)
+      P(k) = P(k-1)-a
+      P(2:k-1) = P(1:k-2)-a*P(2:k-1)
+      P(1) = -a*P(1)
+    End Do
+    P(N+1) = 1d0
+  End Subroutine mlf_polyFromRoots
 
   ! Test function written to test QSort function
   logical Function mlf_isSorted(Y) result(T)

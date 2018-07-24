@@ -187,22 +187,29 @@ Contains
     integer, intent(in) :: id
     integer :: i
     real(c_double) :: Q0, Q1, Q2, Q3, Q4, Q5, Q6
-    real(c_double) :: th, th1, fth, t0, t1, t2, U
+    real(c_double) :: th, th1, Y, F, U
     if(this%lastT < this%t) call this%updateDense()
-    t0 = 0d0; t1 = 1d0; t2 = 0.5d0
     ASSOCIATE(X0 => this%X0, X => this%X, A => this%Cont)
       Q0 = X0(id); Q1 = X(id)-X0(id)
       Q2 = A(id,1); Q3 = A(id,2); Q4 = A(id,3)
       Q5 = -4d0*Q4-2d0*Q3; Q6 = Q4+Q3-Q2
-      U = Q1+0.5d0*Q2+0.25*Q3+0.125*Q4
-      th = Q0+0.5d0*U; fth = U-0.25d0*Q4-Q2
-      th = th-th/fth ! Newton-Ralphson polishing
+      ! Do a bissection step and then a secant step
+      ! Evaluate Y(0.5)
+      Y = Q0+0.5d0*(Q1+0.5d0*(Q2+0.5d0*(Q3+0.5d0*Q4)))
+      if(Y*Q0>0d0) then ! The root is between th= 0.5 and 1
+        U = 1d0/X(id)
+        th = 0.5d0+0.5d0*abs(U*(1d0/Y-U))
+      else ! The root is between th= 0 and 0.5
+        U = 1d0/Y
+        th = 0.5d0*abs(U*(1d0/X0(id)-U))
+      endif
+      ! Use Newton-Ralphson to polish the root th
       Do i=1,4
         th1 = 1d0-th
         U = Q1+th1*(Q2+th*(Q3+th1*Q4))
-        fth = U+th*(th*(3d0*Q4*th+Q5)+Q6)
-        th = Q0+th*U
-        th = th-th/fth
+        F = U+th*(th*(3d0*Q4*th+Q5)+Q6)
+        Y = Q0+th*U
+        th = th-Y/F
       End Do
     END ASSOCIATE
   End Function mlf_ode45_findRoot
@@ -263,6 +270,7 @@ Contains
     integer(kind=8) :: i
     integer :: idc
     real(c_double) :: h, hMax, err, Y(size(this%X)), Ysti(size(this%X))
+    real(c_double) :: th
     info = -1; idC = this%fun%idConst
     ASSOCIATE(t => this%t, K => this%K, X0 =>this%X0, X => this%X)
       hMax = this%hMax
@@ -293,11 +301,21 @@ Contains
         ! Update X and t
         X = Y
         t = t + h
+        this%t = t
         ! Check if the constraint is negative
         if(idC > 0) then
           if(X(idC) < 0) then
+            th = this%findRoot(idC)
+            t = this%t0+th*h
+            call this%denseEvaluation(t, Y)
+            this%t = t
+            X = Y
+            info = 0
+            niter = i
+            RETURN
           endif
         endif
+        K(:,1) = K(:,7)
       end do
     END ASSOCIATE
     info = 0

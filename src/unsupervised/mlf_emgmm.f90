@@ -126,9 +126,9 @@ Contains
     class(mlf_algo_emgmm), intent(inout), target :: this
     type(mlf_algo_kmeans) :: km_algo
     integer(kind=8), intent(inout), optional :: niter
-    integer(kind=8) :: i, N, nkm = 16
+    integer(kind=8) :: i, N, nkm
     integer :: j,nC
-    N = 1
+    N = 1; nkm = 16
     nC = size(this%Mu,2)
     if(present(niter)) N = niter
     do i=1,N

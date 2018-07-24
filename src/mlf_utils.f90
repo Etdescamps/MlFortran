@@ -34,6 +34,7 @@ Module mlf_utils
   PRIVATE
 
   Public :: Xchange, QSortIdx, QSort, Mean, PrintMatrix, mlf_countcl, mlf_reversecl, SetIf
+  Public :: InitOrDefault
   Public :: mlf_reverseid, mlf_cumulativefromvect, mlf_di_search, mlf_printmatrix_c, mlf_isSorted
 
   Interface SetIf
@@ -64,8 +65,70 @@ Module mlf_utils
     module procedure mlf_printmatrix
     module procedure mlf_printmatrix2
   End Interface PrintMatrix
+  Interface InitOrDefault
+    module procedure mlf_initOrDefault_bool
+    module procedure mlf_initOrDefault_int
+    module procedure mlf_initOrDefault_real
+    module procedure mlf_initOrDefault_double
+    module procedure mlf_initOrDefault_int64
+  End Interface InitOrDefault
   real(c_double), public, parameter :: mlf_PI = acos(-1d0)
 Contains
+
+  Subroutine mlf_initOrDefault_bool(var, def, opt)
+    logical, intent(out) :: var
+    logical, intent(in) :: def
+    logical, intent(in), optional :: opt
+    if(present(opt)) then
+      var = opt
+    else
+      var = def
+    endif
+  End Subroutine mlf_initOrDefault_bool
+
+  Subroutine mlf_initOrDefault_int(var, def, opt)
+    integer, intent(out) :: var
+    integer, intent(in) :: def
+    integer, intent(in), optional :: opt
+    if(present(opt)) then
+      var = opt
+    else
+      var = def
+    endif
+  End Subroutine mlf_initOrDefault_int
+
+  Subroutine mlf_initOrDefault_int64(var, def, opt)
+    integer(8), intent(out) :: var
+    integer(8), intent(in) :: def
+    integer(8), intent(in), optional :: opt
+    if(present(opt)) then
+      var = opt
+    else
+      var = def
+    endif
+  End Subroutine mlf_initOrDefault_int64
+
+  Subroutine mlf_initOrDefault_real(var, def, opt)
+    real, intent(out) :: var
+    real, intent(in) :: def
+    real, intent(in), optional :: opt
+    if(present(opt)) then
+      var = opt
+    else
+      var = def
+    endif
+  End Subroutine mlf_initOrDefault_real
+
+  Subroutine mlf_initOrDefault_double(var, def, opt)
+    real(8), intent(out) :: var
+    real(8), intent(in) :: def
+    real(8), intent(in), optional :: opt
+    if(present(opt)) then
+      var = opt
+    else
+      var = def
+    endif
+  End Subroutine mlf_initOrDefault_double
 
   Subroutine mlf_setIfInt(dest, def, val)
     integer(c_int), intent(out) :: dest

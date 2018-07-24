@@ -159,14 +159,14 @@ Contains
   Integer Function mlf_optim_stepF(this, niter) result(info)
     class(mlf_optim_obj), intent(inout), target :: this
     integer(kind=8), intent(inout), optional :: niter
-    integer(kind=8) :: i, niter0=1
+    integer(kind=8) :: i, niter0
     integer :: lambda, nR, nR2, j, idMin
     logical, allocatable :: VU(:)
     real(c_double) :: minv, minc
     minv = huge(minv); minc = huge(minc)
     lambda = size(this%X,2)
     info = -1
-    if(present(niter)) niter0 = niter
+    call InitOrDefault(niter0, 1_8, niter)
     ALLOCATE(VU(lambda))
     LIter: Do i=1,niter0
       info = this%stopCond()

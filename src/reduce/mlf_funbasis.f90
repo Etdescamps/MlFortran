@@ -114,9 +114,10 @@ Contains
     real(c_double), intent(in), optional :: WP(:), P(:,:)
     integer, intent(in), optional :: sizeBase, nX
     real(c_double), allocatable :: C(:,:), LD(:), LB(:,:)
-    type(mlf_rsc_numFields) :: numFields = mlf_rsc_numFields(0,0,4)
+    type(mlf_rsc_numFields) :: numFields
     integer :: i, j, nP, N
     integer(c_int64_t) :: ndP(2), ndW(2), ndV(2), nX0
+    numFields = mlf_rsc_numFields(0,0,4)
     info = mlf_arr_init(this, numFields, data_handler)
     if(present(P)) then
       nP = size(P,1); N = size(P,2)

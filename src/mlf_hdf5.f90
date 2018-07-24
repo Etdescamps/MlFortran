@@ -34,6 +34,7 @@ Module mlf_hdf5
   Use mlf_intf
   Use mlf_errors
   Use mlf_rsc_array
+  Use mlf_utils
   Use hdf5
   IMPLICIT NONE
   PRIVATE
@@ -97,9 +98,10 @@ Contains
     class(mlf_obj), pointer :: np
     character(LEN=*), intent(in) :: groupName
     logical, optional :: create
-    logical :: do_create = .FALSE.
+    logical :: do_create
     integer(HID_T) :: id
     integer :: hdferr
+    call InitOrDefault(do_create, .FALSE., create)
     handler => NULL()
     id = this%getId()
     if(id<0) RETURN
@@ -246,7 +248,8 @@ Contains
     integer(HSIZE_T), intent(in) :: dims(:)
     type(c_ptr), intent(in) :: f_ptr
     logical, intent(in) :: created
-    integer(HID_T) :: space_id = -1, data_id = -1
+    integer(HID_T) :: space_id, data_id
+    space_id = -1; data_id = -1
     info = createSpaceResource(file_id, dims, rname, h5_type, space_id, data_id, created)
     if(info >= 0) then
       call H5Dwrite_f(data_id, h5_type, f_ptr, info)
@@ -332,10 +335,10 @@ Contains
     integer(HSIZE_T) :: dims0(1)
     character(len=*,kind=c_char) :: rsc_name
     logical, intent(in), optional :: fixed_dims(:)
-    integer(HID_T) :: space_id = -1, data_id = -1, gid
+    integer(HID_T) :: space_id, data_id, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
-    info = 0
+    info = 0; space_id = -1; data_id = -1
     gid = this%getId()
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
@@ -357,10 +360,10 @@ Contains
     integer(HSIZE_T) :: dims0(2)
     character(len=*,kind=c_char) :: rsc_name
     logical, intent(in), optional :: fixed_dims(:)
-    integer(HID_T) :: space_id = -1, data_id = -1, gid
+    integer(HID_T) :: space_id, data_id, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
-    info = 0
+    info = 0; space_id = -1; data_id = -1
     gid = this%getId()
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
@@ -382,10 +385,10 @@ Contains
     integer(HSIZE_T) :: dims0(3)
     character(len=*,kind=c_char) :: rsc_name
     logical, intent(in), optional :: fixed_dims(:)
-    integer(HID_T) :: space_id = -1, data_id = -1, gid
+    integer(HID_T) :: space_id, data_id, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
-    info = 0
+    info = 0; space_id = -1; data_id = -1
     gid = this%getId()
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
@@ -407,10 +410,10 @@ Contains
     integer(HSIZE_T) :: dims0(1)
     character(len=*,kind=c_char) :: rsc_name
     logical, intent(in), optional :: fixed_dims(:)
-    integer(HID_T) :: space_id = -1, data_id = -1, gid
+    integer(HID_T) :: space_id, data_id, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
-    info = 0
+    info = 0; space_id = -1; data_id = -1
     gid = this%getId()
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
@@ -432,10 +435,10 @@ Contains
     integer(HSIZE_T) :: dims0(1)
     character(len=*,kind=c_char) :: rsc_name
     logical, intent(in), optional :: fixed_dims(:)
-    integer(HID_T) :: space_id = -1, data_id = -1, gid
+    integer(HID_T) :: space_id, data_id, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
-    info = 0
+    info = 0; space_id = -1; data_id = -1
     gid = this%getId()
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN

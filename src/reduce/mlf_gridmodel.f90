@@ -92,9 +92,10 @@ Contains
     real(c_double), intent(in), optional :: XMin, XMax, YMin, YMax
     integer(c_int), intent(in), optional :: nX0, nY0, nW
     real(c_double), allocatable :: X(:,:,:)
-    type(mlf_rsc_numFields) :: numFields = mlf_rsc_numFields(0,4,1)
+    type(mlf_rsc_numFields) :: numFields
     integer :: i
     integer(c_int64_t) :: ndGrid(3)
+    numFields = mlf_rsc_numFields(0,4,1)
     ndGrid = -1
     if(present(nW)) ndGrid(1) = nW
     if(present(nX0)) ndGrid(2) = nX0

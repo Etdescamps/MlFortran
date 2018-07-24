@@ -82,8 +82,9 @@ Contains
     real(c_double),  optional :: Mu(:,:)
     integer, intent(in), optional :: nC
     type(mlf_step_numFields) :: numFields
-    logical :: fixed_dims(2) = [.TRUE., .FALSE.]
+    logical :: fixed_dims(2)
     integer(c_int64_t) :: nY, nX, nd(2)
+    fixed_dims = [.TRUE., .FALSE.]
     call numFields%initFields(nRVar = 1, nRsc = 1)
     info = mlf_step_obj_init(this, numFields, data_handler = data_handler)
     if(info < 0) RETURN

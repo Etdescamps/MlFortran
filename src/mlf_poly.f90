@@ -280,7 +280,7 @@ CONTAINS
   real(c_double) Function mlf_solve4DPoly(t, a0, a1, a2, a3, a4) result(x)
     real(c_double), intent(in) :: t, a0, a1, a2, a3, a4
     real(c_double) :: R(4)
-    integer :: nr, i=-1,j
+    integer :: nr, i, j
     nr = mlf_rootsPoly([a0, a1, a2, a3, a4], R, 1d-12)
     Do i=1,nr
       if(R(i)>t) EXIT

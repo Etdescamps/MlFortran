@@ -176,7 +176,7 @@ Contains
     dX = this%X-this%X0
     ASSOCIATE(A => this%Cont, K => this%K)
       A(:,1) = dt*K(:,1)-dX
-      A(:,2) = -dt*K(:,7)+dX-A(1,:)
+      A(:,2) = -dt*K(:,7)+dX-A(:,1)
       A(:,3) = dt*matmul(K,DC)
     END ASSOCIATE
     this%lastT = this%t
@@ -269,8 +269,8 @@ Contains
     integer(kind=8), intent(inout), optional :: niter
     integer(kind=8) :: i, niter0=1
     integer :: idc
-    real(c_double) :: h, hMax, err, Y(size(this%X)), Ysti(size(this%X))
-    real(c_double) :: th
+    real(c_double) :: h, hMax, err, Xsti(size(this%X))
+    real(c_double) :: th, alphaH
     logical :: exitLoop = .FALSE.
     if(present(niter)) niter0 = niter
     info = -1; idC = this%fun%idConst
@@ -282,45 +282,44 @@ Contains
       do i=1,niter0
         this%t0 = t
         if(idC > 0) then
-          hMax = min(this%hMax, this%alpha*X0(idC)/K(idC,1))
+          alphaH = this%alpha*X0(idC)/K(idC,1)
+          hMax = min(this%hMax, alphaH)
         endif
-        hMax = min(hMax, this%tMax-t)
         h = this%deltaFun(hMax)
+        if(t+h >= this%tMax) then
+          h = this%tMax-t
+          exitLoop = .TRUE.
+        endif
         if(h<0) RETURN
         call this%fun%eval(t+C(2)*h, X0+h*A2*K(:,1), K(:,2))
         call this%fun%eval(t+C(3)*h, X0+h*MATMUL(K(:,1:2), A3), K(:,3))
         call this%fun%eval(t+C(4)*h, X0+h*MATMUL(K(:,1:3), A4), K(:,4))
         call this%fun%eval(t+C(5)*h, X0+h*MATMUL(K(:,1:4), A5), K(:,5))
         ! Ysti is used by DOPRI5 for stiffness detection
-        Ysti = X0+h*MATMUL(K(:,1:5), A6)
-        call this%fun%eval(t+C(6)*h, Ysti, K(:,6))
+        Xsti = X0+h*MATMUL(K(:,1:5), A6)
+        call this%fun%eval(t+C(6)*h, Xsti, K(:,6))
         ! Y Contains the value of X(t+h)
-        Y = X0+h*MATMUL(K(:,1:6), A7)
-        call this%fun%eval(t+C(7)*h, Y, K(:,7))
+        X = X0+h*MATMUL(K(:,1:6), A7)
+        call this%fun%eval(t+C(7)*h, X, K(:,7))
         this%nFun = this%nFun + 6
-        err = this%errorFun(MATMUL(K,EC), X0, Y, h)
+        err = this%errorFun(MATMUL(K,EC), X0, X, h)
         if(err > 1d0) CYCLE
         ! Update X and t
-        X = Y
         t = t + h
         this%t = t
-        if(t >= this%tMax) then
-          t = this%tMax
-          call this%denseEvaluation(t, Y)
-          exitLoop = .TRUE.
-        endif
-        ! Check if the constraint is negative
+        ! Check if the constraint is present
         if(idC > 0) then
-          if(Y(idC) < 0) then ! Check the value at t=min(this%tMax, this%t)
+          if(X(idC) < 0) then ! Check the value at t=min(this%tMax, this%t)
             th = this%findRoot(idC)
             t = this%t0+th*h
-            call this%denseEvaluation(t, Y)
+            call this%denseEvaluation(t, X)
             exitLoop = .TRUE.
+          else if(h == alphaH) then
+            this%alpha = this%alpha*1.5d0
           endif
         endif
         if(exitLoop) then
             this%t = t
-            X = Y
             info = 1
             if(present(niter)) niter = i
             RETURN

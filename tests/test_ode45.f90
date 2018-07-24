@@ -15,14 +15,15 @@ Contains
     type(mlf_odeTest) :: fun
     type(mlf_ode45_obj) :: ode
     integer :: i, N=100000000, info
-    integer(c_int64_t) :: nstep = 1
+    integer(c_int64_t) :: nstep
     call fun%init(FArenstorf)
-    info = ode%init(fun, X0Arenstorf, tMax = TEndArenstorf, atoli = 1d-8, rtoli = 1d-8)
+    info = ode%init(fun, X0Arenstorf, tMax = TEndArenstorf, atoli = 1d-6, rtoli = 1d-6)
     if(info < 0) RETURN
     print *, 0, ode%t0, ode%X0
     Do i=1,N
+      nstep = 20 
       info = ode%step(niter = nstep)
-      if(modulo(i,10)==0) print *, i, ode%t, ode%X
+      print *, ode%nFun, ode%t, ode%X, int(nstep,4)
       if(info /= 0) EXIT
     End Do
     

@@ -46,7 +46,7 @@ Module mlf_ode45
   real(c_double), Parameter :: A2 = 0.2d0
   real(c_double), Parameter :: A3(2) = [3d0/40d0, 9d0/40d0]
   real(c_double), Parameter :: A4(3) = [44d0/45d0, -56d0/15d0, 32d0/9d0]
-  real(c_double), Parameter :: A5(4) = [9372d0/6561d0, -25360d0/2187d0, 64448d0/6561d0, -212d0/729d0]
+  real(c_double), Parameter :: A5(4) = [19372d0/6561d0, -25360d0/2187d0, 64448d0/6561d0, -212d0/729d0]
   real(c_double), Parameter :: A6(5) = [9017d0/3168d0, -355d0/33d0, 46732d0/5247d0, 49d0/176d0, -5103d0/18656d0]
   real(c_double), Parameter :: A7(6) = [35d0/384d0, 0d0, 500d0/1113d0, 125d0/192d0, -2187d0/6784d0, 11d0/84d0]
   real(c_double), Parameter :: C(7) = [0d0, 0.2d0, 0.3d0, 0.8d0, 8d0/9d0, 1d0, 1d0]
@@ -117,8 +117,8 @@ Contains
     real(c_double), intent(in), optional :: X0(:), t0, tMax, atoli, rtoli
     real(c_double), intent(in), optional :: fac, facMin, facMax, hMax
     type(mlf_step_numFields) :: numFields
-    integer(c_int64_t) :: N=-1, nK(2)
-    this%fun => fun
+    integer(c_int64_t) :: N, nK(2)
+    this%fun => fun; N = -1
     call numFields%initFields(nIPar = 1, nRPar = 7, nRsc = 3, nIVar = 3, nRVar = 5)
     info = mlf_step_obj_init(this, numFields, data_handler)
     if(present(X0)) N = size(X0)
@@ -267,11 +267,11 @@ Contains
   Integer Function mlf_ode45_stepFun(this, niter) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
     integer(kind=8), intent(inout), optional :: niter
-    integer(kind=8) :: i=1, niter0=1
+    integer(kind=8) :: i, niter0
     integer :: idc
     real(c_double) :: h, hMax, err, Xsti(size(this%X))
     real(c_double) :: th, alphaH
-    logical :: exitLoop = .FALSE.
+    i=1; niter0=1
     if(present(niter)) niter0 = niter
     info = -1; idC = this%fun%idConst
     ASSOCIATE(t => this%t, K => this%K, X0 =>this%X0, X => this%X)
@@ -286,10 +286,7 @@ Contains
           hMax = min(this%hMax, alphaH)
         endif
         h = this%deltaFun(hMax)
-        if(t+h >= this%tMax) then
-          h = this%tMax-t
-          exitLoop = .TRUE.
-        endif
+        if(t+h >= this%tMax) h = this%tMax-t
         if(h<0) RETURN
         call this%fun%eval(t+C(2)*h, X0+h*A2*K(:,1), K(:,2))
         call this%fun%eval(t+C(3)*h, X0+h*MATMUL(K(:,1:2), A3), K(:,3))
@@ -313,16 +310,16 @@ Contains
             th = this%findRoot(idC)
             t = this%t0+th*h
             call this%denseEvaluation(t, X)
-            exitLoop = .TRUE.
+            this%t = t
+            info = 1
+            EXIT
           else if(h == alphaH) then
             this%alpha = this%alpha*1.5d0
           endif
         endif
-        if(exitLoop) then
-            this%t = t
+        if(h == this%tMax-t) then
             info = 1
-            if(present(niter)) niter = i
-            RETURN
+            EXIT
         endif
         if(i == niter0) EXIT
         K(:,1) = K(:,7)
@@ -330,7 +327,8 @@ Contains
         i = i+1
       end do
     END ASSOCIATE
-    info = 0
+    if(present(niter)) niter = i
+    if(info<0) info = 0
   End Function mlf_ode45_stepFun
 End Module mlf_ode45
 

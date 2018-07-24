@@ -84,7 +84,7 @@ Contains
     this%Cont = 0; this%lastT = -HUGE(this%lastT)
     this%lastErr = -1d0; this%lastTheta = -1d0
     this%facMin = 0.2d0; this%facMax = 10d0
-    this%hMax = HUGE(this%hMax); this%fac = 0.8
+    this%hMax = HUGE(this%hMax); this%fac = 0.9
     this%X0 = 0; this%X = 0; this%t0 = 0; this%t = 0
     this%tMax = HUGE(this%tMax); this%alpha = 1.5d0
   End Function mlf_ode45_reinit
@@ -267,7 +267,7 @@ Contains
   Integer Function mlf_ode45_stepFun(this, niter) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
     integer(kind=8), intent(inout), optional :: niter
-    integer(kind=8) :: i, niter0=1
+    integer(kind=8) :: i=1, niter0=1
     integer :: idc
     real(c_double) :: h, hMax, err, Xsti(size(this%X))
     real(c_double) :: th, alphaH
@@ -279,7 +279,7 @@ Contains
       X0 = X
       call this%fun%eval(t, X, K(:,1))
       this%nFun = this%nFun +1
-      do i=1,niter0
+      do while(i <= niter0)
         this%t0 = t
         if(idC > 0) then
           alphaH = this%alpha*X0(idC)/K(idC,1)
@@ -324,8 +324,10 @@ Contains
             if(present(niter)) niter = i
             RETURN
         endif
+        if(i == niter0) EXIT
         K(:,1) = K(:,7)
         X0 = X
+        i = i+1
       end do
     END ASSOCIATE
     info = 0

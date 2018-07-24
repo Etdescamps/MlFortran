@@ -182,12 +182,12 @@ Contains
     this%lastT = this%t
   End Subroutine mlf_ode45_updateDense
 
-  real(c_double) Function mlf_ode45_findRoot(this, id) result(t)
+  real(c_double) Function mlf_ode45_findRoot(this, id) result(th)
     class(mlf_ode45_obj), intent(inout) :: this
     integer, intent(in) :: id
     integer :: i
     real(c_double) :: Q0, Q1, Q2, Q3, Q4, Q5, Q6
-    real(c_double) :: th, th1, Y, F, U
+    real(c_double) :: th1, Y, F, U
     if(this%lastT < this%t) call this%updateDense()
     ASSOCIATE(X0 => this%X0, X => this%X, A => this%Cont)
       Q0 = X0(id); Q1 = X(id)-X0(id)
@@ -271,6 +271,7 @@ Contains
     integer :: idc
     real(c_double) :: h, hMax, err, Y(size(this%X)), Ysti(size(this%X))
     real(c_double) :: th
+    logical :: exitLoop = .FALSE.
     info = -1; idC = this%fun%idConst
     ASSOCIATE(t => this%t, K => this%K, X0 =>this%X0, X => this%X)
       hMax = this%hMax
@@ -302,18 +303,26 @@ Contains
         X = Y
         t = t + h
         this%t = t
+        if(t > this%tMax) then
+          t = this%tMax
+          call this%denseEvaluation(t, Y)
+          exitLoop = .TRUE.
+        endif
         ! Check if the constraint is negative
         if(idC > 0) then
-          if(X(idC) < 0) then
+          if(Y(idC) < 0) then ! Check the value at t=min(this%tMax, this%t)
             th = this%findRoot(idC)
             t = this%t0+th*h
             call this%denseEvaluation(t, Y)
+            exitLoop = .TRUE.
+          endif
+        endif
+        if(exitLoop) then
             this%t = t
             X = Y
             info = 0
             niter = i
             RETURN
-          endif
         endif
         K(:,1) = K(:,7)
       end do

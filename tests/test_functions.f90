@@ -51,6 +51,17 @@ Module test_functions
     procedure :: init => mlf_obj_test_init
   End Type mlf_objective_test
 
+  ! Test function ODE
+  Type, extends(mlf_ode_fun) :: mlf_odeTest
+    procedure (odeTest_fun), nopass, pointer :: evalF => NULL()
+  Contains
+    procedure :: eval => odeTest_eval
+    procedure :: init => odeTest_init
+  End Type mlf_odeTest
+
+  real(c_double) , Parameter :: X0Arenstorf(4) = [0.994d0, 0d0, 0d0, -2.00158510637908252240537862224d0]
+  real(c_double) , Parameter :: TEndArenstorf = 17.0652165601579625588917206249d0
+
   Abstract Interface
     ! Test basis function type (for dimension reduction)
     Subroutine mlf_basis_test_fun(X, rpar, Y)
@@ -64,9 +75,32 @@ Module test_functions
       real(c_double), intent(in) :: X(:)
       real(c_double) :: Y
     End Function mlf_obj_test_fun
+
+    ! Test function for ODE
+    Subroutine odeTest_fun(t, X, F)
+      use iso_c_binding
+      real(c_double), intent(in) :: X(:), t
+      real(c_double), intent(out) :: F(:)
+    End Subroutine odeTest_fun
   End Interface
 
 Contains
+  Subroutine odeTest_eval(this, t, X, F)
+    class(mlf_odeTest), intent(in), target :: this
+    real(c_double), intent(in) :: t
+    real(c_double), intent(in), target :: X(:)
+    real(c_double), intent(out), target :: F(:)
+    call this%evalF(t, X, F)
+  End Subroutine odeTest_eval
+
+  Subroutine odeTest_init(this, fun, idC)
+    class(mlf_odeTest), intent(inout), target :: this
+    procedure (odeTest_fun) :: fun
+    integer, optional, intent(in) :: idC
+    this%evalF => fun
+    this%idConst = -1
+    if(present(idC)) this%idConst = idC
+  End Subroutine odeTest_init
 
   Subroutine mlf_obj_test_init(this, evalF, nD, cstrF, nC)
     class(mlf_objective_test), intent(inout), target :: this
@@ -113,6 +147,21 @@ Contains
       Y=0
     endif
   End Function mlf_obj_test_constraints
+
+  Subroutine FArenstorf(t, X, F)
+    real(c_double), intent(in) :: X(:), t
+    real(c_double), intent(out) :: F(:)
+    real(c_double), parameter :: mu = 0.012277471d0
+    real(c_double) :: D1, D2, mu1
+    mu1 = 1d0-mu
+    ASSOCIATE(y1 => X(1), y1d => X(2), y2 => X(3), y2d => X(3))
+      F(1) = y1d; F(2) = y2d
+      D1 = ((y1+mu)**2+y2**2)**(3d0/2d0)
+      D2 = ((y1-mu1)**2+y2**2)**(3d0/2d0)
+      F(3) = y1+2d0*y2d-mu1*(y1+mu)/D1-mu*(y1-mu1)/D2
+      F(4) = y2-2d0*y1d-mu1*y2/D1-mu*y2/D2
+    END ASSOCIATE
+  End Subroutine FArenstorf
 
   ! F_a,b (x) = 1/(1+a*exp(-b*x))-1
   Subroutine FExpInv(X, rpar, Y)

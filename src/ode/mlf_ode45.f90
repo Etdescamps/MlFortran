@@ -55,7 +55,7 @@ Module mlf_ode45
   real(c_double), Parameter :: DC(7) = [-12715105075d0/11282082432d0, 0d0, 87487479700d0/32700410799d0, &
     -10690763975d0/1880347072d0, 701980252875d0/199316789632d0, -1453857185d0/822651844d0, 69997945d0/29380423d0]
 
-  Type, Public, Abstract, extends(mlf_step_obj) :: mlf_ode45_obj
+  Type, Public, extends(mlf_step_obj) :: mlf_ode45_obj
     real(c_double), pointer :: atoli, rtoli, facMin, facMax, hMax
     real(c_double), pointer :: lastErr, lastTheta, fac, alpha
     real(c_double), pointer :: K(:,:), X0(:), X(:), t0, t, tMax
@@ -157,7 +157,7 @@ Contains
     real(c_double), intent(in) :: E(:), X0(:), X(:), theta
     real(c_double) :: U(size(E))
     ASSOCIATE( at => this%atoli, rt => this%rtoli)
-      U = U/(at+rt*MAX(ABS(X0), ABS(X)))
+      U = theta*E/(at+rt*MAX(ABS(X0), ABS(X)))
     END ASSOCIATE
     err = sqrt(sum(U*U)/size(E))
     this%lastTheta = theta
@@ -267,19 +267,20 @@ Contains
   Integer Function mlf_ode45_stepFun(this, niter) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
     integer(kind=8), intent(inout), optional :: niter
-    integer(kind=8) :: i
+    integer(kind=8) :: i, niter0=1
     integer :: idc
     real(c_double) :: h, hMax, err, Y(size(this%X)), Ysti(size(this%X))
     real(c_double) :: th
     logical :: exitLoop = .FALSE.
+    if(present(niter)) niter0 = niter
     info = -1; idC = this%fun%idConst
     ASSOCIATE(t => this%t, K => this%K, X0 =>this%X0, X => this%X)
       hMax = this%hMax
+      X0 = X
       call this%fun%eval(t, X, K(:,1))
       this%nFun = this%nFun +1
-      do i=1,niter
+      do i=1,niter0
         this%t0 = t
-        X0 = X
         if(idC > 0) then
           hMax = min(this%hMax, this%alpha*X0(idC)/K(idC,1))
         endif
@@ -303,7 +304,7 @@ Contains
         X = Y
         t = t + h
         this%t = t
-        if(t > this%tMax) then
+        if(t >= this%tMax) then
           t = this%tMax
           call this%denseEvaluation(t, Y)
           exitLoop = .TRUE.
@@ -320,11 +321,12 @@ Contains
         if(exitLoop) then
             this%t = t
             X = Y
-            info = 0
-            niter = i
+            info = 1
+            if(present(niter)) niter = i
             RETURN
         endif
         K(:,1) = K(:,7)
+        X0 = X
       end do
     END ASSOCIATE
     info = 0

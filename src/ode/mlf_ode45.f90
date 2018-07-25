@@ -146,7 +146,7 @@ Contains
     call this%addRVar(numFields, this%lastErr, "lastErr")
     call this%addRVar(numFields, this%lastTheta, "lastTheta")
     call this%addRVar(numFields, this%alpha, "alpha")
-    if(.NOT. ALLOCATED(this%Cont)) ALLOCATE(this%Cont(N,3))
+    if(.NOT. ALLOCATED(this%Cont)) ALLOCATE(this%Cont(N,4))
     if(.NOT. present(data_handler)) then
       info = this%reinitT(X0, t0, tMax, atoli, rtoli, fac, facMin, facMax, hMax)
     endif
@@ -175,9 +175,10 @@ Contains
     dt = this%t-this%t0
     dX = this%X-this%X0
     ASSOCIATE(A => this%Cont, K => this%K)
-      A(:,1) = dt*K(:,1)-dX
-      A(:,2) = -dt*K(:,7)+dX-A(:,1)
-      A(:,3) = dt*matmul(K,DC)
+      A(:,1) = this%X-this%X0
+      A(:,2) = dt*K(:,1)-A(:,1)
+      A(:,3) = -dt*K(:,7)+dX-A(:,2)
+      A(:,4) = dt*matmul(K,DC)
     END ASSOCIATE
     this%lastT = this%t
   End Subroutine mlf_ode45_updateDense
@@ -187,24 +188,25 @@ Contains
     integer, intent(in) :: id
     integer :: i
     real(c_double) :: Q0, Q1, Q2, Q3, Q4, Q5, Q6
-    real(c_double) :: th1, Y, F, U
+    real(c_double) :: th1, Y, F, U, V
     if(this%lastT < this%t) call this%updateDense()
     ASSOCIATE(X0 => this%X0, X => this%X, A => this%Cont)
-      Q0 = X0(id); Q1 = X(id)-X0(id)
-      Q2 = A(id,1); Q3 = A(id,2); Q4 = A(id,3)
+      Q0 = X0(id); Q1 = A(id,1)
+      Q2 = A(id,2); Q3 = A(id,3); Q4 = A(id,4)
       Q5 = -4d0*Q4-2d0*Q3; Q6 = Q4+Q3-Q2
       ! Do a bissection step and then a secant step
       ! Evaluate Y(0.5)
       Y = Q0+0.5d0*(Q1+0.5d0*(Q2+0.5d0*(Q3+0.5d0*Q4)))
       if(Y*Q0>0d0) then ! The root is between th= 0.5 and 1
-        U = 1d0/X(id)
-        th = 0.5d0+0.5d0*abs(U*(1d0/Y-U))
+        U = 1d0/X(id); V = 1d0/Y
+        th = 0.5d0+0.5d0*U/(U-V)
       else ! The root is between th= 0 and 0.5
-        U = 1d0/Y
-        th = 0.5d0*abs(U*(1d0/X0(id)-U))
+        U = 1d0/Y; V = 1d0/X0(id)
+        th = 0.5d0*U/(U-V)
       endif
       ! Use Newton-Ralphson to polish the root th
-      Do i=1,4
+      V = 0.1d0*MAX(this%atoli, this%rtoli*ABS(MAX(Q0, X(id))))
+      Do While(abs(Y)>V)
         th1 = 1d0-th
         U = Q1+th1*(Q2+th*(Q3+th1*Q4))
         F = U+th*(th*(3d0*Q4*th+Q5)+Q6)
@@ -220,10 +222,10 @@ Contains
     real(c_double), intent(out) :: Y(:)
     real(c_double) :: th, th1 
     if(this%lastT < this%t) call this%updateDense()
-    th = (T-this%t0)/(this%T-this%t0)
+    th = (t-this%t0)/(this%lastT-this%t0)
     th1 = 1d0 - th
     ASSOCIATE(X0 => this%X0, X => this%X, A => this%Cont)
-      Y = X0+th*(X-X0+th1*(A(:,1)+th*(A(:,2)+th1*A(:,3))))
+      Y = X0+th*(A(:,1)+th1*(A(:,2)+th*(A(:,3)+th1*A(:,4))))
     END ASSOCIATE
   End Subroutine mlf_ode45_denseEvaluation
 
@@ -270,21 +272,29 @@ Contains
     integer(kind=8) :: i, niter0
     integer :: idc
     real(c_double) :: h, hMax, err, Xsti(size(this%X))
-    real(c_double) :: th, alphaH
+    real(c_double) :: th, alphaH, t
     i=1; niter0=1
     if(present(niter)) niter0 = niter
     info = -1; idC = this%fun%idConst
-    ASSOCIATE(t => this%t, K => this%K, X0 =>this%X0, X => this%X)
-      hMax = this%hMax
+    if(this%t == this%tMax) then
+      info = 1
+      niter = 0
+      RETURN
+    endif
+    t = this%t
+    ASSOCIATE(K => this%K, X0 =>this%X0, X => this%X)
+      hMax = this%hMax; alphaH = HUGE(alphaH)
       X0 = X
       call this%fun%eval(t, X, K(:,1))
       this%nFun = this%nFun +1
+      if(idC > 0) then
+        if(K(idC,1) /= 0d0) then
+          alphaH = -this%alpha*X0(idC)/K(idC,1)
+          if(alphaH > 0d0) hMax = min(alphaH, hMax)
+        endif
+      endif
       do while(i <= niter0)
         this%t0 = t
-        if(idC > 0) then
-          alphaH = this%alpha*X0(idC)/K(idC,1)
-          hMax = min(this%hMax, alphaH)
-        endif
         h = this%deltaFun(hMax)
         if(t+h >= this%tMax) h = this%tMax-t
         if(h<0) RETURN
@@ -306,18 +316,19 @@ Contains
         this%t = t
         ! Check if the constraint is present
         if(idC > 0) then
-          if(X(idC) < 0) then ! Check the value at t=min(this%tMax, this%t)
+          ! Check the value at t=min(this%tMax, this%t)
+          if(X(idC)*X0(idC) <= 0 .AND. X0(idC) /= 0) then
             th = this%findRoot(idC)
             t = this%t0+th*h
             call this%denseEvaluation(t, X)
             this%t = t
-            info = 1
+            info = 2
             EXIT
-          else if(h == alphaH) then
+          else if(h == alphaH .AND. i == 1) then
             this%alpha = this%alpha*1.5d0
           endif
         endif
-        if(h == this%tMax-t) then
+        if(h >= this%tMax-t) then
             info = 1
             EXIT
         endif
@@ -328,7 +339,7 @@ Contains
       end do
     END ASSOCIATE
     if(present(niter)) niter = i
-    if(info<0) info = 0
+    if(info < 0) info = 0
   End Function mlf_ode45_stepFun
 End Module mlf_ode45
 

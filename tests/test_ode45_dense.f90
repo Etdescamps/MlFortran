@@ -20,18 +20,24 @@ Contains
     type(mlf_odeTest) :: fun
     type(mlf_ode45_obj) :: ode
     type(mlf_hdf5_file) :: h5f
-    integer :: i, N=100000000, info, j, k
+    integer :: i, N=1000000, info, j, k
     real(c_double), allocatable :: trajectory(:,:), steps(:,:)
     real(c_double) :: t
-    ALLOCATE(trajectory(4, Npoints), steps(4, 100000))
+    ALLOCATE(trajectory(4, Npoints), steps(4, N))
     info = h5f%createFile("arenstorf.h5")
     call fun%init(FArenstorf)
-    info = ode%init(fun, X0Arenstorf, tMax = TEndArenstorf, atoli = 1d-6, rtoli = 1d-6)
+    info = ode%init(fun, X0Arenstorf, tMax = TEndArenstorf, atoli = 1d-5, rtoli = 1d-5)
     if(info < 0) RETURN
     j = 1
     print *, 0, ode%t0, ode%X0
+    fun%idConst = 1
     Do i=1,N
       info = ode%step()
+      if(info == 2) then
+        print *, ode%X
+        info = 0
+        ode%X(1) = 0
+      endif
       Do k = j,Npoints
         t = real(k-1,8)/real(Npoints-1,8)*ode%tMax
         if(t>ode%t) EXIT
@@ -40,6 +46,10 @@ Contains
       steps(:,i) = ode%X
       j = k
       if(info /= 0) EXIT
+    End Do
+    Do k = j,Npoints
+      t = real(k-1,8)/real(Npoints-1,8)*ode%tMax
+      call ode%denseEvaluation(t, trajectory(:,k))
     End Do
     print *, "NSTEPS = ", i
     info = h5f%pushData(trajectory, 'trajectory')

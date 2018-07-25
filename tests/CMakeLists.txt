@@ -9,6 +9,7 @@ add_executable(test_funbasis test_functions.f90 test_funbasis.f90)
 add_executable(test_funbasis_c test_funbasis_c.c)
 add_executable(test_cmaes test_functions.f90 test_cmaes.f90)
 add_executable(test_ode45 test_functions.f90 test_ode45.f90)
+add_executable(test_ode45_dense test_functions.f90 test_ode45_dense.f90)
 
 target_link_libraries(test_rsc ${MLF_LIB})
 target_link_libraries(test_kmeans ${MLF_LIB})
@@ -21,4 +22,5 @@ target_link_libraries(test_funbasis ${MLF_LIB})
 target_link_libraries(test_funbasis_c ${MLF_LIB})
 target_link_libraries(test_cmaes ${MLF_LIB})
 target_link_libraries(test_ode45 ${MLF_LIB})
+target_link_libraries(test_ode45_dense ${MLF_LIB})
 

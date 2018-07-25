@@ -21,7 +21,7 @@ Contains
     if(info < 0) RETURN
     print *, 0, ode%t0, ode%X0
     Do i=1,N
-      nstep = 20 
+      nstep = 2 
       info = ode%step(niter = nstep)
       print *, ode%nFun, ode%t, ode%X, int(nstep,4)
       if(info /= 0) EXIT

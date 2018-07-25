@@ -53,8 +53,9 @@ Module mlf_hdf5
     procedure :: getdata_int64 => mlf_hdf5_getInt64
     procedure :: getdata_int32 => mlf_hdf5_getInt32
     procedure :: mlf_pushdata_double2d, mlf_pushdata_double1d, mlf_pushdata_double3d
+    procedure :: mlf_pushdata_int32_1d, mlf_pushdata_int64_1d
     generic ::pushData => mlf_pushdata_double2d, mlf_pushdata_double1d, &
-      mlf_pushdata_double3d
+      mlf_pushdata_double3d, mlf_pushdata_int32_1d, mlf_pushdata_int64_1d
   End Type mlf_hdf5_handler
 
   Type, Public, extends(mlf_hdf5_handler) :: mlf_hdf5_group
@@ -500,6 +501,36 @@ Contains
     info = mlf_hdf5_createOrWrite(gid, [size(M, kind=HSIZE_T)], &
       rname, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, .FALSE.)
   End Function mlf_pushdata_double1d
+
+  Integer(c_int) Function mlf_pushdata_int32_1d(this, M, rname) result(info)
+    class(mlf_hdf5_handler), intent(inout), target :: this
+    integer(c_int32_t), target :: M(:)
+    integer(HID_T) :: gid
+    character(len=*,kind=c_char), intent(in) :: rname
+    type(c_ptr) :: f_ptr
+    info = 0
+    gid = this%getId()
+    if(gid<0) info=-1
+    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    f_ptr = c_loc(M)
+    info = mlf_hdf5_createOrWrite(gid, [size(M, kind=HSIZE_T)], &
+      rname, h5kind_to_type(c_int32_t, H5_INTEGER_KIND), f_ptr, .FALSE.)
+  End Function mlf_pushdata_int32_1d
+
+  Integer(c_int) Function mlf_pushdata_int64_1d(this, M, rname) result(info)
+    class(mlf_hdf5_handler), intent(inout), target :: this
+    integer(c_int64_t), target :: M(:)
+    integer(HID_T) :: gid
+    character(len=*,kind=c_char), intent(in) :: rname
+    type(c_ptr) :: f_ptr
+    info = 0
+    gid = this%getId()
+    if(gid<0) info=-1
+    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    f_ptr = c_loc(M)
+    info = mlf_hdf5_createOrWrite(gid, [size(M, kind=HSIZE_T)], &
+      rname, h5kind_to_type(c_int64_t, H5_INTEGER_KIND), f_ptr, .FALSE.)
+  End Function mlf_pushdata_int64_1d
 
   Integer(c_int) Function mlf_hdf5_pushState(this, obj, override) result(info)
     class(mlf_hdf5_handler), intent(inout), target :: this

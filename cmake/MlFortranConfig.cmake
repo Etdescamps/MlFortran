@@ -18,5 +18,5 @@ else()
   message(SEND_ERROR "Error: MlFortran headers not found")
 endif()
 
-
+set(ML_FORTRAN_LIB mlfortran)
 

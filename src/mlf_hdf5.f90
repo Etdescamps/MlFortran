@@ -41,6 +41,8 @@ Module mlf_hdf5
 
   integer, parameter :: h5_maxrank = 32
 
+  Public :: mlf_hdf5_closeHDFIds, mlf_hdf5_createOrWrite, mlf_hdf5_openSpaceResource
+
   Type, Public, abstract, extends(mlf_data_handler) :: mlf_hdf5_handler
   Contains
     procedure(mlf_hdf5_getId), deferred :: getId ! Get file or group identifier
@@ -259,10 +261,10 @@ Contains
       call H5Dwrite_f(data_id, h5_type, f_ptr, info)
       if(info<0) write (error_unit, *) 'Error writing resource: '//rname
     endif
-    info = min(info, closeHDFIds(data_id, space_id))
+    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_createOrWrite 
 
-  Integer Function closeHDFIds(data_id, space_id, file_id) result(info)
+  Integer Function mlf_hdf5_closeHDFIds(data_id, space_id, file_id) result(info)
     integer(HID_T), intent(in), optional :: file_id, space_id, data_id
     info = 0
     if(present(data_id)) then
@@ -279,7 +281,7 @@ Contains
       if(file_id>=0) call H5Fclose_f(file_id, info)
       if(info<0) write (error_unit, *) 'Error closing file (id): ', file_id
     endif
-  End Function closeHDFIds
+  End Function mlf_hdf5_closeHDFIds
 
   Integer Function createSpaceResource(file_id, dims, rname, h5_type, space_id, data_id, created) &
       result(info)
@@ -299,7 +301,7 @@ Contains
     endif
   End Function createSpaceResource
 
-  Integer Function openSpaceResource(file_id, dims, rname, space_id, data_id, fixed_dims) result(info)
+  Integer Function mlf_hdf5_openSpaceResource(file_id, dims, rname, space_id, data_id, fixed_dims) result(info)
     integer(HID_T), intent(in) :: file_id ! Or groupe id
     character(len=*,kind=c_char), intent(in) :: rname
     integer(HSIZE_T), intent(inout) :: dims(:)
@@ -330,7 +332,7 @@ Contains
       info = -1
       RETURN
     endif
-  End Function openSpaceResource
+  End Function mlf_hdf5_openSpaceResource
 
   Integer Function mlf_hdf5_getDouble1d(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
     class(mlf_hdf5_handler), intent(inout), target :: this
@@ -347,14 +349,14 @@ Contains
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
     if(present(dims)) dims0 = dims
-    info = openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
+    info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
     if(info >= 0) then
       allocate(rsc_data(dims0(1)))
       f_ptr = C_LOC(rsc_data)
       call H5Dread_f(data_id, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, info)
       dumb = CheckF(info, "Error reading data: "//rsc_name)
     endif
-    info = min(info, closeHDFIds(data_id, space_id))
+    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getDouble1d
 
   Integer Function mlf_hdf5_getDouble2d(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
@@ -372,14 +374,14 @@ Contains
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
     if(present(dims)) dims0 = dims
-    info = openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
+    info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
     if(info >= 0) then
       allocate(rsc_data(dims0(1), dims0(2)))
       f_ptr = C_LOC(rsc_data)
       call H5Dread_f(data_id, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, info)
       dumb = CheckF(info, "Error reading data: "//rsc_name)
     endif
-    info = min(info, closeHDFIds(data_id, space_id))
+    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getDouble2d
 
   Integer Function mlf_hdf5_getDouble3d(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
@@ -397,14 +399,14 @@ Contains
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
     if(present(dims)) dims0 = dims
-    info = openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
+    info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
     if(info >= 0) then
       allocate(rsc_data(dims0(1), dims0(2), dims0(3)))
       f_ptr = C_LOC(rsc_data)
       call H5Dread_f(data_id, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, info)
       dumb = CheckF(info, "Error reading data: "//rsc_name)
     endif
-    info = min(info, closeHDFIds(data_id, space_id))
+    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getDouble3d
 
   Integer Function mlf_hdf5_getInt64(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
@@ -422,14 +424,14 @@ Contains
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
     if(present(dims)) dims0 = dims
-    info = openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
+    info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
     if(info >= 0) then
       allocate(rsc_data(dims0(1)))
       f_ptr = C_LOC(rsc_data)
       call H5Dread_f(data_id, h5kind_to_type(c_int64_t, H5_INTEGER_KIND), f_ptr, info)
       dumb = CheckF(info, "Error reading data: "//rsc_name)
     endif
-    info = min(info, closeHDFIds(data_id, space_id))
+    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getInt64
     
   Integer Function mlf_hdf5_getInt32(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
@@ -447,14 +449,14 @@ Contains
     if(gid<0) info=-1
     if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
     if(present(dims)) dims0 = dims
-    info = openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
+    info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
     if(info >= 0) then
       allocate(rsc_data(dims0(1)))
       f_ptr = C_LOC(rsc_data)
       call H5Dread_f(data_id, h5kind_to_type(c_int32_t, H5_INTEGER_KIND), f_ptr, info)
       dumb = CheckF(info, "Error reading data: "//rsc_name)
     endif
-    info = min(info, closeHDFIds(data_id, space_id))
+    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getInt32
 
   Integer(c_int) Function mlf_pushdata_double2d(this, M, rname) result(info)

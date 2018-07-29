@@ -66,6 +66,13 @@ Module mlf_models
     procedure (mlf_model_getValue), deferred :: getValue
   End Type mlf_approx_model
 
+  Type, public, abstract, extends(mlf_approx_model) :: mlf_approx_linear
+  Contains
+    procedure :: getValue => mlf_approx_linear_getValue
+    procedure (mlf_model_getValueBasis), deferred :: getValueBasis
+  End Type mlf_approx_linear
+
+
   Abstract Interface
     integer Function mlf_model_getClass(this, X, Cl)
       use iso_c_binding
@@ -105,8 +112,26 @@ Module mlf_models
       real(c_double), intent(in) :: W(:), x
       real(c_double) :: Y
     End Function mlf_model_getValue
+
+    Integer Function mlf_model_getValueBasis(this, x, Y) result(info)
+      use iso_c_binding
+      import :: mlf_approx_linear
+      class(mlf_approx_linear), intent(in) :: this
+      real(c_double), intent(in) :: x
+      real(c_double), intent(out) :: Y(:)
+    End Function mlf_model_getValueBasis
   End Interface
 Contains
+
+  real(c_double) Function mlf_approx_linear_getValue(this, W, x) result(Y)
+    class(mlf_approx_linear), intent(in) :: this
+    real(c_double), intent(in) :: W(:), x
+    real(c_double) :: Z(size(W))
+    integer :: info
+    info = this%getValueBasis(x, Z)
+    Y = dot_product(W,Z)
+  End Function mlf_approx_linear_getValue
+
   integer Function mlf_model_getClass_proba(this, X, Cl) result(info)
     class(mlf_class_proba_model), intent(in), target :: this
     real(c_double), intent(in) :: X(:,:)

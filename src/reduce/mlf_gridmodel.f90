@@ -36,17 +36,16 @@ Module mlf_gridmodel
   PRIVATE
 
   Type, Public, extends(mlf_obj_model) :: mlf_2dgrid
-    class(mlf_approx_model), pointer :: funmodel
+    class(mlf_reduce_model), pointer :: funmodel
     real(c_double), pointer :: grid(:,:,:)
     real(c_double), pointer :: XMin, XMax, YMin, YMax
   Contains
     procedure :: initF => mlf_GridModelInit
   End Type mlf_2dgrid
 
-  Type, Public, extends(mlf_approx_model) :: mlf_2dgrid_model
+  Type, Public, extends(mlf_reduce_model) :: mlf_2dgrid_model
     class(mlf_2dgrid), pointer :: top
   Contains
-    procedure :: getValue => mlf_GridModelFunValue
     procedure :: getProj => mlf_GridModelGetProjection
   End Type mlf_2dgrid_model
 Contains
@@ -76,7 +75,7 @@ Contains
     model => mlf_getModel(cmodel)
     if(.NOT. associated(model)) RETURN
     select type(model)
-      class is (mlf_approx_model)
+      class is (mlf_reduce_model)
         ALLOCATE(x)
         info = x%initF(model, XMin, XMax, YMin, YMax, nW, nX0, nY0)
         if(info < 0) RETURN
@@ -87,7 +86,7 @@ Contains
 
   Integer Function mlf_GridModelInit(this, fmodel, XMin, XMax, YMin, YMax, nW, nX0, nY0, data_handler) result(info)
     class(mlf_2dgrid), intent(inout) :: this
-    class(mlf_approx_model), target :: fmodel
+    class(mlf_reduce_model), target :: fmodel
     class(mlf_data_handler), intent(inout), optional :: data_handler
     real(c_double), intent(in), optional :: XMin, XMax, YMin, YMax
     integer(c_int), intent(in), optional :: nX0, nY0, nW
@@ -120,13 +119,6 @@ Contains
     endif
     call mlf_model_funbasis_init(this%model, this)
   End Function mlf_GridModelInit
-
-  Function mlf_GridModelFunValue(this, W, x) result(Y)
-    class(mlf_2dgrid_model), intent(in) :: this
-    real(c_double), intent(in) :: W(:), x
-    real(c_double) :: Y
-    Y = this%top%funmodel%getValue(W, x)
-  End Function mlf_GridModelFunValue
 
   integer Function mlf_GridModelGetProjection(this, Y, W, Aerror) result(info)
     class(mlf_2dgrid_model), intent(in), target :: this

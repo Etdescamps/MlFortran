@@ -52,13 +52,15 @@ Module mlf_funbasis
   Contains
     procedure :: initF => mlf_funbasis_init
     procedure :: getValue => mlf_FunBasisFunValue
+    procedure :: getValueBasis => mlf_FunBasisValue
   End Type mlf_algo_funbasis
 
-  Type, Public, extends(mlf_approx_model) :: mlf_model_funbasis
+  Type, Public, extends(mlf_approx_linear) :: mlf_model_funbasis
     class(mlf_algo_funbasis), pointer :: top
   Contains
     procedure :: getProj => mlf_FunBasisGetProjection
     procedure :: getValue => mlf_model_FunBasisFunValue
+    procedure :: getValueBasis => mlf_model_FunBasisValue
   End Type mlf_model_funbasis
 
 
@@ -315,6 +317,47 @@ Contains
       end forall 
     endif
   End Function mlf_FunBasisGetProjection
+
+  Integer Function mlf_model_FunBasisValue(this, x, Y) result(info)
+    class(mlf_model_funbasis), intent(in) :: this
+    real(c_double), intent(in) :: x
+    real(c_double), intent(out) :: Y(:)
+    info = this%top%getValueBasis(x, Y)
+  End Function mlf_model_FunBasisValue
+
+  Integer Function mlf_FunBasisValue(this, x, Y) result(info)
+    class(mlf_algo_funbasis), intent(in) :: this
+    real(c_double), intent(in) :: x
+    real(c_double), intent(out) :: Y(:)
+    real(c_double) :: t, dX, X1, X2, X3, X4
+    integer :: i
+    ! The X are dreasingly ordered
+    if(this%alpha == 0) then
+      i = INT((x-this%x0)/this%eDiff)+1
+      i = max(2,min(i,size(this%X)-2))
+      X1 = x-this%X(i-1); X2 = x-this%X(i); X3 = x-this%X(i+1); X4 = x-this%X(i+2)
+      ASSOCIATE(Y1 => this%Vals(:,i-1), Y2 => this%Vals(:,i), Y3 => this%Vals(:,i+1), &
+          Y4 => this%Vals(:,i+2))
+        Y = 1.0/6.0*X2*X3*(X1*Y4-X4*Y1)
+        Y = Y+0.5*X1*X4*(X3*Y2-X2*Y3)
+      END ASSOCIATE
+      Y = Y/(this%eDiff*this%eDiff*this%eDiff)
+    else
+      if(x>=this%X(1)) then
+        Y = this%Vals(:,1) &
+          * exp(log(this%Vals(:,1)/this%Vals(:,2))/(this%X(1)-this%X(2))*(x-this%X(1)))
+        return
+      endif
+      i = 1+INT((exp(-this%alpha*x)-this%eAEnd)/this%eDiff)
+      if(i >= size(this%X, 1)) i = size(this%X, 1)-1
+      dX = this%X(i)-this%X(i+1)
+      ! We define t as (x-X(i+1))/dX
+      !  so when t=0 -> x=X(i+1) and t=1 -> x=X(i)
+      t = (x-this%X(i+1))/dX
+      ! We get values Y1=F_W(X(i+1)) and Y2=F_W(X(i))
+      Y =  (1d0-t)*this%Vals(:,i+1)+t*this%Vals(:,i)
+    endif
+  End Function mlf_FunBasisValue
 
   ! Get value of the function expressed as W in the current basis at position x
   real(c_double) Function mlf_model_FunBasisFunValue(this, W, x) result(Y)

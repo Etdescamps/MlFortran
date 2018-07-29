@@ -62,6 +62,7 @@ Module mlf_ode45
     real(c_double), allocatable :: Cont(:,:)
     real(c_double) :: lastT
     integer(c_int64_t), pointer :: nAccept, nReject, nStiff, nFun
+    integer :: nonStiff, iStiff
     class(mlf_ode_fun), pointer :: fun
   Contains
     procedure :: reinitT => mlf_ode45_reinitT
@@ -72,7 +73,8 @@ Module mlf_ode45
     procedure :: deltaFun => mlf_ode45_deltaFun
     procedure :: stepF => mlf_ode45_stepFun
     procedure :: findRoot => mlf_ode45_findRoot
-    procedure :: init =>mlf_ode45_init
+    procedure :: init => mlf_ode45_init
+    procedure :: stiffDetect => mlf_ode45_stiffDetect
   End Type mlf_ode45_obj
 
 
@@ -87,11 +89,14 @@ Contains
     this%hMax = HUGE(this%hMax); this%fac = 0.9
     this%X0 = 0; this%X = 0; this%t0 = 0; this%t = 0
     this%tMax = HUGE(this%tMax); this%alpha = 1.5d0
+    this%nStiff = 1000_8; this%nonStiff = 0; this%iStiff = 0
   End Function mlf_ode45_reinit
 
-  integer Function mlf_ode45_reinitT(this, X0, t0, tMax, atoli, rtoli, fac, facMin, facMax, hMax) result(info)
+  integer Function mlf_ode45_reinitT(this, X0, t0, tMax, atoli, rtoli, fac, facMin, &
+      facMax, hMax, nStiff) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
     real(c_double), intent(in), optional :: X0(:), t0, atoli, rtoli, fac, facMin, facMax, hMax, tMax
+    integer(c_int64_t), intent(in), optional :: nStiff
     info = this%reinit()
     if(present(X0)) then
       this%X0 = X0
@@ -108,14 +113,17 @@ Contains
     if(present(facMax)) this%facMax = facMax
     if(present(hMax)) this%hMax = hMax
     if(present(tMax)) this%tMax = tMax
+    if(present(nStiff)) this%nStiff = nStiff
   End Function mlf_ode45_reinitT
 
-  integer Function mlf_ode45_init(this, fun, X0, t0, tMax, atoli, rtoli, fac, facMin, facMax, hMax, data_handler) result(info)
+  integer Function mlf_ode45_init(this, fun, X0, t0, tMax, atoli, rtoli, fac, facMin, &
+      facMax, hMax, nStiff, data_handler) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
     class(mlf_ode_fun), intent(inout), target :: fun
     class(mlf_data_handler), intent(inout), optional :: data_handler
     real(c_double), intent(in), optional :: X0(:), t0, tMax, atoli, rtoli
     real(c_double), intent(in), optional :: fac, facMin, facMax, hMax
+    integer(c_int64_t), intent(in), optional :: nStiff
     type(mlf_step_numFields) :: numFields
     integer(c_int64_t) :: N, nK(2)
     this%fun => fun; N = -1
@@ -148,9 +156,26 @@ Contains
     call this%addRVar(numFields, this%alpha, "alpha")
     if(.NOT. ALLOCATED(this%Cont)) ALLOCATE(this%Cont(N,4))
     if(.NOT. present(data_handler)) then
-      info = this%reinitT(X0, t0, tMax, atoli, rtoli, fac, facMin, facMax, hMax)
+      info = this%reinitT(X0, t0, tMax, atoli, rtoli, fac, facMin, facMax, hMax, nStiff)
     endif
   End Function mlf_ode45_init
+
+  ! Stiff detection algorithm used by DOPRI5 
+  Logical Function mlf_ode45_stiffDetect(this, h, X, Xsti, K7, K6) result(is_stiff)
+    class(mlf_ode45_obj), intent(inout) :: this
+    real(c_double), intent(in) :: X(:), Xsti(:), K7(:), K6(:), h
+    real(c_double) :: Xdist
+    is_stiff = .FALSE.
+    Xdist = norm2(X-Xsti)
+    if(h*norm2(K7-K6) > Xdist*3.25d0) then
+      this%nonStiff = 0
+      this%iStiff = this%iStiff + 1
+      if(this%iStiff == 15) is_stiff = .TRUE.
+    else if(this%nonStiff < 6) then
+      this%nonStiff = this%nonStiff + 1
+      if(this%nonStiff == 6) this%iStiff = 0
+    endif
+  End Function mlf_ode45_stiffDetect
 
   real(c_double) Function mlf_ode45_errorFun(this, E, X0, X, theta) result(err)
     class(mlf_ode45_obj), intent(inout) :: this
@@ -206,12 +231,13 @@ Contains
       endif
       ! Use Newton-Ralphson to polish the root th
       V = 0.1d0*MAX(this%atoli, this%rtoli*ABS(MAX(Q0, X(id))))
-      Do While(abs(Y)>V)
+      Do i=1,10
         th1 = 1d0-th
         U = Q1+th1*(Q2+th*(Q3+th1*Q4))
         F = U+th*(th*(3d0*Q4*th+Q5)+Q6)
         Y = Q0+th*U
         th = th-Y/F
+        if(abs(Y)>V) EXIT
       End Do
     END ASSOCIATE
   End Function mlf_ode45_findRoot
@@ -314,6 +340,12 @@ Contains
         ! Update X and t
         t = t + h
         this%t = t
+        if(MOD(this%nAccept, this%nStiff) == 0 .OR. this%iStiff > 0) then
+          if(this%stiffDetect(h, X, Xsti, K(:,7), K(:,6))) then
+            info = -2
+            EXIT
+          endif
+        endif
         ! Check if the constraint is present
         if(idC > 0) then
           ! Check the value at t=min(this%tMax, this%t)

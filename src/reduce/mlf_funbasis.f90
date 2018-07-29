@@ -331,6 +331,7 @@ Contains
     real(c_double), intent(out) :: Y(:)
     real(c_double) :: t, dX, X1, X2, X3, X4
     integer :: i
+    info = 0
     ! The X are dreasingly ordered
     if(this%alpha == 0) then
       i = INT((x-this%x0)/this%eDiff)+1
@@ -346,7 +347,7 @@ Contains
       if(x>=this%X(1)) then
         Y = this%Vals(:,1) &
           * exp(log(this%Vals(:,1)/this%Vals(:,2))/(this%X(1)-this%X(2))*(x-this%X(1)))
-        return
+        RETURN
       endif
       i = 1+INT((exp(-this%alpha*x)-this%eAEnd)/this%eDiff)
       if(i >= size(this%X, 1)) i = size(this%X, 1)-1
@@ -388,7 +389,7 @@ Contains
         Y1 = dot_product(this%Vals(:,1), W)
         Y2 = dot_product(this%Vals(:,2), W)
         Y =  Y1*exp(log(Y1/Y2)/(this%X(1)-this%X(2))*(x-this%X(1)))
-        return
+        RETURN
       endif
       i = 1+INT((exp(-this%alpha*x)-this%eAEnd)/this%eDiff)
       if(i >= size(this%X, 1)) i = size(this%X, 1)-1
@@ -411,7 +412,7 @@ Contains
     real(c_double) :: eA0, eAEnd, eDiff, invAlpha
     real(c_double), allocatable :: Y(:,:)
     M = size(this%P,2)
-    allocate(Y(1,M))
+    ALLOCATE(Y(1,M))
     if(this%alpha == 0) then
       this%eDiff = (this%xEnd-this%x0)/real(N-1, kind=8)
       forall(i=1:N) this%X(i) = real(i-1, kind=8)*this%eDiff+this%x0 

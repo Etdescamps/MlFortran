@@ -2,7 +2,7 @@
 #include <math.h>
 #include "mlf_cintf.h"
 
-#define NG 64
+#define NG 32
 #define NR 64
 #define NPAR 16
 

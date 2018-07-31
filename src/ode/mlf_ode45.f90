@@ -42,7 +42,6 @@ Module mlf_ode45
   ! This code is based on formulæ from the book Solving Ordinary Differential Equation I
   ! by Hairer, Nørsett and Wanner (DOPRI5) (2009 Springer, ISBN 978-3-642-05163-0)
 
-  ! TODO: add stiff detection
   real(c_double), Parameter :: A2 = 0.2d0
   real(c_double), Parameter :: A3(2) = [3d0/40d0, 9d0/40d0]
   real(c_double), Parameter :: A4(3) = [44d0/45d0, -56d0/15d0, 32d0/9d0]

@@ -34,6 +34,7 @@ Module mlf_rand
   PRIVATE
 
   Public :: RandSign, RandN, RandD, mlf_rand_class, randPerm, randInt, mlf_randNArrayC
+  Public :: Rand3DSurf
 
   Interface RandSign
     module procedure mlf_RandSignV
@@ -50,7 +51,7 @@ Module mlf_rand
 Contains
   Subroutine mlf_RandSignV(V)
     real(c_double), intent(out) :: V(:)
-    call random_number(V)
+    call RANDOM_NUMBER(V)
     where (V<0.5)
       V=-1
     elsewhere
@@ -60,7 +61,7 @@ Contains
 
   Subroutine mlf_RandSignM(M)
     real(c_double), intent(out) :: M(:,:)
-    call random_number(M)
+    call RANDOM_NUMBER(M)
     where (M<0.5)
       M=-1
     elsewhere
@@ -69,63 +70,85 @@ Contains
   End Subroutine mlf_RandSignM
 
   ! Utility function for generating random double number in [0,1[
-  real(c_double) function mlf_randD0()
-    call random_number(mlf_randD0)
-  end function mlf_randD0
+  real(c_double) Function mlf_randD0()
+    call RANDOM_NUMBER(mlf_randD0)
+  End Function mlf_randD0
   
   ! Utility function for generating random double number in [0,A[
-  real(c_double) function mlf_randD1(A) result(R)
+  real(c_double) Function mlf_randD1(A) result(R)
     real(c_double), intent(in) :: A
-    call random_number(R)
+    call RANDOM_NUMBER(R)
     R = R * A
-  end function mlf_randD1
+  End Function mlf_randD1
   
   ! Utility function for generating random integer
   ! (if N is huge, it is better to use a more precise generator)
-  integer(c_int) function randInt(N)
+  integer(c_int) Function randInt(N)
     integer(c_int), intent(in) :: N
     real(c_double) :: r
-    call random_number(r)
+    call RANDOM_NUMBER(r)
     randInt = floor(r*N, kind=c_int)
-  end function randInt
+  End Function randInt
+
+  ! Random point on surface using Marsaglia's method
+  Subroutine Rand3DSurf(X, r, X0)
+    real(c_double), intent(in) :: r
+    real(c_double), intent(in), optional :: X0(3)
+    real(c_double), intent(out) :: X(3)
+    real(c_double) :: U(2), W
+    Do
+      call RANDOM_NUMBER(U)
+      U = 2d0*U-1d0
+      W = dot_product(U,U)
+      if(W <= 1d0) EXIT
+    End Do
+    if(PRESENT(X0)) then
+      X(1:2) = X0(1:2) + 2d0*r*U*sqrt(1-W)
+      X(3) = X0(3) + r*(1-2*W)
+    else
+      X(1:2) = 2d0*r*U*sqrt(1-W)
+      X(3) = r*(1-2*W)
+    endif
+  End Subroutine Rand3DSurf
 
   ! Generate random class from a vector proportional to the cumulative probabilies
-  subroutine mlf_rand_class(W, id) 
+  Subroutine mlf_rand_class(W, id) 
     real(c_double), intent(in) :: W(:)
     integer(c_int), intent(out) :: id(:)
     integer :: i
     real(c_double) :: r
-    do i=1,size(id)
-      call random_number(r)
+    Do i=1,size(id)
+      call RANDOM_NUMBER(r)
       id(i) = mlf_di_search(W, r*W(size(W)))
-    end do
-  end subroutine mlf_rand_class
+    End Do
+  End Subroutine mlf_rand_class
 
   ! Generate a random permutation of an integer array
-  subroutine randPerm(idx)
+  Subroutine randPerm(idx)
     integer(c_int), intent(inout) :: idx(:)
     integer :: i, j, k, N
     N = size(idx)
-    do i=1,N-1
+    Do i=1,N-1
       k = idx(i)
       j = randInt(N+1-i)+i
       idx(i) = idx(j)
       idx(j) = k
-    end do
-  end subroutine randPerm
+    End Do
+  End Subroutine randPerm
+
   ! Generate two random normal variables using Box-Muller(Marsaglia) method
-  subroutine mlf_randN2(R)
+  Subroutine mlf_randN2(R)
     real(c_double), intent(out) :: R(2)
     real(c_double) :: rsq
-    do
+    Do
       ! GFORTRAN uses the xorshift 1024 method as RNG.
       ! This method is thread-safe with recent versions of GFORTRAN.
       ! This shall be sufficient for this kind of problems.
-      call random_number(R)
+      call RANDOM_NUMBER(R)
       R=2.0*R-1.0
       rsq = dot_product(R,R)
       if(rsq > 0.0 .AND. rsq <= 1.0) EXIT ! Outside the circle (probability=pi/4)
-    end do
+    End Do
     R = R*sqrt(-2.0*log(rsq)/rsq)
   end subroutine mlf_randN2
 
@@ -135,7 +158,7 @@ Contains
     real(c_double) :: r(2)
     integer(c_int), value :: N
     integer :: i
-    do i=1,N,2
+    Do i=1,N,2
       call mlf_randN2(V(i:i+1))
     End do
     if(btest(N,0)) then ! If N is odd
@@ -149,10 +172,10 @@ Contains
     real(c_double), intent(out) :: V(:)
     real(c_double) :: r(2)
     integer :: i
-    do i=lbound(V,1),ubound(V,1)-1,2
+    Do i=lbound(V,1),ubound(V,1)-1,2
       call mlf_randN2(r)
       V(i:i+1) = r(:)
-    end do
+    End Do
     if(i<ubound(V,1)) then
       call mlf_randN2(r)
       V(i+1) = r(1)
@@ -163,17 +186,17 @@ Contains
     real(c_double), intent(out) :: M(:,:)
     real(c_double), optional, intent(in) :: sigma, X0(:), C12(:,:)
     integer :: i
-    do i=lbound(M,2),ubound(M,2)
+    Do i=lbound(M,2),ubound(M,2)
       call mlf_randNVect(M(:,i))
-    end do
+    End Do
     if (present(sigma)) then
       M = sigma*M
     endif
-    if(present(C12)) M = matmul(C12,M)
-    if(present(X0)) then
-      do i=lbound(M,2),ubound(M,2)
+    if(PRESENT(C12)) M = matmul(C12,M)
+    if(PRESENT(X0)) then
+      Do i=lbound(M,2),ubound(M,2)
         M(:,i) = X0 + M(:,i)
-      end do
+      End Do
     endif
   End Subroutine mlf_randNMatrix
 

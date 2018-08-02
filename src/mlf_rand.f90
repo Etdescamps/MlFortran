@@ -48,6 +48,10 @@ Module mlf_rand
     module procedure mlf_randD0
     module procedure mlf_randD1
   End Interface RandD
+  Interface Rand3DSurf
+    module procedure Rand3DSurf_float
+    module procedure Rand3DSurf_double
+  End Interface Rand3DSurf
 Contains
   Subroutine mlf_RandSignV(V)
     real(c_double), intent(out) :: V(:)
@@ -91,7 +95,7 @@ Contains
   End Function randInt
 
   ! Random point on surface using Marsaglia's method
-  Subroutine Rand3DSurf(X, r, X0)
+  Subroutine Rand3DSurf_double(X, r, X0)
     real(c_double), intent(in) :: r
     real(c_double), intent(in), optional :: X0(3)
     real(c_double), intent(out) :: X(3)
@@ -103,13 +107,35 @@ Contains
       if(W <= 1d0) EXIT
     End Do
     if(PRESENT(X0)) then
-      X(1:2) = X0(1:2) + 2d0*r*U*sqrt(1-W)
-      X(3) = X0(3) + r*(1-2*W)
+      X(1:2) = X0(1:2) + 2d0*r*U*sqrt(1d0-W)
+      X(3) = X0(3) + r*(1d0-2d0*W)
     else
-      X(1:2) = 2d0*r*U*sqrt(1-W)
-      X(3) = r*(1-2*W)
+      X(1:2) = 2d0*r*U*sqrt(1d0-W)
+      X(3) = r*(1d0-2d0*W)
     endif
-  End Subroutine Rand3DSurf
+  End Subroutine Rand3DSurf_double
+
+  ! Random point on surface using Marsaglia's method
+  Subroutine Rand3DSurf_float(X, r, X0)
+    real(c_float), intent(in) :: r
+    real(c_float), intent(in), optional :: X0(3)
+    real(c_float), intent(out) :: X(3)
+    real(c_float) :: U(2), W
+    Do
+      call RANDOM_NUMBER(U)
+      U = 2.0*U-1.0
+      W = dot_product(U,U)
+      if(W <= 1.0) EXIT
+    End Do
+    if(PRESENT(X0)) then
+      X(1:2) = X0(1:2) + 2.0*r*U*sqrt(1.0-W)
+      X(3) = X0(3) + r*(1.0-2.0*W)
+    else
+      X(1:2) = 2.0*r*U*sqrt(1.0-W)
+      X(3) = r*(1.0-2.0*W)
+    endif
+  End Subroutine Rand3DSurf_float
+
 
   ! Generate random class from a vector proportional to the cumulative probabilies
   Subroutine mlf_rand_class(W, id) 

@@ -65,6 +65,7 @@ Module mlf_ode45
     class(mlf_ode_fun), pointer :: fun
   Contains
     procedure :: reinitT => mlf_ode45_reinitT
+    procedure :: cancelStep => mlf_ode45_cancelStep
     procedure :: reinit => mlf_ode45_reinit
     procedure :: denseEvaluation => mlf_ode45_denseEvaluation
     procedure :: updateDense => mlf_ode45_updateDense
@@ -161,6 +162,12 @@ Contains
       info = this%reinitT(X0, t0, tMax, atoli, rtoli, fac, facMin, facMax, hMax, nStiff)
     endif
   End Function mlf_ode45_init
+
+  Subroutine mlf_ode45_cancelStep(this)
+    class(mlf_ode45_obj), intent(inout) :: this
+    this%X = this%X0
+    this%t = this%t0
+  End Subroutine mlf_ode45_cancelStep
 
   ! Stiff detection algorithm used by DOPRI5 
   Logical Function mlf_ode45_stiffDetect(this, h, X, Xsti, K7, K6) result(is_stiff)

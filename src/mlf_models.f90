@@ -58,7 +58,9 @@ Module mlf_models
 
   Type, public, abstract, extends(mlf_model) :: mlf_reduce_model
   Contains
-    procedure (mlf_model_getProj), deferred :: getProj
+    procedure (mlf_model_getProjSingle), deferred :: getProjSingle
+    procedure :: getProjMult => mlf_model_getProjMult
+    generic :: getProj => getProjSingle, getProjMult
   End Type mlf_reduce_model
 
   Type, public, abstract, extends(mlf_reduce_model) :: mlf_approx_model
@@ -96,14 +98,14 @@ Module mlf_models
       real(c_double), intent(out) :: Proba(:,:)
     End Function mlf_model_getProba
 
-    integer Function mlf_model_getProj(this, Y, W, Aerror)
+    integer Function mlf_model_getProjSingle(this, Y, W, Aerror)
       use iso_c_binding
       import :: mlf_reduce_model
       class(mlf_reduce_model), intent(in), target :: this
-      real(c_double), intent(in) :: Y(:,:)
-      real(c_double), intent(out) :: W(:,:)
-      real(c_double), optional, intent(out) :: Aerror(:,:)
-    End Function mlf_model_getProj
+      real(c_double), intent(in) :: Y(:)
+      real(c_double), intent(out) :: W(:)
+      real(c_double), optional, intent(out) :: Aerror(:)
+    End Function mlf_model_getProjSingle
 
     Function mlf_model_getValue(this, W, x) result(Y)
       use iso_c_binding
@@ -122,6 +124,17 @@ Module mlf_models
     End Function mlf_model_getValueBasis
   End Interface
 Contains
+  integer Function mlf_model_getProjMult(this, Y, W, Aerror) result(info)
+    class(mlf_reduce_model), intent(in), target :: this
+    real(c_double), intent(in) :: Y(:,:)
+    real(c_double), intent(out) :: W(:,:)
+    real(c_double), optional, intent(out) :: Aerror(:,:)
+    integer :: i
+    Do i=1,size(Y,2)
+      info = this%getProj(Y(:,i), W(:,i), Aerror(:,i))
+    End Do
+  End Function mlf_model_getProjMult
+
 
   real(c_double) Function mlf_approx_linear_getValue(this, W, x) result(Y)
     class(mlf_approx_linear), intent(in) :: this

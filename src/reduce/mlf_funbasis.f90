@@ -58,7 +58,8 @@ Module mlf_funbasis
   Type, Public, extends(mlf_approx_linear) :: mlf_model_funbasis
     class(mlf_algo_funbasis), pointer :: top
   Contains
-    procedure :: getProj => mlf_FunBasisGetProjection
+    procedure :: getProjMult => mlf_FunBasisGetProjection
+    procedure :: getProjSingle => mlf_FunBasisGetProjectionSingle
     procedure :: getValue => mlf_model_FunBasisFunValue
     procedure :: getValueBasis => mlf_model_FunBasisValue
   End Type mlf_model_funbasis
@@ -280,6 +281,40 @@ Contains
       forall(j=1:(i-1)) C(i,j) = C(j,i)
     end do
   End Subroutine ComputeFunMatrix
+
+    integer Function mlf_FunBasisGetProjectionSingle(this, Y, W, Aerror) result(info)
+    ! Get the projection of the function in the basis of the selected vector
+    class(mlf_model_funbasis), intent(in), target :: this
+    real(c_double), intent(in) :: Y(:)
+    real(c_double), intent(out) :: W(:)
+    real(c_double), optional, intent(out) :: Aerror(:)
+    real(c_double), allocatable :: F(:,:), P(:)
+    integer :: np, nx, i
+    real(c_double) :: coeff
+    np = size(this%top%W, 2)
+    nx = size(this%top%X)
+    allocate(F(nx,1), P(nx))
+    info = this%top%fun%eval(this%top%X, reshape(Y, [size(Y),1]), F)
+    if(info<0) RETURN
+    if(this%top%alpha == 0) then
+      coeff = this%top%eDiff
+    else
+      coeff = this%top%eDiff/this%top%alpha
+    endif
+    do i = 1,np
+      P =  this%top%Vals(i,:)
+      W(i) = coeff*ComputeDotProduct(F(:,1), P, this%top%xEnd)
+      ! It is not essential to remove this part (the function basis is orthonormal)
+      ! but the remaining value can be used for estimating the error of the approximation
+      F(:,1) = F(:,1)-W(i)*P
+    end do
+    if(present(Aerror)) then
+      F = abs(F)
+      Aerror(1) = sum(F)/real(nx)
+      Aerror(2) = maxval(F)
+    endif
+  End Function mlf_FunBasisGetProjectionSingle
+
   integer Function mlf_FunBasisGetProjection(this, Y, W, Aerror) result(info)
     ! Get the projection of the function in the basis of the selected vector
     class(mlf_model_funbasis), intent(in), target :: this

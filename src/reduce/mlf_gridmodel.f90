@@ -46,7 +46,8 @@ Module mlf_gridmodel
   Type, Public, extends(mlf_reduce_model) :: mlf_2dgrid_model
     class(mlf_2dgrid), pointer :: top
   Contains
-    procedure :: getProj => mlf_GridModelGetProjection
+    procedure :: getProjSingle => mlf_GridModelGetProjectionSingle
+    procedure :: getProjMult => mlf_GridModelGetProjection
   End Type mlf_2dgrid_model
 Contains
   
@@ -119,6 +120,34 @@ Contains
     endif
     call mlf_model_funbasis_init(this%model, this)
   End Function mlf_GridModelInit
+
+  integer Function mlf_GridModelGetProjectionSingle(this, Y, W, Aerror) result(info)
+    class(mlf_2dgrid_model), intent(in), target :: this
+    real(c_double), intent(in) :: Y(:)
+    real(c_double), intent(out) :: W(:)
+    real(c_double), optional, intent(out) :: Aerror(:)
+    real(c_double) :: vX, vY, ax, ay, dX, dY, diX, diY
+    integer :: nXG, nYG, i, j
+    info = -1
+    if(size(Y,1) /= 2) RETURN
+    ASSOCIATE(grid => this%top%grid, XMin => this%top%XMin, XMax => this%top%XMax, &
+        YMin => this%top%YMin, YMax => this%top%YMax)
+      nXG = size(grid,2); nYG = size(grid,3)
+      dX = (XMax-XMin)/real(nXG-1, kind = 8)
+      dY = (YMax-YMin)/real(nYG-1, kind = 8)
+      diX = 1d0/dX; diY = 1d0/dY
+      vX = Y(1); vY = Y(2)
+      i = floor((vX-XMin)*diX)+1
+      j = floor((vY-YMin)*diY)+1
+      ax = ((vX-XMin)-(i-1)*dX)*diX
+      ay = ((vY-YMin)-(j-1)*dY)*diY
+      W(:) = (1d0-ay)*((1d0-ax)*grid(:,i,j)+ax*grid(:,i+1,j)) &
+             + ay*((1d0-ax)*grid(:,i,j+1)+ax*grid(:,i+1,j+1))
+    END ASSOCIATE
+    ! TODO: add error estimation
+    if(present(Aerror)) Aerror = 0
+    info = 0
+  End Function mlf_GridModelGetProjectionSingle
 
   integer Function mlf_GridModelGetProjection(this, Y, W, Aerror) result(info)
     class(mlf_2dgrid_model), intent(in), target :: this

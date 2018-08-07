@@ -76,6 +76,9 @@ Module mlf_ode45
     procedure :: stiffDetect => mlf_ode45_stiffDetect
   End Type mlf_ode45_obj
 
+  Integer, Parameter, Public :: mlf_ODE_FunError = -1, mlf_ODE_Stiff = -2
+  Integer, Parameter, Public :: mlf_ODE_StopT = 2, mlf_ODE_StopCstr = 3
+
 
 Contains
   integer Function mlf_ode45_reinit(this) result(info)
@@ -229,7 +232,7 @@ Contains
         th = 0.5d0*U/(U-V)
       endif
       ! Use Newton-Ralphson to polish the root th
-      V = 0.1d0*MAX(this%atoli, this%rtoli*ABS(MAX(Q0, X(id))))
+      V = 0.1d0*MAX(this%atoli, this%rtoli*ABS(Q0+X(id)))
       Do i=1,10
         th1 = 1d0-th
         U = Q1+th1*(Q2+th*(Q3+th1*Q4))
@@ -300,7 +303,7 @@ Contains
     real(c_double) :: th, alphaH, t
     i=1; niter0=1
     if(present(niter)) niter0 = niter
-    info = -1; idC = this%fun%idConst
+    info = mlf_ODE_FunError; idC = this%fun%idConst
     if(this%t == this%tMax) then
       info = 1
       niter = 0
@@ -341,7 +344,7 @@ Contains
         this%t = t
         if(MOD(this%nAccept, this%nStiff) == 0 .OR. this%iStiff > 0) then
           if(this%stiffDetect(h, X, Xsti, K(:,7), K(:,6))) then
-            info = -2
+            info = mlf_ODE_Stiff
             EXIT
           endif
         endif
@@ -353,14 +356,14 @@ Contains
             t = this%t0+th*h
             call this%denseEvaluation(t, X)
             this%t = t
-            info = 2
+            info = mlf_ODE_StopCstr
             EXIT
           else if(h == alphaH .AND. i == 1) then
             this%alpha = this%alpha*1.5d0
           endif
         endif
         if(h >= this%tMax-t) then
-            info = 1
+            info = mlf_ODE_StopT
             EXIT
         endif
         if(i == niter0) EXIT

@@ -37,6 +37,7 @@ Module mlf_step_algo
   PRIVATE
 
   PUBLIC :: mlf_step_obj_init, mlf_step_obj_reinit
+  Integer, Parameter, Public :: mlf_STEP_STOP = 1
 
   Type, Public, extends(mlf_rsc_numFields) :: mlf_step_numFields
     integer(c_int64_t) :: nIVar
@@ -195,7 +196,7 @@ Contains
     if(present(dt)) dt0 = dt
     if(info < 0) RETURN
     if(this%cputime > this%cpumax .OR. this%realtime > this%realmax) then
-      info = 1
+      info = mlf_STEP_STOP
       return
     endif
   End Function mlf_step_f

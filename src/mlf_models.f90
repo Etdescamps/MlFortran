@@ -135,7 +135,6 @@ Contains
     End Do
   End Function mlf_model_getProjMult
 
-
   real(c_double) Function mlf_approx_linear_getValue(this, W, x) result(Y)
     class(mlf_approx_linear), intent(in) :: this
     real(c_double), intent(in) :: W(:), x

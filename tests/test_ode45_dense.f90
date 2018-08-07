@@ -33,9 +33,8 @@ Contains
     fun%idConst = 1
     Do i=1,N
       info = ode%step()
-      if(info == 2) then
+      if(info == mlf_ODE_StopCstr) then
         print *, ode%X
-        info = 0
         ode%X(1) = 0
       endif
       Do k = j,Npoints
@@ -45,7 +44,7 @@ Contains
       End Do
       steps(:,i) = ode%X
       j = k
-      if(info /= 0) EXIT
+      if(info == mlf_ODE_StopT) EXIT
     End Do
     Do k = j,Npoints
       t = real(k-1,8)/real(Npoints-1,8)*ode%tMax

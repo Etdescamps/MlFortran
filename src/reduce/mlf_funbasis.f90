@@ -122,11 +122,11 @@ Contains
     integer(c_int64_t) :: ndP(2), ndW(2), ndV(2), nX0
     numFields = mlf_rsc_numFields(0,0,4)
     info = mlf_arr_init(this, numFields, data_handler)
-    if(present(P)) then
+    if(PRESENT(P)) then
       nP = size(P,1); N = size(P,2)
       ndP = int([nP, N], kind=8); ndW = int([N, sizeBase], kind=8)
       ndV = int([sizeBase, nX], kind=8)
-    else if(.NOT. present(data_handler)) then
+    else if(.NOT. PRESENT(data_handler)) then
       write (error_unit, *) 'mlf_funbasis(init) error: no input parameter nor data_handler'
       info = -1; RETURN
     endif
@@ -144,26 +144,32 @@ Contains
     info = this%add_rarray(numFields, nX0, this%X, C_CHAR_"X", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
     if(info /= 0) RETURN
-    if(present(data_handler)) RETURN
+    if(PRESENT(data_handler)) RETURN
     this%fun => f
     this%P = P
     allocate(C(N,N), LD(N), LB(N,N))
-    this%alpha = alpha; this%x0 = x0; this%xEnd = xEnd
-    call ComputeFunMatrix(this, C, nX)
-    if(present(WP)) then
+    CALL InitOrDefault(this%xEnd, ieee_value(0d0, ieee_positive_inf), xEnd)
+    if(ieee_is_finite(this%xEnd)) then
+      CALL InitOrDefault(this%alpha, 0d0, alpha)
+    else
+      CALL InitOrDefault(this%alpha, 1d0, alpha)
+    endif
+    CALL InitOrDefault(this%x0, 0d0, x0)
+    CALL ComputeFunMatrix(this, C, nX)
+    if(PRESENT(WP)) then
       forall(i=1:N,j=1:N) C(i,j) = WP(i)*WP(j)*C(i,j)
     endif
     ! C is the positive definite matrix containing the dot product of each function
     info = SymMatrixEigenDecomposition(C, LD, LB)
     if(info /= 0) RETURN
     ! Choose the (normalised) eigenvector that have the higest eigenvalues
-    if(present(WP)) then
+    if(PRESENT(WP)) then
       forall(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))*WP(:)
     else
       forall(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))
     endif
-    call ComputeBasisValue(this, nX)
-    call mlf_model_funbasis_init(this%model, this)
+    CALL ComputeBasisValue(this, nX)
+    CALL mlf_model_funbasis_init(this%model, this)
   End Function mlf_funbasis_init
 
   ! Subroutines used for computing a huge number of dot product between function
@@ -367,6 +373,10 @@ Contains
     real(c_double) :: t, dX, X1, X2, X3, X4
     integer :: i
     info = 0
+    if(x < this%x0 .OR. x > this%xEnd) then
+      info = 1
+      RETURN
+    endif
     ! The X are dreasingly ordered
     if(this%alpha == 0) then
       i = INT((x-this%x0)/this%eDiff)+1
@@ -407,6 +417,10 @@ Contains
     real(c_double), intent(in) :: x, W(:)
     real(c_double) :: t, Y1, Y2, Y3, Y4, dX, X1, X2, X3, X4
     integer :: i
+    if(x < this%x0 .OR. x > this%xEnd) then
+      Y = ieee_value(0d0, ieee_quiet_nan)
+      RETURN
+    endif
     ! The X are dreasingly ordered
     if(this%alpha == 0) then
       i = INT((x-this%x0)/this%eDiff)+1

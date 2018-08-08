@@ -66,6 +66,7 @@ Module mlf_models
   Type, public, abstract, extends(mlf_reduce_model) :: mlf_approx_model
   Contains
     procedure (mlf_model_getValue), deferred :: getValue
+    procedure (mlf_model_getValueBounds), deferred :: getValueBounds
   End Type mlf_approx_model
 
   Type, public, abstract, extends(mlf_approx_model) :: mlf_approx_linear
@@ -122,6 +123,13 @@ Module mlf_models
       real(c_double), intent(in) :: x
       real(c_double), intent(out) :: Y(:)
     End Function mlf_model_getValueBasis
+
+    Subroutine mlf_model_getValueBounds(this, xMin, xMax)
+      use iso_c_binding
+      import :: mlf_approx_model
+      class(mlf_approx_model), intent(in) :: this
+      real(c_double), intent(out), optional :: xMin, xMax
+    End Subroutine mlf_model_getValueBounds
   End Interface
 Contains
   integer Function mlf_model_getProjMult(this, Y, W, Aerror) result(info)

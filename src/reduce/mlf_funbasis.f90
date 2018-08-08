@@ -62,10 +62,18 @@ Module mlf_funbasis
     procedure :: getProjSingle => mlf_FunBasisGetProjectionSingle
     procedure :: getValue => mlf_model_FunBasisFunValue
     procedure :: getValueBasis => mlf_model_FunBasisValue
+    procedure :: getValueBounds => mlf_model_FunBasisBounds
   End Type mlf_model_funbasis
 
 
 Contains
+
+  Subroutine mlf_model_FunBasisBounds(this, xMin, xMax)
+    class(mlf_model_funbasis), intent(in) :: this
+    real(c_double), intent(out), optional :: xMin, xMax
+    if(PRESENT(xMin)) xMin = this%top%x0
+    if(PRESENT(xMax)) xMax = this%top%xEnd
+  End Subroutine mlf_model_FunBasisBounds
 
   ! Model initilisator
   Subroutine mlf_model_funbasis_init(this, top)

@@ -374,10 +374,6 @@ Contains
             EXIT
           endif
         endif
-        if(wasStopped) then ! The evaluation constraint is reach
-          info = mlf_ODE_HardCstr
-          EXIT
-        endif
         ! Check if the constraint is present
         if(idC > 0) then
           ! Check the value at t=min(this%tMax, this%t)
@@ -391,6 +387,10 @@ Contains
           else if(h == alphaH .AND. i == 1) then
             this%alpha = this%alpha*1.5d0
           endif
+        endif
+        if(wasStopped) then ! The evaluation constraint is reach
+          info = mlf_ODE_HardCstr
+          EXIT
         endif
         if(h >= this%tMax-t) then
             info = mlf_ODE_StopT

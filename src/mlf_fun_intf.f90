@@ -83,6 +83,13 @@ Module mlf_fun_intf
   End Type mlf_weight_simple_fun
 
   ! ODE function evaluator
+  ! This class has two type of constraint:
+  !   - a "hard" constraint that prevent the evaluation of derivatives:
+  !     in this case the derivation function cannot be evaluated
+  !     -> the function eval return a positive value instead of 0 in this case
+  !     -> a negative return value will imply the stop of the algorithm
+  !   - a "soft" constraint that permit the evaluation of the derivative
+  !     -> in this case, it uses dense evaluation to find where the limit is reached
   Type, Public, abstract, extends(mlf_obj) :: mlf_ode_fun
     integer :: idConst = -1
   Contains

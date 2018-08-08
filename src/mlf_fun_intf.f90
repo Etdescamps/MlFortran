@@ -92,14 +92,14 @@ Module mlf_fun_intf
   Abstract Interface
 
     ! Abstract ODE function type
-    Subroutine mlf_ode_eval(this, t, X, F)
+    Integer Function mlf_ode_eval(this, t, X, F)
       Use iso_c_binding
       import :: mlf_ode_fun
       class(mlf_ode_fun), intent(in), target :: this
       real(c_double), intent(in) :: t
       real(c_double), intent(in), target :: X(:)
       real(c_double), intent(out), target :: F(:)
-    End Subroutine mlf_ode_eval
+    End Function mlf_ode_eval
 
     ! Abstract objective function type
     integer Function mlf_obj_eval(this, X, Y)

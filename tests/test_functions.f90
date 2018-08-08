@@ -85,13 +85,14 @@ Module test_functions
   End Interface
 
 Contains
-  Subroutine odeTest_eval(this, t, X, F)
+  Integer Function odeTest_eval(this, t, X, F) result(info)
     class(mlf_odeTest), intent(in), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:)
     real(c_double), intent(out), target :: F(:)
     call this%evalF(t, X, F)
-  End Subroutine odeTest_eval
+    info = 0
+  End Function odeTest_eval
 
   Subroutine odeTest_init(this, fun, idC)
     class(mlf_odeTest), intent(inout), target :: this

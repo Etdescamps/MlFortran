@@ -78,7 +78,7 @@ Module mlf_ode45
   End Type mlf_ode45_obj
 
   Integer, Parameter, Public :: mlf_ODE_FunError = -1, mlf_ODE_Stiff = -2
-  Integer, Parameter, Public :: mlf_ODE_StopT = 2, mlf_ODE_StopCstr = 3
+  Integer, Parameter, Public :: mlf_ODE_StopT = 2, mlf_ODE_StopCstr = 3, mlf_ODE_EvalCst = 4
 
 
 Contains
@@ -267,7 +267,10 @@ Contains
   real(c_double) Function mlf_ode45_deltaFun(this, hMax) result(hopt)
     class(mlf_ode45_obj), intent(inout) :: this
     real(c_double), intent(in) :: hMax
-    real(c_double) :: d0, d1, d2, dM, h0, h1
+    real(c_double) :: d0, d1, d2, dM, h0, h1, hCstr
+    integer :: info, i
+    hopt = -1
+    hCstr = hMax
     if(this%lastErr <= 0) then
       ! Starting Step Size as described in II.4 from Hairer and Wanner
       ! Evaluate the norm of |f(x_0,y_0)| and |y_0| using sc_i
@@ -282,9 +285,16 @@ Contains
       else
         h0 = d0/d1*0.01d0
       endif
-      h0 = MIN(h0, hMax)
+      h0 = MIN(h0, hCstr)
       ! Do an explicit euler step for evaluating the second derivative
-      call this%fun%eval(this%t+h0, this%X+h0*this%K(:,1), this%K(:,2))
+      Do i=1,16
+        info = this%fun%eval(this%t+h0, this%X+h0*this%K(:,1), this%K(:,2))
+        if(info == 0) EXIT ! The point (t+h0,X+h0*F0) is valid
+        if(info<0) RETURN
+        h0 = 0.5d0*h0 ! The point (t+h0,X+h0*F0) is outside the constraints space
+        hCstr = h0
+      End Do
+      if(info /= 0) RETURN
       d2 = norm2(this%K(:,2)-this%K(:,1))/h0
       dM = max(d1,d2)
       if(dM<1d-15) then
@@ -297,7 +307,7 @@ Contains
       hopt = this%lastTheta*min(this%facMax, max(this%facMin, &
         this%fac*(1d0/this%lastErr)**(1d0/5d0)))
     endif
-    hopt = min(hopt, hMax)
+    hopt = min(hopt, hCstr)
     this%lastTheta = hopt
   End Function mlf_ode45_deltaFun
 
@@ -306,9 +316,10 @@ Contains
     integer(kind=8), intent(inout), optional :: niter
     integer(kind=8) :: i, niter0
     integer :: idc
+    logical :: wasStopped
     real(c_double) :: h, hMax, err, Xsti(size(this%X))
     real(c_double) :: th, alphaH, t
-    i=1; niter0=1
+    i=1; niter0=1; info = 0
     if(present(niter)) niter0 = niter
     info = mlf_ODE_FunError; idC = this%fun%idConst
     if(this%t == this%tMax) then
@@ -320,7 +331,7 @@ Contains
     ASSOCIATE(K => this%K, X0 =>this%X0, X => this%X)
       hMax = this%hMax; alphaH = HUGE(alphaH)
       X0 = X
-      call this%fun%eval(t, X, K(:,1))
+      info = this%fun%eval(t, X, K(:,1))
       this%nFun = this%nFun +1
       if(idC > 0) then
         if(K(idC,1) /= 0d0) then
@@ -331,18 +342,25 @@ Contains
       do while(i <= niter0)
         this%t0 = t
         h = this%deltaFun(hMax)
+        if(info > 0) wasStopped = .TRUE. ! was stopped by a constraint from eval
         if(t+h >= this%tMax) h = this%tMax-t
         if(h<0) RETURN
-        call this%fun%eval(t+C(2)*h, X0+h*A2*K(:,1), K(:,2))
-        call this%fun%eval(t+C(3)*h, X0+h*MATMUL(K(:,1:2), A3), K(:,3))
-        call this%fun%eval(t+C(4)*h, X0+h*MATMUL(K(:,1:3), A4), K(:,4))
-        call this%fun%eval(t+C(5)*h, X0+h*MATMUL(K(:,1:4), A5), K(:,5))
+        info = this%fun%eval(t+C(2)*h, X0+h*A2*K(:,1), K(:,2))
+        if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(2)*h; CYCLE; endif
+        info = this%fun%eval(t+C(3)*h, X0+h*MATMUL(K(:,1:2), A3), K(:,3))
+        if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(3)*h; CYCLE; endif
+        info = this%fun%eval(t+C(4)*h, X0+h*MATMUL(K(:,1:3), A4), K(:,4))
+        if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(4)*h; CYCLE; endif
+        info = this%fun%eval(t+C(5)*h, X0+h*MATMUL(K(:,1:4), A5), K(:,5))
+        if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(5)*h; CYCLE; endif
         ! Ysti is used by DOPRI5 for stiffness detection
         Xsti = X0+h*MATMUL(K(:,1:5), A6)
-        call this%fun%eval(t+C(6)*h, Xsti, K(:,6))
+        info = this%fun%eval(t+C(6)*h, Xsti, K(:,6))
+        if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(6)*h; CYCLE; endif
         ! Y Contains the value of X(t+h)
         X = X0+h*MATMUL(K(:,1:6), A7)
-        call this%fun%eval(t+C(7)*h, X, K(:,7))
+        info = this%fun%eval(t+C(7)*h, X, K(:,7))
+        if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(7)*h; CYCLE; endif
         this%nFun = this%nFun + 6
         err = this%errorFun(MATMUL(K,EC), X0, X, h)
         if(err > 1d0) CYCLE
@@ -372,6 +390,10 @@ Contains
         if(h >= this%tMax-t) then
             info = mlf_ODE_StopT
             EXIT
+        endif
+        if(wasStopped) then
+          info = mlf_ODE_EvalCst
+          EXIT
         endif
         if(i == niter0) EXIT
         K(:,1) = K(:,7)

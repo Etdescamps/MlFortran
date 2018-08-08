@@ -33,7 +33,7 @@ Contains
     fun%idConst = 1
     Do i=1,N
       info = ode%step()
-      if(info == mlf_ODE_StopCstr) then
+      if(info == mlf_ODE_SoftCstr) then
         print *, ode%X
         ode%X(1) = 0
       endif

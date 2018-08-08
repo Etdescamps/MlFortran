@@ -78,7 +78,7 @@ Module mlf_ode45
   End Type mlf_ode45_obj
 
   Integer, Parameter, Public :: mlf_ODE_FunError = -1, mlf_ODE_Stiff = -2
-  Integer, Parameter, Public :: mlf_ODE_StopT = 2, mlf_ODE_StopCstr = 3, mlf_ODE_EvalCst = 4
+  Integer, Parameter, Public :: mlf_ODE_StopT = 2, mlf_ODE_SoftCstr = 3, mlf_ODE_HardCstr = 4
 
 
 Contains
@@ -322,6 +322,7 @@ Contains
     i=1; niter0=1; info = 0
     if(present(niter)) niter0 = niter
     info = mlf_ODE_FunError; idC = this%fun%idConst
+    wasStopped = .FALSE.
     if(this%t == this%tMax) then
       info = 1
       niter = 0
@@ -373,6 +374,10 @@ Contains
             EXIT
           endif
         endif
+        if(wasStopped) then ! The evaluation constraint is reach
+          info = mlf_ODE_HardCstr
+          EXIT
+        endif
         ! Check if the constraint is present
         if(idC > 0) then
           ! Check the value at t=min(this%tMax, this%t)
@@ -381,7 +386,7 @@ Contains
             t = this%t0+th*h
             call this%denseEvaluation(t, X)
             this%t = t
-            info = mlf_ODE_StopCstr
+            info = mlf_ODE_SoftCstr
             EXIT
           else if(h == alphaH .AND. i == 1) then
             this%alpha = this%alpha*1.5d0
@@ -390,10 +395,6 @@ Contains
         if(h >= this%tMax-t) then
             info = mlf_ODE_StopT
             EXIT
-        endif
-        if(wasStopped) then
-          info = mlf_ODE_EvalCst
-          EXIT
         endif
         if(i == niter0) EXIT
         K(:,1) = K(:,7)

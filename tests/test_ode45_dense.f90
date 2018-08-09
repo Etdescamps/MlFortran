@@ -17,7 +17,7 @@ Program test_ode45
   infx = mlf_quit()
 Contains
   Subroutine test()
-    type(mlf_odeTest) :: fun
+    type(mlf_odeTestCstr) :: fun
     type(mlf_ode45_obj) :: ode
     type(mlf_hdf5_file) :: h5f
     integer :: i, N=1000000, info, j, k
@@ -25,12 +25,11 @@ Contains
     real(c_double) :: t
     ALLOCATE(trajectory(4, Npoints), steps(4, N))
     info = h5f%createFile("arenstorf.h5")
-    call fun%init(FArenstorf)
+    call fun%init(FArenstorf, RESHAPE([1d0,0d0], [2,1]))
     info = ode%init(fun, X0Arenstorf, tMax = TEndArenstorf, atoli = 1d-5, rtoli = 1d-5)
     if(info < 0) RETURN
     j = 1
     print *, 0, ode%t0, ode%X0
-    fun%idConst = 1
     Do i=1,N
       info = ode%step()
       if(info == mlf_ODE_SoftCstr) then

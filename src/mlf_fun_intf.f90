@@ -82,19 +82,32 @@ Module mlf_fun_intf
     procedure :: eval => mlf_weight_simple_ev
   End Type mlf_weight_simple_fun
 
-  ! ODE function evaluator
-  ! This class has two type of constraint:
+  ! ODE class has two type of constraint:
   !   - a "hard" constraint that prevent the evaluation of derivatives:
   !     in this case the derivation function cannot be evaluated
   !     -> the function eval return a positive value instead of 0 in this case
   !     -> a negative return value will imply the stop of the algorithm
+  !       -> handled by eval function of mlf_ode_fun
   !   - a "soft" constraint that permit the evaluation of the derivative
   !     -> in this case, it uses dense evaluation to find where the limit is reached
+
+  ! ODE function evaluator
   Type, Public, abstract, extends(mlf_obj) :: mlf_ode_fun
-    integer :: idConst = -1
   Contains
     procedure (mlf_ode_eval), deferred :: eval
   End Type mlf_ode_fun
+
+  Type, Public, abstract, extends(mlf_ode_fun) :: mlf_ode_funCstr
+    real(c_double), allocatable :: cstrVect(:,:)
+    real(c_double), allocatable :: cstrVal(:)
+    real(c_double), allocatable :: cstrTmp(:)
+    real(c_double), allocatable :: cstrAlpha(:)
+    real(c_double) :: cstrT
+    integer :: cstrId
+  Contains
+    procedure :: updateCstr => mlf_ode_updateCstr
+    procedure :: reachCstr => mlf_ode_reachCstr
+  End Type mlf_ode_funCstr
 
   Abstract Interface
 
@@ -159,7 +172,45 @@ Module mlf_fun_intf
     End Subroutine mlf_weight_simple_eval
   End Interface
 Contains
-  integer Function mlf_basis_c_eval(this, X, rpar, Y) result(info)
+
+  ! Default function that update the alpha if t is reached after cstrT
+  Integer Function mlf_ode_reachCstr(this, t, id, X) result(info)
+    class(mlf_ode_funCstr), intent(inout), target :: this
+    real(c_double), intent(inout), target :: X(:)
+    real(c_double), intent(in) :: t
+    integer, intent(in) :: id
+    if(this%cstrId == id .AND. t > this%cstrT) then
+      this%cstrAlpha(id) = 1.5d0*this%cstrAlpha(id)
+    endif
+    info = 0
+  End Function mlf_ode_reachCstr
+
+  ! Default function for updateCstr
+  Real(c_double) Function mlf_ode_updateCstr(this, t, X, F) result(hMax)
+    class(mlf_ode_funCstr), intent(inout), target :: this
+    real(c_double), intent(in), target :: X(:), F(:)
+    real(c_double), intent(in) :: t
+    real(c_double) :: U(size(X))
+    integer :: i, id(1)
+    forall(i=1:size(this%cstrTmp)) this%cstrVect(:,i) = -this%cstrVal(:)
+    this%cstrTmp = MATMUL(this%cstrVect, X)
+    U = X*F
+    if(ALL(U >= 0)) then
+      hmax = HUGE(hMax)
+      this%cstrId = -1
+    endif
+    WHERE(U < 0)
+      U = -this%cstrAlpha*X/F
+    ELSEWHERE
+      U = HUGE(hMax)
+    ENDWHERE
+    id = MINLOC(U)
+    this%cstrId = id(1)
+    hMax = U(this%cstrId)
+    this%cstrT = t+hMax
+  End Function mlf_ode_updateCstr
+
+  Integer Function mlf_basis_c_eval(this, X, rpar, Y) result(info)
     class(mlf_basis_fun_c), intent(in), target :: this
     real(c_double), intent(in), target :: X(:), rpar(:,:)
     real(c_double), intent(out), target :: Y(:,:)
@@ -174,7 +225,7 @@ Contains
     info = this%evalC(c_loc(X), c_loc(rpar), c_loc(Y), nX, nPar, sPar, this%ptr)
   End Function mlf_basis_c_eval
 
-  integer Function mlf_obj_c_eval(this, X, Y) result(info)
+  Integer Function mlf_obj_c_eval(this, X, Y) result(info)
     class(mlf_objective_fun_c), intent(in), target :: this
     real(c_double), intent(in), target :: X(:,:)
     real(c_double), intent(inout), target :: Y(:,:)
@@ -189,7 +240,7 @@ Contains
     info = this%evalC(c_loc(X), c_loc(Y), ND, nY, lambda, this%ptr)
   End Function mlf_obj_c_eval
 
-  integer Function mlf_obj_c_constraints(this, X, Y) result(info)
+  Integer Function mlf_obj_c_constraints(this, X, Y) result(info)
     class(mlf_objective_fun_c), intent(in), target :: this
     real(c_double), intent(in), target :: X(:,:)
     real(c_double), intent(inout), target :: Y(:,:)

@@ -80,7 +80,6 @@ Module mlf_ode45
   Integer, Parameter, Public :: mlf_ODE_FunError = -1, mlf_ODE_Stiff = -2
   Integer, Parameter, Public :: mlf_ODE_StopT = 2, mlf_ODE_SoftCstr = 3, mlf_ODE_HardCstr = 4
 
-
 Contains
   integer Function mlf_ode45_reinit(this) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
@@ -205,51 +204,112 @@ Contains
 
   Subroutine mlf_ode45_updateDense(this)
     class(mlf_ode45_obj), intent(inout) :: this
-    real(c_double) :: dt, dX(size(this%X0))
+    real(c_double) :: dt
     dt = this%t-this%t0
-    dX = this%X-this%X0
     ASSOCIATE(A => this%Cont, K => this%K)
       A(:,1) = this%X-this%X0
       A(:,2) = dt*K(:,1)-A(:,1)
-      A(:,3) = -dt*K(:,7)+dX-A(:,2)
+      A(:,3) = -dt*K(:,7)+A(:,1)-A(:,2)
       A(:,4) = dt*matmul(K,DC)
     END ASSOCIATE
     this%lastT = this%t
   End Subroutine mlf_ode45_updateDense
 
-  real(c_double) Function mlf_ode45_findRoot(this, id) result(th)
+  Integer Function mlf_ode45_findRoot(this, fun, hMax) result(info)
     class(mlf_ode45_obj), intent(inout) :: this
-    integer, intent(in) :: id
-    integer :: i
-    real(c_double) :: Q0, Q1, Q2, Q3, Q4, Q5, Q6
-    real(c_double) :: th1, Y, F, U, V
-    if(this%lastT < this%t) call this%updateDense()
-    ASSOCIATE(X0 => this%X0, X => this%X, A => this%Cont)
-      Q0 = X0(id); Q1 = A(id,1)
-      Q2 = A(id,2); Q3 = A(id,3); Q4 = A(id,4)
-      Q5 = -4d0*Q4-2d0*Q3; Q6 = Q4+Q3-Q2
-      ! Do a bissection step and then a secant step
-      ! Evaluate Y(0.5)
-      Y = Q0+0.5d0*(Q1+0.5d0*(Q2+0.5d0*(Q3+0.5d0*Q4)))
-      if(Y*Q0>0d0) then ! The root is between th= 0.5 and 1
-        U = 1d0/X(id); V = 1d0/Y
-        th = 0.5d0+0.5d0*U/(U-V)
-      else ! The root is between th= 0 and 0.5
-        U = 1d0/Y; V = 1d0/X0(id)
-        th = 0.5d0*U/(U-V)
+    class(mlf_ode_funCstr), intent(inout) :: fun
+    real(c_double), intent(inout) :: hMax
+    real(c_double) :: X0(size(fun%cstrTmp)), U, dt
+    integer :: ids(size(fun%cstrTmp)), i, j, id
+    info = 0
+    X0 = fun%cstrTmp
+    hMax = fun%updateCstr(this%t, this%X, this%K(:,7))
+    j = 0
+    Do i =1,size(fun%cstrTmp)
+      U = X0(i)*fun%cstrTmp(i)
+      if(U > 0) CYCLE
+      if(U == 0) then
+        U = dot_product(this%K(:,1), fun%cstrVect(:,i))
+        if(U >= 0) CYCLE
       endif
-      ! Use Newton-Ralphson to polish the root th
-      V = 0.1d0*MAX(this%atoli, this%rtoli*ABS(Q0+X(id)))
+      j = j+1
+      ids(j) = i
+    End Do
+    if(j == 0) RETURN
+    dt = this%t-this%t0
+    hMax = ODE45FindRoot(this%rtoli, this%atoli, ids(1:j), fun%cstrVect, this%K, &
+      X0, fun%cstrTmp, dt, id)
+    this%t = this%t0 + hMax
+    call this%denseEvaluation(this%t, this%X)
+    info = fun%reachCstr(this%t, id, this%X)
+  End Function mlf_ode45_findRoot
+
+  real(c_double) Function ODE45FindRoot(rtol, atol, ids, C, K, X0, X, dt, id) result(hMax)
+    real(c_double), intent(in) :: C(:,:), K(:, :), X0(:), X(:), rtol, atol, dt
+    integer, intent(in) :: ids(:)
+    integer, intent(out) :: id
+    hMax = Dense45FindRoot(rtol, atol, dt*MATMUL(transpose(C(:,ids)), K), X0(ids), X(ids), id)
+    id = ids(id)
+  End Function ODE45FindRoot
+
+  ! Find root of the constraints using dense output
+  ! CORNER CASE: the case where X0=X(t0)=0 and dX/dt(t0)=Q(:,1)=0 shall be avoided
+  real(c_double) Function Dense45FindRoot(rtol, atol, Q, X0, X, id) result(th)
+    real(c_double), intent(in) :: Q(:, :), X0(:), X(:), rtol, atol
+    integer, intent(out) :: id
+    integer :: i, idx(1)
+    real(c_double) :: A(size(X),4), X12(size(X)), U(size(X))
+    real(c_double) :: th1, Y, F, V, W, A5, A6
+    A(:,1) = X-X0; A(:,2) = Q(:,1)-A(:,1)
+    A(:,3) = -Q(:,7)+A(:,1)-A(:,2)
+    A(:,4) = matmul(Q,DC)
+    ! Do a bissection step and then a secant step
+    ! Evaluate Y(0.5)
+    X12 = X0+0.5d0*(A(:,1)+0.5d0*(A(:,2)+0.5d0*(A(:,3)+0.5d0*A(:,4))))
+    WHERE(X0 /= 0d0)
+      X12 = X12*X0 ! Use the sign of X(t0) if X(t0) /= 0
+    ELSEWHERE
+      U = X12*Q(:,1) ! Use the sign of dX/dt(t0) otherwise
+    ENDWHERE
+    if(ALL(U>0d0)) then ! All the roots are between 0.5 < th < 1
+      WHERE(X/=0)
+        U = 1d0/(X*(1d0/X-1d0/X12))
+      ELSEWHERE ! Corner case where X == 0
+        U = 1d0
+      ENDWHERE
+      idx = MINLOC(U)
+      th = 0.5d0+0.5d0*U(id)
+    elseif(ANY(U<0d0)) then ! One root exists between 0 < th < 0.5
+      WHERE(U<0)
+        U=1d0/(X12*(1d0/X12-1d0/X0))
+      ELSEWHERE
+        U= HUGE(1d0)
+      ENDWHERE
+      idx = MINLOC(U)
+      th = 0.5d0*U(id)
+    else ! No root between ]0, 0.5[ but one root on 0.5
+      ! Corner case (avoid division by 0)
+      th = 0.5d0
+      idx = MINLOC(abs(U))
+      id = idx(1)
+      RETURN
+    endif
+    id = idx(1)
+    ! Use Newton-Ralphson to polish the root th
+    V = 0.1d0*MAX(atol, rtol*ABS(X0(id)+X(id)))
+    ASSOCIATE(A0 => X0(id), A1 => A(id,1), A2 => A(id,2), A3 => A(id,3), A4 => A(id,4))
+      A5 = -4d0*A4-2d0*A3
+      A6 = A4+A3-A2
       Do i=1,10
         th1 = 1d0-th
-        U = Q1+th1*(Q2+th*(Q3+th1*Q4))
-        F = U+th*(th*(3d0*Q4*th+Q5)+Q6)
-        Y = Q0+th*U
+        W = A1+th1*(A2+th*(A3+th1*A4))
+        F = W+th*(th*(3d0*A4*th+A5)+A6)
+        Y = A0+th*W
         th = th-Y/F
         if(abs(Y)>V) EXIT
       End Do
     END ASSOCIATE
-  End Function mlf_ode45_findRoot
+  End Function Dense45FindRoot
 
   Subroutine mlf_ode45_denseEvaluation(this, t, Y)
     class(mlf_ode45_obj), intent(inout) :: this
@@ -315,13 +375,12 @@ Contains
     class(mlf_ode45_obj), intent(inout), target :: this
     integer(kind=8), intent(inout), optional :: niter
     integer(kind=8) :: i, niter0
-    integer :: idc
     logical :: wasStopped
     real(c_double) :: h, hMax, err, Xsti(size(this%X))
     real(c_double) :: th, alphaH, t
     i=1; niter0=1; info = 0
     if(present(niter)) niter0 = niter
-    info = mlf_ODE_FunError; idC = this%fun%idConst
+    info = mlf_ODE_FunError
     wasStopped = .FALSE.
     if(this%t == this%tMax) then
       info = 1
@@ -329,38 +388,36 @@ Contains
       RETURN
     endif
     t = this%t
-    ASSOCIATE(K => this%K, X0 =>this%X0, X => this%X)
+    ASSOCIATE(K => this%K, X0 =>this%X0, X => this%X, fun => this%fun)
       hMax = this%hMax; alphaH = HUGE(alphaH)
       X0 = X
-      info = this%fun%eval(t, X, K(:,1))
-      this%nFun = this%nFun +1
-      if(idC > 0) then
-        if(K(idC,1) /= 0d0) then
-          alphaH = -this%alpha*X0(idC)/K(idC,1)
-          if(alphaH > 0d0) hMax = min(alphaH, hMax)
-        endif
-      endif
+      info = fun%eval(t, X, K(:,1))
+      this%nFun = this%nFun + 1
+      SELECT TYPE(fun)
+      class is (mlf_ode_funCstr)
+        hMax = fun%updateCstr(t, X0, K(:,1))
+      END SELECT
       do while(i <= niter0)
         this%t0 = t
         h = this%deltaFun(hMax)
         if(info > 0) wasStopped = .TRUE. ! was stopped by a constraint from eval
         if(t+h >= this%tMax) h = this%tMax-t
         if(h<0) RETURN
-        info = this%fun%eval(t+C(2)*h, X0+h*A2*K(:,1), K(:,2))
+        info = fun%eval(t+C(2)*h, X0+h*A2*K(:,1), K(:,2))
         if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(2)*h; CYCLE; endif
-        info = this%fun%eval(t+C(3)*h, X0+h*MATMUL(K(:,1:2), A3), K(:,3))
+        info = fun%eval(t+C(3)*h, X0+h*MATMUL(K(:,1:2), A3), K(:,3))
         if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(3)*h; CYCLE; endif
-        info = this%fun%eval(t+C(4)*h, X0+h*MATMUL(K(:,1:3), A4), K(:,4))
+        info = fun%eval(t+C(4)*h, X0+h*MATMUL(K(:,1:3), A4), K(:,4))
         if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(4)*h; CYCLE; endif
-        info = this%fun%eval(t+C(5)*h, X0+h*MATMUL(K(:,1:4), A5), K(:,5))
+        info = fun%eval(t+C(5)*h, X0+h*MATMUL(K(:,1:4), A5), K(:,5))
         if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(5)*h; CYCLE; endif
         ! Ysti is used by DOPRI5 for stiffness detection
         Xsti = X0+h*MATMUL(K(:,1:5), A6)
-        info = this%fun%eval(t+C(6)*h, Xsti, K(:,6))
+        info = fun%eval(t+C(6)*h, Xsti, K(:,6))
         if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(6)*h; CYCLE; endif
         ! Y Contains the value of X(t+h)
         X = X0+h*MATMUL(K(:,1:6), A7)
-        info = this%fun%eval(t+C(7)*h, X, K(:,7))
+        info = fun%eval(t+C(7)*h, X, K(:,7))
         if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(7)*h; CYCLE; endif
         this%nFun = this%nFun + 6
         err = this%errorFun(MATMUL(K,EC), X0, X, h)
@@ -375,19 +432,14 @@ Contains
           endif
         endif
         ! Check if the constraint is present
-        if(idC > 0) then
-          ! Check the value at t=min(this%tMax, this%t)
-          if(X(idC)*X0(idC) <= 0 .AND. X0(idC) /= 0) then
-            th = this%findRoot(idC)
-            t = this%t0+th*h
-            call this%denseEvaluation(t, X)
-            this%t = t
+        SELECT TYPE(fun)
+        class is (mlf_ode_funCstr)
+          info = this%findRoot(fun, hMax)
+          if(info /= 0) THEN
             info = mlf_ODE_SoftCstr
             EXIT
-          else if(h == alphaH .AND. i == 1) then
-            this%alpha = this%alpha*1.5d0
           endif
-        endif
+        END SELECT
         if(wasStopped) then ! The evaluation constraint is reach
           info = mlf_ODE_HardCstr
           EXIT

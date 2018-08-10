@@ -25,7 +25,7 @@ Contains
     real(c_double) :: t
     ALLOCATE(trajectory(4, Npoints), steps(4, N))
     info = h5f%createFile("arenstorf.h5")
-    call fun%init(FArenstorf, RESHAPE([1d0,0d0], [2,1]))
+    call fun%init(FArenstorf, RESHAPE([1d0,0d0,0d0,0d0], [4,1]))
     info = ode%init(fun, X0Arenstorf, tMax = TEndArenstorf, atoli = 1d-5, rtoli = 1d-5)
     if(info < 0) RETURN
     j = 1

@@ -126,7 +126,7 @@ Contains
     this%evalF => fun
     sC = size(vC,2)
     ALLOCATE(this%cstrVect, source = vC)
-    ALLOCATE(this%cstrVal(sC), this%cstrTmp(sc), this%cstrAlpha(sc))
+    ALLOCATE(this%cstrVal(sC), this%cstrTmp(sC), this%cstrAlpha(sC))
     this%cstrVal = 0; this%cstrTmp = 0
     this%cstrAlpha = 1.5
     this%cstrId = -1

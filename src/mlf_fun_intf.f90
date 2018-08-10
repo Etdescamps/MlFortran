@@ -190,17 +190,17 @@ Contains
     class(mlf_ode_funCstr), intent(inout), target :: this
     real(c_double), intent(in), target :: X(:), F(:)
     real(c_double), intent(in) :: t
-    real(c_double) :: U(size(X))
+    real(c_double) :: U(size(this%cstrTmp))
     integer :: i, id(1)
     forall(i=1:size(this%cstrTmp)) this%cstrVect(:,i) = -this%cstrVal(:)
-    this%cstrTmp = MATMUL(this%cstrVect, X)
-    U = X*F
+    this%cstrTmp = MATMUL(X, this%cstrVect)
+    U = MATMUL(F, this%cstrVect)
     if(ALL(U >= 0)) then
       hmax = HUGE(hMax)
       this%cstrId = -1
     endif
     WHERE(U < 0)
-      U = -this%cstrAlpha*X/F
+      U = -this%cstrAlpha*this%cstrTmp/U
     ELSEWHERE
       U = HUGE(hMax)
     ENDWHERE

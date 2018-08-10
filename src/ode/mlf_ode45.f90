@@ -405,19 +405,19 @@ Contains
         info = fun%eval(t+DOPRI5_C(2)*h, X0+h*DOPRI5_A2*K(:,1), K(:,2))
         if(info<0) RETURN; if(info>0) then; hMax = 0.5*DOPRI5_C(2)*h; CYCLE; endif
         info = fun%eval(t+DOPRI5_C(3)*h, X0+h*MATMUL(K(:,1:2), DOPRI5_A3), K(:,3))
-        if(info<0) RETURN; if(info>0) then; hMax = 0.5*DOPRI5_C(3)*h; CYCLE; endif
+        if(info<0) RETURN; if(info>0) then; hMax = DOPRI5_C(2)*h; CYCLE; endif
         info = fun%eval(t+DOPRI5_C(4)*h, X0+h*MATMUL(K(:,1:3), DOPRI5_A4), K(:,4))
-        if(info<0) RETURN; if(info>0) then; hMax = 0.5*DOPRI5_C(4)*h; CYCLE; endif
+        if(info<0) RETURN; if(info>0) then; hMax = DOPRI5_C(3)*h; CYCLE; endif
         info = fun%eval(t+DOPRI5_C(5)*h, X0+h*MATMUL(K(:,1:4), DOPRI5_A5), K(:,5))
-        if(info<0) RETURN; if(info>0) then; hMax = 0.5*DOPRI5_C(5)*h; CYCLE; endif
+        if(info<0) RETURN; if(info>0) then; hMax = DOPRI5_C(4)*h; CYCLE; endif
         ! Ysti is used by DOPRI5 for stiffness detection
         Xsti = X0+h*MATMUL(K(:,1:5), DOPRI5_A6)
         info = fun%eval(t+DOPRI5_C(6)*h, Xsti, K(:,6))
-        if(info<0) RETURN; if(info>0) then; hMax = 0.5*DOPRI5_C(6)*h; CYCLE; endif
+        if(info<0) RETURN; if(info>0) then; hMax = DOPRI5_C(5)*h; CYCLE; endif
         ! Y Contains the value of X(t+h)
         X = X0+h*MATMUL(K(:,1:6), DOPRI5_A7)
         info = fun%eval(t+DOPRI5_C(7)*h, X, K(:,7))
-        if(info<0) RETURN; if(info>0) then; hMax = 0.5*DOPRI5_C(7)*h; CYCLE; endif
+        if(info<0) RETURN; if(info>0) then; hMax = 0.5*SUM(DOPRI5_C(5:6))*h; CYCLE; endif
         this%nFun = this%nFun + 6
         err = this%errorFun(MATMUL(K,DOPRI5_EC), X0, X, h)
         if(err > 1d0) CYCLE

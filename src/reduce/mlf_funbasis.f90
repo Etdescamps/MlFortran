@@ -381,13 +381,13 @@ Contains
     real(c_double) :: t, dX, X1, X2, X3, X4
     integer :: i
     info = 0
-    if(x < this%x0 .OR. x > this%xEnd) then
-      info = 1
-      RETURN
-    endif
     ! The X are dreasingly ordered
     if(this%alpha == 0) then
       i = INT((x-this%x0)/this%eDiff)+1
+      if(i < -1 .OR. i > size(this%X)+2) then
+        info = 1 ! Interpolation too far to be accurate
+        RETURN
+      endif
       i = max(2,min(i,size(this%X)-2))
       X1 = x-this%X(i-1); X2 = x-this%X(i); X3 = x-this%X(i+1); X4 = x-this%X(i+2)
       ASSOCIATE(Y1 => this%Vals(:,i-1), Y2 => this%Vals(:,i), Y3 => this%Vals(:,i+1), &
@@ -397,6 +397,10 @@ Contains
       END ASSOCIATE
       Y = Y/(this%eDiff*this%eDiff*this%eDiff)
     else
+      if(x < this%x0) then
+        info = 1
+        RETURN
+      endif
       if(x>=this%X(1)) then
         Y = this%Vals(:,1) &
           * exp(log(this%Vals(:,1)/this%Vals(:,2))/(this%X(1)-this%X(2))*(x-this%X(1)))

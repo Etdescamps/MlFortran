@@ -258,7 +258,7 @@ Contains
     real(c_double), intent(in) :: Q(:, :), X0(:), X(:), rtol, atol
     integer, intent(out) :: id
     integer :: i
-    real(c_double) :: A(size(X),4), X12(size(X))
+    real(c_double) :: A(size(X),4), X12(size(X)), thI
     real(c_double) :: th1, Y, F, V, W, A5, A6
     A(:,1) = X-X0; A(:,2) = Q(:,1)-A(:,1)
     A(:,3) = -Q(:,7)+A(:,1)-A(:,2)
@@ -271,15 +271,15 @@ Contains
       if(X12(i)*X0(i) >= 0) then
         if(th <= 0.5d0) CYCLE
         if(X(i) == 0) then
-          V = 1d0
+          thI = 1d0
         else
-          V = 1d0/(X(i)*(1d0/X(i)-1d0/X12(i)))
+          thI = 1d0/(X(i)*(1d0/X(i)-1d0/X12(i)))
         endif
       else
-        V = 1d0/(X12(i)*(1d0/X12(i)-1d0/X0(i)))
+        thI = 1d0/(X12(i)*(1d0/X12(i)-1d0/X0(i)))
       endif
-      if(V < th) then
-        th = V
+      if(thI < th) then
+        th = thI
         id = i
       endif
     End Do
@@ -365,7 +365,7 @@ Contains
     integer(kind=8) :: i, niter0
     logical :: wasStopped
     real(c_double) :: h, hMax, err, Xsti(size(this%X))
-    real(c_double) :: th, alphaH, t
+    real(c_double) :: alphaH, t
     i=1; niter0=1; info = 0
     if(present(niter)) niter0 = niter
     info = mlf_ODE_FunError

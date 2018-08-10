@@ -257,7 +257,7 @@ Contains
   real(c_double) Function Dense45FindRoot(rtol, atol, Q, X0, X, id) result(th)
     real(c_double), intent(in) :: Q(:, :), X0(:), X(:), rtol, atol
     integer, intent(out) :: id
-    integer :: i, idx(1)
+    integer :: i
     real(c_double) :: A(size(X),4), X12(size(X)), U(size(X))
     real(c_double) :: th1, Y, F, V, W, A5, A6
     A(:,1) = X-X0; A(:,2) = Q(:,1)-A(:,1)
@@ -271,32 +271,23 @@ Contains
     ELSEWHERE
       U = X12*Q(:,1) ! Use the sign of dX/dt(t0) otherwise
     ENDWHERE
-    if(ALL(U>0d0)) then ! All the roots are between 0.5 < th < 1
-      WHERE(X/=0)
-        U = 1d0/(X*(1d0/X-1d0/X12))
-      ELSEWHERE ! Corner case where X == 0
-        U = 1d0
-      ENDWHERE
-      idx = MINLOC(U)
-      id = idx(1)
-      th = 0.5d0+0.5d0*U(id)
-    elseif(ANY(U<0d0)) then ! One root exists between 0 < th < 0.5
-      WHERE(U<0)
-        U=1d0/(X12*(1d0/X12-1d0/X0))
-      ELSEWHERE
-        U= HUGE(1d0)
-      ENDWHERE
-      idx = MINLOC(U)
-      id = idx(1)
-      th = 0.5d0*U(id)
-    else ! No root between ]0, 0.5[ but one root on 0.5
-      ! Corner case (avoid division by 0)
-      th = 0.5d0
-      idx = MINLOC(abs(U))
-      id = idx(1)
-      RETURN
-    endif
-    id = idx(1)
+    th = 2d0
+    Do i=1,size(X)
+      if(X12(i)*X0(i) >= 0) then
+        if(th <= 0.5d0) CYCLE
+        if(X(i) == 0) then
+          V = 1d0
+        else
+          V = 1d0/(X(i)*(1d0/X(i)-1d0/X12(i)))
+        endif
+      else
+        V = 1d0/(X12(i)*(1d0/X12(i)-1d0/X0(i)))
+      endif
+      if(V < th) then
+        th = V
+        id = i
+      endif
+    End Do
     ! Use Newton-Ralphson to polish the root th
     V = 0.1d0*MAX(atol, rtol*ABS(X0(id)+X(id)))
     ASSOCIATE(A0 => X0(id), A1 => A(id,1), A2 => A(id,2), A3 => A(id,3), A4 => A(id,4))

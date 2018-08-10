@@ -29,11 +29,11 @@ Contains
     info = ode%init(fun, X0Arenstorf, tMax = TEndArenstorf, atoli = 1d-5, rtoli = 1d-5)
     if(info < 0) RETURN
     j = 1
-    print *, 0, ode%t0, ode%X0
+    print *, ode%t0, ode%X0
     Do i=1,N
       info = ode%step()
       if(info == mlf_ODE_SoftCstr) then
-        print *, ode%X
+        print *, ode%t, ode%X
         ode%X(1) = 0
       endif
       Do k = j,Npoints
@@ -45,6 +45,7 @@ Contains
       j = k
       if(info == mlf_ODE_StopT) EXIT
     End Do
+    print *, ode%t, ode%X
     Do k = j,Npoints
       t = real(k-1,8)/real(Npoints-1,8)*ode%tMax
       call ode%denseEvaluation(t, trajectory(:,k))

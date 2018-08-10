@@ -201,82 +201,74 @@ Contains
     endif
   End Function mlf_ode45_errorFun
 
-  Subroutine mlf_ode45_updateDense(this)
-    class(mlf_ode45_obj), intent(inout) :: this
-    real(c_double) :: dt
-    dt = this%t-this%t0
-    ASSOCIATE(A => this%Cont, K => this%K)
-      A(:,1) = this%X-this%X0
-      A(:,2) = dt*K(:,1)-A(:,1)
-      A(:,3) = -dt*K(:,7)+A(:,1)-A(:,2)
-      A(:,4) = dt*matmul(K,DC)
-    END ASSOCIATE
-    this%lastT = this%t
-  End Subroutine mlf_ode45_updateDense
-
   Integer Function mlf_ode45_findRoot(this, fun, hMax) result(info)
     class(mlf_ode45_obj), intent(inout) :: this
     class(mlf_ode_funCstr), intent(inout) :: fun
     real(c_double), intent(inout) :: hMax
-    real(c_double) :: X0(size(fun%cstrTmp)), U, dt, h
+    real(c_double) :: C(size(fun%cstrTmp)), U, dt, h
     integer :: ids(size(fun%cstrTmp)), i, j, id
     info = 0
-    X0 = fun%cstrTmp
-    h = fun%updateCstr(this%t, this%X, this%K(:,7))
+    CALL fun%getCstr(this%X, C)
     hMax = MIN(h, hMax)
     j = 0
     Do i =1,size(fun%cstrTmp)
-      U = X0(i)*fun%cstrTmp(i)
-      if(U > 0) CYCLE
-      if(U == 0) then
-        U = dot_product(this%K(:,1), fun%cstrVect(:,i))*fun%cstrTmp(i)
-        if(U >= 0) CYCLE
+      if(C(i) /= 0) then
+        U = C(i)*fun%cstrTmp(i)
+        if(U > 0) CYCLE
+        if(U == 0) then
+          U = dot_product(this%K(:,1), fun%cstrVect(:,i))*C(i)
+          if(U >= 0) CYCLE
+        endif
       endif
       j = j+1
       ids(j) = i
     End Do
-    if(j == 0) RETURN
+    if(j == 0) then
+      h = fun%updateCstr(this%t, this%X, C, this%K(:,7))
+      hMax = MIN(h, hMax)
+      RETURN
+    endif
     dt = this%t-this%t0
     hMax = ODE45FindRoot(this%rtoli, this%atoli, ids(1:j), fun%cstrVect, this%K, &
-      X0, fun%cstrTmp, dt, id)
+      fun%cstrTmp, C, dt, id)
     call this%denseEvaluation(this%t0+hMax, this%X)
     this%t = this%t0 + hMax
     info = fun%reachCstr(this%t, id, this%X)
   End Function mlf_ode45_findRoot
 
-  real(c_double) Function ODE45FindRoot(rtol, atol, ids, C, K, X0, X, dt, id) result(hMax)
-    real(c_double), intent(in) :: C(:,:), K(:, :), X0(:), X(:), rtol, atol, dt
+  real(c_double) Function ODE45FindRoot(rtol, atol, ids, A, K, C0, C, dt, id) result(hMax)
+    real(c_double), intent(in) :: A(:,:), K(:, :), C0(:), C(:), rtol, atol, dt
     integer, intent(in) :: ids(:)
     integer, intent(out) :: id
-    hMax = dt*Dense45FindRoot(rtol, atol, dt*MATMUL(transpose(C(:,ids)), K), X0(ids), X(ids), id)
+    hMax = dt*Dense45FindRoot(rtol, atol, dt*MATMUL(transpose(A(:,ids)), K), C0(ids), C(ids), id)
     id = ids(id)
   End Function ODE45FindRoot
 
   ! Find root of the constraints using dense output
-  ! CORNER CASE: the case where X0=X(t0)=0 and dX/dt(t0)=Q(:,1)=0 shall be avoided
-  real(c_double) Function Dense45FindRoot(rtol, atol, Q, X0, X, id) result(th)
-    real(c_double), intent(in) :: Q(:, :), X0(:), X(:), rtol, atol
+  ! CORNER CASE: the case where C0=C(t0)=0 and dC/dt(t0)=Q(:,1)=0 shall be avoided
+  real(c_double) Function Dense45FindRoot(rtol, atol, Q, C0, C, id) result(th)
+    real(c_double), intent(in) :: Q(:, :), C0(:), C(:), rtol, atol
     integer, intent(out) :: id
     integer :: i
-    real(c_double) :: A(size(X),4), X12(size(X)), thI
+    real(c_double) :: A(size(C),4), C12(size(C)), thI
     real(c_double) :: th1, Y, F, V, W, A5, A6
-    A(:,1) = X-X0; A(:,2) = Q(:,1)-A(:,1)
+    A(:,1) = C-C0; A(:,2) = Q(:,1)-A(:,1)
     A(:,3) = -Q(:,7)+A(:,1)-A(:,2)
     A(:,4) = matmul(Q,DC)
     ! Do a bissection step and then a secant step
     ! Evaluate Y(0.5)
-    X12 = X0+0.5d0*(A(:,1)+0.5d0*(A(:,2)+0.5d0*(A(:,3)+0.5d0*A(:,4))))
+    C12 = C0+0.5d0*(A(:,1)+0.5d0*(A(:,2)+0.5d0*(A(:,3)+0.5d0*A(:,4))))
     th = 2d0
-    Do i=1,size(X)
-      if(X12(i)*X0(i) >= 0) then
+    Do i=1,size(C)
+      if(C12(i)*C0(i) >= 0) then
         if(th <= 0.5d0) CYCLE
-        if(X(i) == 0) then
+        if(C(i) == 0) then
           thI = 1d0
         else
-          thI = 1d0/(X(i)*(1d0/X(i)-1d0/X12(i)))
+          thI = 1d0/(C(i)*(1d0/C(i)-1d0/C12(i)))
         endif
       else
-        thI = 1d0/(X12(i)*(1d0/X12(i)-1d0/X0(i)))
+        thI = 1d0/(C12(i)*(1d0/C12(i)-1d0/C0(i)))
       endif
       if(thI < th) then
         th = thI
@@ -284,8 +276,8 @@ Contains
       endif
     End Do
     ! Use Newton-Ralphson to polish the root th
-    V = 0.1d0*MAX(atol, rtol*ABS(X0(id)+X(id)))
-    ASSOCIATE(A0 => X0(id), A1 => A(id,1), A2 => A(id,2), A3 => A(id,3), A4 => A(id,4))
+    V = 0.1d0*MAX(atol, rtol*ABS(C0(id)+C(id)))
+    ASSOCIATE(A0 => C0(id), A1 => A(id,1), A2 => A(id,2), A3 => A(id,3), A4 => A(id,4))
       A5 = -4d0*A4-2d0*A3
       A6 = A4+A3-A2
       Do i=1,10
@@ -298,6 +290,19 @@ Contains
       End Do
     END ASSOCIATE
   End Function Dense45FindRoot
+
+  Subroutine mlf_ode45_updateDense(this)
+    class(mlf_ode45_obj), intent(inout) :: this
+    real(c_double) :: dt
+    dt = this%t-this%t0
+    ASSOCIATE(A => this%Cont, K => this%K)
+      A(:,1) = this%X-this%X0
+      A(:,2) = dt*K(:,1)-A(:,1)
+      A(:,3) = -dt*K(:,7)+A(:,1)-A(:,2)
+      A(:,4) = dt*matmul(K,DC)
+    END ASSOCIATE
+    this%lastT = this%t
+  End Subroutine mlf_ode45_updateDense
 
   Subroutine mlf_ode45_denseEvaluation(this, t, Y)
     class(mlf_ode45_obj), intent(inout) :: this
@@ -383,7 +388,11 @@ Contains
       this%nFun = this%nFun + 1
       SELECT TYPE(fun)
       class is (mlf_ode_funCstr)
-        hMax = fun%updateCstr(t, X0, K(:,1))
+        BLOCK
+          real(c_double) :: C(size(fun%cstrTmp))
+          CALL fun%getCstr(X0, C)
+          hMax = fun%updateCstr(t, X, C, K(:,1))
+        END BLOCK
       END SELECT
       do while(i <= niter0)
         this%t0 = t

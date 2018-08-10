@@ -107,6 +107,7 @@ Module mlf_fun_intf
   Contains
     procedure :: updateCstr => mlf_ode_updateCstr
     procedure :: reachCstr => mlf_ode_reachCstr
+    procedure :: getCstr => mlf_ode_getCstr
   End Type mlf_ode_funCstr
 
   Integer, Parameter, Public :: mlf_ODE_StopT = 2, mlf_ODE_SoftCstr = 3, mlf_ODE_HardCstr = 4
@@ -186,28 +187,34 @@ Contains
     endif
     info = mlf_ODE_SoftCstr
   End Function mlf_ode_reachCstr
+  
+  Subroutine mlf_ode_getCstr(this, X, C)
+    class(mlf_ode_funCstr), intent(inout), target :: this
+    real(c_double), intent(in), target :: X(:)
+    real(c_double), intent(out), target :: C(:)
+    C = MATMUL(X, this%cstrVect) - this%cstrVal
+  End Subroutine mlf_ode_getCstr
 
   ! Default function for updateCstr
-  Real(c_double) Function mlf_ode_updateCstr(this, t, X, F) result(hMax)
+  Real(c_double) Function mlf_ode_updateCstr(this, t, X, C, F) result(hMax)
     class(mlf_ode_funCstr), intent(inout), target :: this
-    real(c_double), intent(in), target :: X(:), F(:)
+    real(c_double), intent(in), target :: X(:), C(:), F(:)
     real(c_double), intent(in) :: t
-    real(c_double) :: U(size(this%cstrTmp)), h
+    real(c_double) :: U(size(C)), h
     integer :: i
     hmax = HUGE(hMax)
     this%cstrId = -1
-    this%cstrTmp = MATMUL(X, this%cstrVect) - this%cstrVal(:)
+    this%cstrTmp = C
     U = MATMUL(F, this%cstrVect)
-    if(ALL(U >= 0)) RETURN ! No visible roots
-    Do i=1, size(this%cstrTmp)
-      if(U(i)*this%cstrTmp(i)<0) then
-        h = -this%cstrAlpha(i)*this%cstrTmp(i)/U(i)
+    Do i=1, size(C)
+      if(U(i)*C(i)<0) then
+        h = -this%cstrAlpha(i)*C(i)/U(i)
         if(h >= hMax) CYCLE
         hMax = h
         this%cstrId = i
+        this%cstrT = t+hMax
       endif
     End Do
-    this%cstrT = t+hMax
   End Function mlf_ode_updateCstr
 
   Integer Function mlf_basis_c_eval(this, X, rpar, Y) result(info)

@@ -278,6 +278,7 @@ Contains
         U = 1d0
       ENDWHERE
       idx = MINLOC(U)
+      id = idx(1)
       th = 0.5d0+0.5d0*U(id)
     elseif(ANY(U<0d0)) then ! One root exists between 0 < th < 0.5
       WHERE(U<0)
@@ -286,6 +287,7 @@ Contains
         U= HUGE(1d0)
       ENDWHERE
       idx = MINLOC(U)
+      id = idx(1)
       th = 0.5d0*U(id)
     else ! No root between ]0, 0.5[ but one root on 0.5
       ! Corner case (avoid division by 0)

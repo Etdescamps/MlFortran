@@ -190,23 +190,21 @@ Contains
     class(mlf_ode_funCstr), intent(inout), target :: this
     real(c_double), intent(in), target :: X(:), F(:)
     real(c_double), intent(in) :: t
-    real(c_double) :: U(size(this%cstrTmp))
-    integer :: i, id(1)
-    forall(i=1:size(this%cstrTmp)) this%cstrVect(:,i) = -this%cstrVal(:)
-    this%cstrTmp = MATMUL(X, this%cstrVect)
+    real(c_double) :: U(size(this%cstrTmp)), h
+    integer :: i
+    hmax = HUGE(hMax)
+    this%cstrId = -1
+    this%cstrTmp = MATMUL(X, this%cstrVect) - this%cstrVal(:)
     U = MATMUL(F, this%cstrVect)
-    if(ALL(U >= 0)) then
-      hmax = HUGE(hMax)
-      this%cstrId = -1
-    endif
-    WHERE(U < 0)
-      U = -this%cstrAlpha*this%cstrTmp/U
-    ELSEWHERE
-      U = HUGE(hMax)
-    ENDWHERE
-    id = MINLOC(U)
-    this%cstrId = id(1)
-    hMax = U(this%cstrId)
+    if(ALL(U >= 0)) RETURN ! No visible roots
+    Do i=1, size(this%cstrTmp)
+      if(U(i)*this%cstrTmp(i)<0) then
+        h = -this%cstrAlpha(i)*this%cstrTmp(i)/U(i)
+        if(h >= hMax) CYCLE
+        hMax = h
+        this%cstrId = i
+      endif
+    End Do
     this%cstrT = t+hMax
   End Function mlf_ode_updateCstr
 

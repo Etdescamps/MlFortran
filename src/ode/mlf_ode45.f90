@@ -229,7 +229,7 @@ Contains
       U = X0(i)*fun%cstrTmp(i)
       if(U > 0) CYCLE
       if(U == 0) then
-        U = dot_product(this%K(:,1), fun%cstrVect(:,i))
+        U = dot_product(this%K(:,1), fun%cstrVect(:,i))*fun%cstrTmp(i)
         if(U >= 0) CYCLE
       endif
       j = j+1
@@ -239,8 +239,8 @@ Contains
     dt = this%t-this%t0
     hMax = ODE45FindRoot(this%rtoli, this%atoli, ids(1:j), fun%cstrVect, this%K, &
       X0, fun%cstrTmp, dt, id)
+    call this%denseEvaluation(this%t0+hMax, this%X)
     this%t = this%t0 + hMax
-    call this%denseEvaluation(this%t, this%X)
     info = fun%reachCstr(this%t, id, this%X)
   End Function mlf_ode45_findRoot
 

@@ -258,7 +258,7 @@ Contains
     real(c_double), intent(in) :: Q(:, :), X0(:), X(:), rtol, atol
     integer, intent(out) :: id
     integer :: i
-    real(c_double) :: A(size(X),4), X12(size(X)), U(size(X))
+    real(c_double) :: A(size(X),4), X12(size(X))
     real(c_double) :: th1, Y, F, V, W, A5, A6
     A(:,1) = X-X0; A(:,2) = Q(:,1)-A(:,1)
     A(:,3) = -Q(:,7)+A(:,1)-A(:,2)
@@ -266,11 +266,6 @@ Contains
     ! Do a bissection step and then a secant step
     ! Evaluate Y(0.5)
     X12 = X0+0.5d0*(A(:,1)+0.5d0*(A(:,2)+0.5d0*(A(:,3)+0.5d0*A(:,4))))
-    WHERE(X0 /= 0d0)
-      U = X12*X0 ! Use the sign of X(t0) if X(t0) /= 0
-    ELSEWHERE
-      U = X12*Q(:,1) ! Use the sign of dX/dt(t0) otherwise
-    ENDWHERE
     th = 2d0
     Do i=1,size(X)
       if(X12(i)*X0(i) >= 0) then

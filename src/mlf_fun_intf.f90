@@ -109,6 +109,8 @@ Module mlf_fun_intf
     procedure :: reachCstr => mlf_ode_reachCstr
   End Type mlf_ode_funCstr
 
+  Integer, Parameter, Public :: mlf_ODE_StopT = 2, mlf_ODE_SoftCstr = 3, mlf_ODE_HardCstr = 4
+
   Abstract Interface
 
     ! Abstract ODE function type
@@ -182,7 +184,7 @@ Contains
     if(this%cstrId == id .AND. t > this%cstrT) then
       this%cstrAlpha(id) = 1.5d0*this%cstrAlpha(id)
     endif
-    info = 0
+    info = mlf_ODE_SoftCstr
   End Function mlf_ode_reachCstr
 
   ! Default function for updateCstr

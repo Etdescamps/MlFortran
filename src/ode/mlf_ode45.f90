@@ -77,8 +77,7 @@ Module mlf_ode45
     procedure :: stiffDetect => mlf_ode45_stiffDetect
   End Type mlf_ode45_obj
 
-  Integer, Parameter, Public :: mlf_ODE_FunError = -1, mlf_ODE_Stiff = -2
-  Integer, Parameter, Public :: mlf_ODE_StopT = 2, mlf_ODE_SoftCstr = 3, mlf_ODE_HardCstr = 4
+  Integer, Parameter, Public :: mlf_ODE_FunError = -1, mlf_ODE_Stiff = -2 
 
 Contains
   integer Function mlf_ode45_reinit(this) result(info)
@@ -223,7 +222,8 @@ Contains
     integer :: ids(size(fun%cstrTmp)), i, j, id
     info = 0
     X0 = fun%cstrTmp
-    hMax = fun%updateCstr(this%t, this%X, this%K(:,7))
+    h = fun%updateCstr(this%t, this%X, this%K(:,7))
+    hMax = MIN(h, hMax)
     j = 0
     Do i =1,size(fun%cstrTmp)
       U = X0(i)*fun%cstrTmp(i)
@@ -237,10 +237,9 @@ Contains
     End Do
     if(j == 0) RETURN
     dt = this%t-this%t0
-    h = ODE45FindRoot(this%rtoli, this%atoli, ids(1:j), fun%cstrVect, this%K, &
+    hMax = ODE45FindRoot(this%rtoli, this%atoli, ids(1:j), fun%cstrVect, this%K, &
       X0, fun%cstrTmp, dt, id)
-    this%t = this%t0 + h
-    hMax = MIN(h, hMax)
+    this%t = this%t0 + hMax
     call this%denseEvaluation(this%t, this%X)
     info = fun%reachCstr(this%t, id, this%X)
   End Function mlf_ode45_findRoot
@@ -268,7 +267,7 @@ Contains
     ! Evaluate Y(0.5)
     X12 = X0+0.5d0*(A(:,1)+0.5d0*(A(:,2)+0.5d0*(A(:,3)+0.5d0*A(:,4))))
     WHERE(X0 /= 0d0)
-      X12 = X12*X0 ! Use the sign of X(t0) if X(t0) /= 0
+      U = X12*X0 ! Use the sign of X(t0) if X(t0) /= 0
     ELSEWHERE
       U = X12*Q(:,1) ! Use the sign of dX/dt(t0) otherwise
     ENDWHERE
@@ -309,7 +308,7 @@ Contains
         F = W+th*(th*(3d0*A4*th+A5)+A6)
         Y = A0+th*W
         th = th-Y/F
-        if(abs(Y)>V) EXIT
+        if(abs(Y)<V) EXIT
       End Do
     END ASSOCIATE
   End Function Dense45FindRoot
@@ -438,10 +437,8 @@ Contains
         SELECT TYPE(fun)
         class is (mlf_ode_funCstr)
           info = this%findRoot(fun, hMax)
-          if(info /= 0) THEN
-            info = mlf_ODE_SoftCstr
-            EXIT
-          endif
+          if(info > 0) EXIT
+          if(info < 0) RETURN
         END SELECT
         if(wasStopped) then ! The evaluation constraint is reach
           info = mlf_ODE_HardCstr

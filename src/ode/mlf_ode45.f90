@@ -211,7 +211,7 @@ Contains
     CALL fun%getCstr(this%X, C)
     hMax = MIN(h, hMax)
     j = 0
-    Do i =1,size(fun%cstrTmp)
+    Do i =1,size(C)
       if(C(i) /= 0) then
         U = C(i)*fun%cstrTmp(i)
         if(U > 0) CYCLE

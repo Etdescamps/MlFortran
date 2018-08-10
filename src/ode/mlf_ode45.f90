@@ -42,16 +42,18 @@ Module mlf_ode45
   ! This code is based on formulæ from the book Solving Ordinary Differential Equation I
   ! by Hairer, Nørsett and Wanner (DOPRI5) (2009 Springer, ISBN 978-3-642-05163-0)
 
-  real(c_double), Parameter :: A2 = 0.2d0
-  real(c_double), Parameter :: A3(2) = [3d0/40d0, 9d0/40d0]
-  real(c_double), Parameter :: A4(3) = [44d0/45d0, -56d0/15d0, 32d0/9d0]
-  real(c_double), Parameter :: A5(4) = [19372d0/6561d0, -25360d0/2187d0, 64448d0/6561d0, -212d0/729d0]
-  real(c_double), Parameter :: A6(5) = [9017d0/3168d0, -355d0/33d0, 46732d0/5247d0, 49d0/176d0, -5103d0/18656d0]
-  real(c_double), Parameter :: A7(6) = [35d0/384d0, 0d0, 500d0/1113d0, 125d0/192d0, -2187d0/6784d0, 11d0/84d0]
-  real(c_double), Parameter :: C(7) = [0d0, 0.2d0, 0.3d0, 0.8d0, 8d0/9d0, 1d0, 1d0]
-  real(c_double), Parameter :: EC(7) = [71d0/57600d0, 0d0, -71d0/16695d0, &
+  real(c_double), Parameter :: DOPRI5_A2 = 0.2d0
+  real(c_double), Parameter :: DOPRI5_A3(2) = [3d0/40d0, 9d0/40d0]
+  real(c_double), Parameter :: DOPRI5_A4(3) = [44d0/45d0, -56d0/15d0, 32d0/9d0]
+  real(c_double), Parameter :: DOPRI5_A5(4) = [19372d0/6561d0, -25360d0/2187d0, 64448d0/6561d0, -212d0/729d0]
+  real(c_double), Parameter :: DOPRI5_A6(5) = [9017d0/3168d0, -355d0/33d0, 46732d0/5247d0, &
+    49d0/176d0, -5103d0/18656d0]
+  real(c_double), Parameter :: DOPRI5_A7(6) = [35d0/384d0, 0d0, 500d0/1113d0, 125d0/192d0, &
+    -2187d0/6784d0, 11d0/84d0]
+  real(c_double), Parameter :: DOPRI5_C(7) = [0d0, 0.2d0, 0.3d0, 0.8d0, 8d0/9d0, 1d0, 1d0]
+  real(c_double), Parameter :: DOPRI5_EC(7) = [71d0/57600d0, 0d0, -71d0/16695d0, &
     71d0/1920d0, -17253d0/339200d0, 22d0/525d0, -0.025d0]
-  real(c_double), Parameter :: DC(7) = [-12715105075d0/11282082432d0, 0d0, 87487479700d0/32700410799d0, &
+  real(c_double), Parameter :: DOPRI5_DC(7) = [-12715105075d0/11282082432d0, 0d0, 87487479700d0/32700410799d0, &
     -10690763975d0/1880347072d0, 701980252875d0/199316789632d0, -1453857185d0/822651844d0, 69997945d0/29380423d0]
 
   Type, Public, extends(mlf_step_obj) :: mlf_ode45_obj
@@ -209,7 +211,6 @@ Contains
     integer :: ids(size(fun%cstrTmp)), i, j, id
     info = 0
     CALL fun%getCstr(this%X, C)
-    hMax = MIN(h, hMax)
     j = 0
     Do i =1,size(C)
       if(C(i) /= 0) then
@@ -254,7 +255,7 @@ Contains
     real(c_double) :: th1, Y, F, V, W, A5, A6
     A(:,1) = C-C0; A(:,2) = Q(:,1)-A(:,1)
     A(:,3) = -Q(:,7)+A(:,1)-A(:,2)
-    A(:,4) = matmul(Q,DC)
+    A(:,4) = matmul(Q,DOPRI5_DC)
     ! Do a bissection step and then a secant step
     ! Evaluate Y(0.5)
     C12 = C0+0.5d0*(A(:,1)+0.5d0*(A(:,2)+0.5d0*(A(:,3)+0.5d0*A(:,4))))
@@ -299,7 +300,7 @@ Contains
       A(:,1) = this%X-this%X0
       A(:,2) = dt*K(:,1)-A(:,1)
       A(:,3) = -dt*K(:,7)+A(:,1)-A(:,2)
-      A(:,4) = dt*matmul(K,DC)
+      A(:,4) = dt*matmul(K,DOPRI5_DC)
     END ASSOCIATE
     this%lastT = this%t
   End Subroutine mlf_ode45_updateDense
@@ -385,6 +386,7 @@ Contains
       hMax = this%hMax; alphaH = HUGE(alphaH)
       X0 = X
       info = fun%eval(t, X, K(:,1))
+      if(info /=0) RETURN
       this%nFun = this%nFun + 1
       SELECT TYPE(fun)
       class is (mlf_ode_funCstr)
@@ -400,24 +402,24 @@ Contains
         if(info > 0) wasStopped = .TRUE. ! was stopped by a constraint from eval
         if(t+h >= this%tMax) h = this%tMax-t
         if(h<0) RETURN
-        info = fun%eval(t+C(2)*h, X0+h*A2*K(:,1), K(:,2))
-        if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(2)*h; CYCLE; endif
-        info = fun%eval(t+C(3)*h, X0+h*MATMUL(K(:,1:2), A3), K(:,3))
-        if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(3)*h; CYCLE; endif
-        info = fun%eval(t+C(4)*h, X0+h*MATMUL(K(:,1:3), A4), K(:,4))
-        if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(4)*h; CYCLE; endif
-        info = fun%eval(t+C(5)*h, X0+h*MATMUL(K(:,1:4), A5), K(:,5))
-        if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(5)*h; CYCLE; endif
+        info = fun%eval(t+DOPRI5_C(2)*h, X0+h*DOPRI5_A2*K(:,1), K(:,2))
+        if(info<0) RETURN; if(info>0) then; hMax = 0.5*DOPRI5_C(2)*h; CYCLE; endif
+        info = fun%eval(t+DOPRI5_C(3)*h, X0+h*MATMUL(K(:,1:2), DOPRI5_A3), K(:,3))
+        if(info<0) RETURN; if(info>0) then; hMax = 0.5*DOPRI5_C(3)*h; CYCLE; endif
+        info = fun%eval(t+DOPRI5_C(4)*h, X0+h*MATMUL(K(:,1:3), DOPRI5_A4), K(:,4))
+        if(info<0) RETURN; if(info>0) then; hMax = 0.5*DOPRI5_C(4)*h; CYCLE; endif
+        info = fun%eval(t+DOPRI5_C(5)*h, X0+h*MATMUL(K(:,1:4), DOPRI5_A5), K(:,5))
+        if(info<0) RETURN; if(info>0) then; hMax = 0.5*DOPRI5_C(5)*h; CYCLE; endif
         ! Ysti is used by DOPRI5 for stiffness detection
-        Xsti = X0+h*MATMUL(K(:,1:5), A6)
-        info = fun%eval(t+C(6)*h, Xsti, K(:,6))
-        if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(6)*h; CYCLE; endif
+        Xsti = X0+h*MATMUL(K(:,1:5), DOPRI5_A6)
+        info = fun%eval(t+DOPRI5_C(6)*h, Xsti, K(:,6))
+        if(info<0) RETURN; if(info>0) then; hMax = 0.5*DOPRI5_C(6)*h; CYCLE; endif
         ! Y Contains the value of X(t+h)
-        X = X0+h*MATMUL(K(:,1:6), A7)
-        info = fun%eval(t+C(7)*h, X, K(:,7))
-        if(info<0) RETURN; if(info>0) then; hMax = 0.5*C(7)*h; CYCLE; endif
+        X = X0+h*MATMUL(K(:,1:6), DOPRI5_A7)
+        info = fun%eval(t+DOPRI5_C(7)*h, X, K(:,7))
+        if(info<0) RETURN; if(info>0) then; hMax = 0.5*DOPRI5_C(7)*h; CYCLE; endif
         this%nFun = this%nFun + 6
-        err = this%errorFun(MATMUL(K,EC), X0, X, h)
+        err = this%errorFun(MATMUL(K,DOPRI5_EC), X0, X, h)
         if(err > 1d0) CYCLE
         ! Update X and t
         t = t + h

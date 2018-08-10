@@ -219,7 +219,7 @@ Contains
     class(mlf_ode45_obj), intent(inout) :: this
     class(mlf_ode_funCstr), intent(inout) :: fun
     real(c_double), intent(inout) :: hMax
-    real(c_double) :: X0(size(fun%cstrTmp)), U, dt
+    real(c_double) :: X0(size(fun%cstrTmp)), U, dt, h
     integer :: ids(size(fun%cstrTmp)), i, j, id
     info = 0
     X0 = fun%cstrTmp
@@ -237,9 +237,10 @@ Contains
     End Do
     if(j == 0) RETURN
     dt = this%t-this%t0
-    hMax = ODE45FindRoot(this%rtoli, this%atoli, ids(1:j), fun%cstrVect, this%K, &
+    h = ODE45FindRoot(this%rtoli, this%atoli, ids(1:j), fun%cstrVect, this%K, &
       X0, fun%cstrTmp, dt, id)
-    this%t = this%t0 + hMax
+    this%t = this%t0 + h
+    hMax = MIN(h, hMax)
     call this%denseEvaluation(this%t, this%X)
     info = fun%reachCstr(this%t, id, this%X)
   End Function mlf_ode45_findRoot
@@ -248,7 +249,7 @@ Contains
     real(c_double), intent(in) :: C(:,:), K(:, :), X0(:), X(:), rtol, atol, dt
     integer, intent(in) :: ids(:)
     integer, intent(out) :: id
-    hMax = Dense45FindRoot(rtol, atol, dt*MATMUL(transpose(C(:,ids)), K), X0(ids), X(ids), id)
+    hMax = dt*Dense45FindRoot(rtol, atol, dt*MATMUL(transpose(C(:,ids)), K), X0(ids), X(ids), id)
     id = ids(id)
   End Function ODE45FindRoot
 

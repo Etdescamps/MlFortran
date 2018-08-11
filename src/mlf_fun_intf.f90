@@ -185,6 +185,7 @@ Contains
     if(this%cstrId == id .AND. t > this%cstrT) then
       this%cstrAlpha(id) = 1.5d0*this%cstrAlpha(id)
     endif
+    this%cstrId = id
     info = mlf_ODE_SoftCstr
   End Function mlf_ode_reachCstr
   

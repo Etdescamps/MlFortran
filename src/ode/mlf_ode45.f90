@@ -62,8 +62,8 @@ Module mlf_ode45
     real(c_double), pointer :: K(:,:), X0(:), X(:), t0, t, tMax
     real(c_double), allocatable :: Cont(:,:)
     real(c_double) :: lastT
-    integer(c_int64_t), pointer :: nAccept, nReject, nStiff, nFun
-    integer :: nonStiff, iStiff
+    integer(c_int64_t), pointer :: nFun, nStiff
+    integer :: nAccept, nReject, nonStiff, iStiff
     class(mlf_ode_fun), pointer :: fun
   Contains
     procedure :: reinitT => mlf_ode45_reinitT
@@ -140,8 +140,6 @@ Contains
     ! Integer parameters
     call this%addIPar(numFields, this%nStiff, "nStiff")
     ! Integer variables
-    call this%addIVar(numFields, this%nAccept, "nAccept")
-    call this%addIVar(numFields, this%nReject, "nReject")
     call this%addIVar(numFields, this%nFun, "nFun")
     ! Real parameters
     call this%addRPar(numFields, this%atoli, "atoli")
@@ -383,6 +381,7 @@ Contains
       niter = 0
       RETURN
     endif
+    this%nAccept = 0; this%nReject = 0
     t = this%t
     ASSOCIATE(K => this%K, X0 =>this%X0, X => this%X, fun => this%fun)
       hMax = this%hMax; alphaH = HUGE(alphaH)
@@ -426,7 +425,7 @@ Contains
         ! Update X and t
         t = t + h
         this%t = t
-        if(MOD(this%nAccept, this%nStiff) == 0 .OR. this%iStiff > 0) then
+        if(MOD(this%nAccept, int(this%nStiff,4)) == 0 .OR. this%iStiff > 0) then
           if(this%stiffDetect(h, X, Xsti, K(:,7), K(:,6))) then
             info = mlf_ODE_Stiff
             EXIT

@@ -234,7 +234,9 @@ Contains
       fun%cstrTmp, C, dt, id)
     call this%denseEvaluation(this%t0+hMax, this%X)
     this%t = this%t0 + hMax
-    info = fun%reachCstr(this%t, id, this%X)
+    info = fun%reachCstr(this%t, id, this%X, this%K(:,1))
+    h = this%t-this%t0
+    hMax = MIN(h, hMax)
   End Function mlf_ode45_findRoot
 
   real(c_double) Function ODE45FindRoot(rtol, atol, ids, A, K, C0, C, dt, id) result(hMax)
@@ -277,7 +279,7 @@ Contains
       endif
     End Do
     ! Use Newton-Ralphson to polish the root th
-    V = 0.1d0*MAX(atol, rtol*ABS(C0(id)+C(id)))
+    V = atol+rtol*ABS(C0(id)+C(id))
     ASSOCIATE(A0 => C0(id), A1 => A(id,1), A2 => A(id,2), A3 => A(id,3), A4 => A(id,4))
       A5 = -4d0*A4-2d0*A3
       A6 = A4+A3-A2
@@ -441,7 +443,7 @@ Contains
           info = mlf_ODE_HardCstr
           EXIT
         endif
-        if(h >= this%tMax-t) then
+        if(this%tMax <= t) then
             info = mlf_ODE_StopT
             EXIT
         endif

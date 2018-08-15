@@ -177,15 +177,28 @@ Module mlf_fun_intf
 Contains
 
   ! Default function that update the alpha if t is reached after cstrT
-  Integer Function mlf_ode_reachCstr(this, t, id, X) result(info)
+  ! Reevaluate dF/dt and move slightly t and X for reaching the condition
+  ! The root should be near the value t (< tol)
+  Integer Function mlf_ode_reachCstr(this, t, id, X, F) result(info)
     class(mlf_ode_funCstr), intent(inout), target :: this
-    real(c_double), intent(inout), target :: X(:)
-    real(c_double), intent(in) :: t
+    real(c_double), intent(inout), target :: t, X(:), F(:)
+    real(c_double) :: h, Uid
     integer, intent(in) :: id
     if(this%cstrId == id .AND. t > this%cstrT) then
       this%cstrAlpha(id) = 1.5d0*this%cstrAlpha(id)
     endif
     this%cstrId = id
+    ! Compute the value of the constraints
+    Uid = DOT_PRODUCT(X, this%cstrVect(:,id))-this%cstrVal(id)
+    info = this%eval(t, X, F)
+    if(info<0) RETURN
+    ! Compute h such as <X(t+h),cstrVect(:,id)> = 0
+    ! As h is very small, X(t+h)=X(t)+h*F(t)+O(h²)
+    ! So with h = -<X(t),cstrVect(:,id)>/<F(t),cstrVect(:,id)>
+    ! we will have <X(t)+h*F(t),cstrVect(:,id)> = 0
+    h = -Uid/DOT_PRODUCT(F, this%cstrVect(:,id))
+    t = t+h
+    X = X + h*F
     info = mlf_ODE_SoftCstr
   End Function mlf_ode_reachCstr
   

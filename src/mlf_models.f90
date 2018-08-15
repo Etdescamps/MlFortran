@@ -163,6 +163,7 @@ Contains
     real(c_double), intent(out) :: W(:,:)
     real(c_double), optional, intent(out) :: Aerror(:,:)
     integer :: i
+    info = 0
     Do i=1,size(Y,2)
       info = this%getProj(Y(:,i), W(:,i), Aerror(:,i))
     End Do
@@ -176,6 +177,7 @@ Contains
     real(c_double) :: Y0(size(Y,1))
     real(c_double) :: W0(size(W,1))
     integer :: i, l
+    info = 0
     if(present(Aerror)) then
       l = size(Aerror, 1)
       BLOCK
@@ -202,7 +204,11 @@ Contains
     real(c_double) :: Z(size(W))
     integer :: info
     info = this%getValueBasis(x, Z)
-    Y = dot_product(W,Z)
+    if(info == 0) then
+      Y = DOT_PRODUCT(W,Z)
+    else
+      Y = ieee_value(0d0, ieee_quiet_nan)
+    endif
   End Function mlf_approx_linear_getValue
 
   integer Function mlf_model_getClass_proba(this, X, Cl) result(info)

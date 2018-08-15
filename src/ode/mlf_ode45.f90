@@ -229,13 +229,11 @@ Contains
       RETURN
     endif
     dt = this%t-this%t0
-    hMax = ODE45FindRoot(this%rtoli, this%atoli, ids(1:j), fun%cstrVect, this%K, &
+    h = ODE45FindRoot(this%rtoli, this%atoli, ids(1:j), fun%cstrVect, this%K, &
       fun%cstrTmp, C, dt, id)
-    call this%denseEvaluation(this%t0+hMax, this%X)
-    this%t = this%t0 + hMax
+    call this%denseEvaluation(this%t0+h, this%X)
+    this%t = this%t0 + h
     info = fun%reachCstr(this%t, id, this%X, this%K(:,1))
-    h = this%t-this%t0
-    hMax = MIN(h, hMax)
   End Function mlf_ode45_findRoot
 
   real(c_double) Function ODE45FindRoot(rtol, atol, ids, A, K, C0, C, dt, id) result(hMax)

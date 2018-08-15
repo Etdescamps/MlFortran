@@ -1,9 +1,11 @@
 # MlFortran
 
-**MlFortran** is an object-oriented machine learning library written in Fortran 2008.
-Its aim is to be computationally efficient, easy to read and interoperable with C and C++.
+**MlFortran** is a library designed for the writing and the development of Complex System models.
+It is written in a modern object-oriented Fortran (2008) language, and has a C and C++ interface.
+Its aim is to ease the development of complex models in lower level language such as C/C++ and Fortran by providing structures and algorithms that can be found in higher level programming language such as Matlab or Python/SciPy.
 This library is designed to be sufficiently generalist to handle multiple kind of algorithms:
-  - Dimension reduction
+  - An ODE solver (based on Dormand-Prince RK-5) with advanced constraint and stop handling features.
+  - Dimension reduction (linearisation of a function space)
   - Statistical inference (EM algorithm on gaussian mixture model)
   - Non-linear optimisation (currently only (C)MA-ES is implemented)
   - Diverse methods for random number generation and matrix operations

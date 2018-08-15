@@ -111,7 +111,7 @@ int mlf_getProj(MLF_OBJ *obj, const double *Y, double *W, int nIn, int nDimIn, i
 double mlf_getValue(MLF_OBJ *obj, const double *W, double t, int nDimOut);
 
 // Function reduction
-MLF_OBJ *mlf_funBasisInit(MLF_OBJ *fobj, int nFPar, double alpha, double x0, double xEnd, double *P, int nP, int sizeBase, int nX, double *WP);
+MLF_OBJ *mlf_funBasisInit(MLF_OBJ *fobj, int nFPar, double alpha, double x0, double xEnd, double *P, int nP, int sizeBase, int nX, int nXA, double *WP);
 MLF_OBJ *mlf_2dgridModelInit(MLF_OBJ *fmodel, double XMin, double XMax, double YMin, double YMax, int nX, int nX0, int nY0);
 
 // Unsupervised models

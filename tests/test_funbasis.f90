@@ -88,7 +88,7 @@ Contains
     integer :: nt, i, j
     real(c_double) :: X0(nx) =  [(-1d0/alpha*log(1d0-i/real(nx)),i=0,(nx-1))]
     infty = ieee_value(infty, ieee_positive_inf)
-    info = fb%initF(f_test, alpha, 0d0, infty, Ybasis, nparam, nxp, WP)
+    info = fb%initF(f_test, alpha, 0d0, infty, Ybasis, nparam, nxp, WP = WP)
     if(info /= 0) then
       print *, "fb%init error ", info
       RETURN

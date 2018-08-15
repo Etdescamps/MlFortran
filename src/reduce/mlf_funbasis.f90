@@ -87,14 +87,14 @@ Contains
   End Subroutine mlf_model_funbasis_init
 
   ! C wrapper for init function
-  type(c_ptr) Function c_funbasis_init(cfobj, nFPar, alpha, x0, xEnd, cP, nP, sizeBase, nX, cWP) &
+  type(c_ptr) Function c_funbasis_init(cfobj, nFPar, alpha, x0, xEnd, cP, nP, sizeBase, nX, nXA, cWP) &
       bind(C, name="mlf_funBasisInit")
     type(c_ptr), value :: cfobj, cP, cWP
     class(mlf_obj), pointer :: fobj
     type(mlf_algo_funbasis), pointer :: x
     class (*), pointer :: obj
     real(c_double), value :: alpha, x0, xEnd
-    integer(c_int), value :: nFPar, nP, sizeBase, nX
+    integer(c_int), value :: nFPar, nP, sizeBase, nX, nXA
     real(c_double), pointer :: WP(:), P(:,:)
     integer :: info
     c_funbasis_init = C_NULL_PTR
@@ -106,10 +106,10 @@ Contains
         call C_F_POINTER(cP, P, [nFPar, nP])
         ALLOCATE(x)
         if(.NOT. C_ASSOCIATED(cWP)) then
-          info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX)
+          info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX, nXA)
         else
           call C_F_POINTER(cWP, WP, [nP])
-          info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX, WP)
+          info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX, nXA, WP)
         endif
         obj => x
         c_funbasis_init = c_allocate(obj)
@@ -117,13 +117,13 @@ Contains
   End Function c_funbasis_init
 
   ! Init function for the step object
-  integer Function mlf_funbasis_init(this, f, alpha, x0, xEnd, P, sizeBase, nX, WP, data_handler) result(info)
+  integer Function mlf_funbasis_init(this, f, alpha, x0, xEnd, P, sizeBase, nX, nXA, WP, data_handler) result(info)
     class(mlf_algo_funbasis), intent(inout) :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
     class(mlf_basis_fun), intent(inout), optional, target :: f
     real(c_double), intent(in), optional :: alpha, x0, xEnd
     real(c_double), intent(in), optional :: WP(:), P(:,:)
-    integer, intent(in), optional :: sizeBase, nX
+    integer, intent(in), optional :: sizeBase, nX, nXA
     real(c_double), allocatable :: C(:,:), LD(:), LB(:,:)
     type(mlf_rsc_numFields) :: numFields
     integer :: i, j, nP, N

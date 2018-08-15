@@ -63,7 +63,8 @@ Module mlf_ode45
     real(c_double), allocatable :: Cont(:,:)
     real(c_double) :: lastT
     integer(c_int64_t), pointer :: nFun, nStiff
-    integer :: nAccept, nReject, nonStiff, iStiff
+    integer(c_int64_t) :: nAccept, nReject
+    integer :: nonStiff, iStiff
     class(mlf_ode_fun), pointer :: fun
   Contains
     procedure :: reinitT => mlf_ode45_reinitT
@@ -381,7 +382,6 @@ Contains
       niter = 0
       RETURN
     endif
-    this%nAccept = 0; this%nReject = 0
     t = this%t
     ASSOCIATE(K => this%K, X0 =>this%X0, X => this%X, fun => this%fun)
       hMax = this%hMax; alphaH = HUGE(alphaH)
@@ -425,7 +425,7 @@ Contains
         ! Update X and t
         t = t + h
         this%t = t
-        if(MOD(this%nAccept, int(this%nStiff,4)) == 0 .OR. this%iStiff > 0) then
+        if(MOD(this%nAccept, this%nStiff) == 0 .OR. this%iStiff > 0) then
           if(this%stiffDetect(h, X, Xsti, K(:,7), K(:,6))) then
             info = mlf_ODE_Stiff
             EXIT

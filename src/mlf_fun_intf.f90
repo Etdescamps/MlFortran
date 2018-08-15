@@ -191,7 +191,7 @@ Contains
     ! Compute the value of the constraints
     Uid = DOT_PRODUCT(X, this%cstrVect(:,id))-this%cstrVal(id)
     info = this%eval(t, X, F)
-    if(info<0) RETURN
+    if(info /= 0) RETURN ! If there is an error or a hard constraints
     ! Compute h such as <X(t+h),cstrVect(:,id)> = 0
     ! As h is very small, X(t+h)=X(t)+h*F(t)+O(h²)
     ! So with h = -<X(t),cstrVect(:,id)>/<F(t),cstrVect(:,id)>

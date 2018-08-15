@@ -37,7 +37,7 @@ Module mlf_gridmodel
 
   Type, Public, extends(mlf_obj_model) :: mlf_2dgrid
     class(mlf_reduce_model), pointer :: funmodel
-    real(c_double), pointer :: grid(:,:,:)
+    real(c_float), pointer :: grid(:,:,:)
     real(c_double), pointer :: XMin, XMax, YMin, YMax
   Contains
     procedure :: initF => mlf_GridModelInit
@@ -46,8 +46,9 @@ Module mlf_gridmodel
   Type, Public, extends(mlf_reduce_model) :: mlf_2dgrid_model
     class(mlf_2dgrid), pointer :: top
   Contains
-    procedure :: getProjSingle => mlf_GridModelGetProjectionSingle
-    procedure :: getProjMult => mlf_GridModelGetProjection
+    procedure :: getProjSingleFloat => mlf_GridModelGetProjectionSingle
+    procedure :: getProjSingle => mlf_GridModelGetProjectionSingleDouble
+    procedure :: getProjMultFloat => mlf_GridModelGetProjection
   End Type mlf_2dgrid_model
 Contains
   
@@ -91,7 +92,7 @@ Contains
     class(mlf_data_handler), intent(inout), optional :: data_handler
     real(c_double), intent(in), optional :: XMin, XMax, YMin, YMax
     integer(c_int), intent(in), optional :: nX0, nY0, nW
-    real(c_double), allocatable :: X(:,:,:)
+    real(c_double), allocatable :: X(:,:,:), G(:,:)
     type(mlf_rsc_numFields) :: numFields
     integer :: i
     integer(c_int64_t) :: ndGrid(3)
@@ -106,26 +107,40 @@ Contains
     call this%addRPar(numFields, this%XMax, "XMax")
     call this%addRPar(numFields, this%YMin, "YMin")
     call this%addRPar(numFields, this%YMax, "YMax")
-    info = this%add_RMatrix3D(numFields, ndGrid, this%grid, C_CHAR_"grid", data_handler = data_handler)
+    info = this%add_FMatrix3D(numFields, ndGrid, this%grid, C_CHAR_"grid", data_handler = data_handler)
     if(info < 0) RETURN
     this%funmodel => fmodel
     if(.NOT. present(data_handler)) then
-      ALLOCATE(X(2,nX0,nY0))
+      ALLOCATE(X(2,nX0,nY0), G(nW, nX0))
       this%XMin = XMin; this%XMax = XMax; this%YMin = YMin; this%YMax = YMax;
       forall(i=1:nX0) X(1, i, :) = Xmin+real(i-1)/real(nX0-1)*(Xmax-Xmin)
       forall(i=1:nY0) X(2, :, i) = Ymin+real(i-1)/real(nY0-1)*(Ymax-Ymin)
       do i = 1,nY0
-        info = fmodel%getProj(X(:,:,i), this%grid(:,:,i))
+        info = fmodel%getProj(X(:,:,i), G)
+        this%grid(:,:,i) = real(G,4)
       end do
     endif
     call mlf_model_funbasis_init(this%model, this)
   End Function mlf_GridModelInit
 
-  integer Function mlf_GridModelGetProjectionSingle(this, Y, W, Aerror) result(info)
+  integer Function mlf_GridModelGetProjectionSingleDouble(this, Y, W, Aerror) result(info)
     class(mlf_2dgrid_model), intent(in), target :: this
     real(c_double), intent(in) :: Y(:)
     real(c_double), intent(out) :: W(:)
     real(c_double), optional, intent(out) :: Aerror(:)
+    real(c_float) :: Y0(size(Y))
+    real(c_float) :: W0(size(W))
+    Y0 = REAL(Y, c_float)
+    info = this%getProj(Y0, W0)
+    W = REAL(W0, c_double)
+    if(present(Aerror)) Aerror = 0
+  End Function mlf_GridModelGetProjectionSingleDouble
+
+  integer Function mlf_GridModelGetProjectionSingle(this, Y, W, Aerror) result(info)
+    class(mlf_2dgrid_model), intent(in), target :: this
+    real(c_float), intent(in) :: Y(:)
+    real(c_float), intent(out) :: W(:)
+    real(c_float), optional, intent(out) :: Aerror(:)
     real(c_double) :: vX, vY, ax, ay, dX, dY, diX, diY
     integer :: nXG, nYG, i, j
     info = -1
@@ -133,8 +148,8 @@ Contains
     ASSOCIATE(grid => this%top%grid, XMin => this%top%XMin, XMax => this%top%XMax, &
         YMin => this%top%YMin, YMax => this%top%YMax)
       nXG = size(grid,2); nYG = size(grid,3)
-      dX = (XMax-XMin)/real(nXG-1, kind = 8)
-      dY = (YMax-YMin)/real(nYG-1, kind = 8)
+      dX = (XMax-XMin)/real(nXG-1, kind = 4)
+      dY = (YMax-YMin)/real(nYG-1, kind = 4)
       diX = 1d0/dX; diY = 1d0/dY
       vX = Y(1); vY = Y(2)
       i = floor((vX-XMin)*diX)+1
@@ -151,9 +166,9 @@ Contains
 
   integer Function mlf_GridModelGetProjection(this, Y, W, Aerror) result(info)
     class(mlf_2dgrid_model), intent(in), target :: this
-    real(c_double), intent(in) :: Y(:,:)
-    real(c_double), intent(out) :: W(:,:)
-    real(c_double), optional, intent(out) :: Aerror(:,:)
+    real(c_float), intent(in) :: Y(:,:)
+    real(c_float), intent(out) :: W(:,:)
+    real(c_float), optional, intent(out) :: Aerror(:,:)
     real(c_double) :: vX, vY, ax, ay, dX, dY, diX, diY
     integer :: nXG, nYG, nIn, i, j, k
     info = -1

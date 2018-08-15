@@ -130,10 +130,14 @@ Contains
     integer(c_int64_t) :: ndP(2), ndW(2), ndV(2), nX0
     numFields = mlf_rsc_numFields(0,0,4)
     info = mlf_arr_init(this, numFields, data_handler)
-    if(PRESENT(P)) then
+    if(PRESENT(P) .AND. PRESENT(sizeBase) .AND. PRESENT(nX)) then
       nP = size(P,1); N = size(P,2)
       ndP = int([nP, N], kind=8); ndW = int([N, sizeBase], kind=8)
-      ndV = int([sizeBase, nX], kind=8)
+      if(PRESENT(nXA)) then
+        ndV = int([sizeBase, nXA], kind=8)
+      else
+        ndV = int([sizeBase, nX], kind=8)
+      endif
     else if(.NOT. PRESENT(data_handler)) then
       write (error_unit, *) 'mlf_funbasis(init) error: no input parameter nor data_handler'
       info = -1; RETURN

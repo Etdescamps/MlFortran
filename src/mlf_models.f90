@@ -59,8 +59,11 @@ Module mlf_models
   Type, public, abstract, extends(mlf_model) :: mlf_reduce_model
   Contains
     procedure (mlf_model_getProjSingle), deferred :: getProjSingle
+    procedure :: getProjSingleFloat => mlf_model_getProjSingleFloat
     procedure :: getProjMult => mlf_model_getProjMult
-    generic :: getProj => getProjSingle, getProjMult
+    procedure :: getProjMultFloat => mlf_model_getProjMultFloat
+    generic :: getProj => getProjSingle, getProjMult, getProjSingleFloat, &
+      getProjMultFloat
   End Type mlf_reduce_model
 
   Type, public, abstract, extends(mlf_reduce_model) :: mlf_approx_model
@@ -132,6 +135,28 @@ Module mlf_models
     End Subroutine mlf_model_getValueBounds
   End Interface
 Contains
+  integer Function mlf_model_getProjSingleFloat(this, Y, W, Aerror) result(info)
+    class(mlf_reduce_model), intent(in), target :: this
+    real(c_float), intent(in) :: Y(:)
+    real(c_float), intent(out) :: W(:)
+    real(c_float), optional, intent(out) :: Aerror(:)
+    real(c_double) :: Y0(size(Y))
+    real(c_double) :: W0(size(W))
+    integer :: l
+    Y0 = REAL(Y, c_double)
+    if(present(Aerror)) then
+      l = size(Aerror)
+      BLOCK
+        real(c_double) :: Aerror0(l)
+        info = this%getProj(Y0, W0, Aerror0)
+        Aerror = REAL(Aerror0, c_float)
+      END BLOCK
+    else
+      info = this%getProj(Y0, W0)
+    endif
+    W = REAL(W0, c_float)
+  End Function mlf_model_getProjSingleFloat
+
   integer Function mlf_model_getProjMult(this, Y, W, Aerror) result(info)
     class(mlf_reduce_model), intent(in), target :: this
     real(c_double), intent(in) :: Y(:,:)
@@ -142,6 +167,34 @@ Contains
       info = this%getProj(Y(:,i), W(:,i), Aerror(:,i))
     End Do
   End Function mlf_model_getProjMult
+
+  integer Function mlf_model_getProjMultFloat(this, Y, W, Aerror) result(info)
+    class(mlf_reduce_model), intent(in), target :: this
+    real(c_float), intent(in) :: Y(:,:)
+    real(c_float), intent(out) :: W(:,:)
+    real(c_float), optional, intent(out) :: Aerror(:,:)
+    real(c_double) :: Y0(size(Y,1))
+    real(c_double) :: W0(size(W,1))
+    integer :: i, l
+    if(present(Aerror)) then
+      l = size(Aerror, 1)
+      BLOCK
+        real(c_double) :: Aerror0(l)
+        Do i=1,size(Y,2)
+          Y0 = REAL(Y(:,i), c_double)
+          info = this%getProj(Y0, W0, Aerror0)
+          W(:,i) = REAL(W0, c_float)
+          Aerror(:,i) = REAL(Aerror0, c_float)
+        End Do
+      END BLOCK
+    else
+      Do i=1,size(Y,2)
+        Y0 = REAL(Y(:,i), c_double)
+        info = this%getProj(Y0, W0)
+        W(:,i) = REAL(W0, c_float)
+      End Do
+    endif
+  End Function mlf_model_getProjMultFloat
 
   real(c_double) Function mlf_approx_linear_getValue(this, W, x) result(Y)
     class(mlf_approx_linear), intent(in) :: this

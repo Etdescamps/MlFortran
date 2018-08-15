@@ -789,7 +789,7 @@ Contains
     type(mlf_dt), intent(out), pointer :: dt
     type(c_ptr) :: cptr, ptr
     if(associated(dt)) then
-      dt%dt = mlf_DOUBLE; dt%acc = mlf_DIRECT
+      dt%dt = mlf_FLOAT; dt%acc = mlf_DIRECT
     endif
     cptr = mlf_float_getdata(this%V, nD, D, ptr)
   End Function mlf_float1d_getd
@@ -809,7 +809,7 @@ Contains
     type(mlf_dt), intent(out), pointer :: dt
     type(c_ptr) :: cptr, ptr
     if(associated(dt)) then
-      dt%dt = mlf_DOUBLE; dt%acc = mlf_DIRECT
+      dt%dt = mlf_FLOAT; dt%acc = mlf_DIRECT
     endif
     cptr = mlf_float_getdata(this%V, nD, D, ptr)
   End Function mlf_float2d_getd
@@ -827,7 +827,7 @@ Contains
     type(mlf_dt), intent(out), pointer :: dt
     type(c_ptr) :: cptr, ptr
     if(associated(dt)) then
-      dt%dt = mlf_DOUBLE; dt%acc = mlf_DIRECT
+      dt%dt = mlf_FLOAT; dt%acc = mlf_DIRECT
     endif
     cptr = mlf_float_getdata(this%V, nD, D, ptr)
   End Function mlf_float3d_getd
@@ -838,7 +838,6 @@ Contains
     info = -1
     if(allocated(this%v)) info = mlf_float_updatedata(this%V, ptr)
   End Function mlf_float3d_updated
-
 
 End Module mlf_rsc_array
 

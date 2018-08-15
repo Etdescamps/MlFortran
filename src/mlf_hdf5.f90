@@ -52,11 +52,16 @@ Module mlf_hdf5
     procedure :: getdata_double1d => mlf_hdf5_getDouble1d
     procedure :: getdata_double2d => mlf_hdf5_getDouble2d
     procedure :: getdata_double3d => mlf_hdf5_getDouble3d
+    procedure :: getdata_float1d => mlf_hdf5_getFloat1d
+    procedure :: getdata_float2d => mlf_hdf5_getFloat2d
+    procedure :: getdata_float3d => mlf_hdf5_getFloat3d
     procedure :: getdata_int64 => mlf_hdf5_getInt64
     procedure :: getdata_int32 => mlf_hdf5_getInt32
     procedure :: mlf_pushdata_double2d, mlf_pushdata_double1d, mlf_pushdata_double3d
+    procedure :: mlf_pushdata_float2d, mlf_pushdata_float1d, mlf_pushdata_float3d
     procedure :: mlf_pushdata_int32_1d, mlf_pushdata_int64_1d
     generic ::pushData => mlf_pushdata_double2d, mlf_pushdata_double1d, &
+      mlf_pushdata_float2d, mlf_pushdata_float1d, mlf_pushdata_float3d, &
       mlf_pushdata_double3d, mlf_pushdata_int32_1d, mlf_pushdata_int64_1d
   End Type mlf_hdf5_handler
 
@@ -409,6 +414,81 @@ Contains
     info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getDouble3d
 
+  Integer Function mlf_hdf5_getFloat1d(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
+    class(mlf_hdf5_handler), intent(inout), target :: this
+    real(c_float), intent(out), target, allocatable :: rsc_data(:)
+    integer(c_int64_t), intent(in), optional :: dims(:)
+    integer(HSIZE_T) :: dims0(1)
+    character(len=*,kind=c_char) :: rsc_name
+    logical, intent(in), optional :: fixed_dims(:)
+    integer(HID_T) :: space_id, data_id, gid
+    type(c_ptr) :: f_ptr
+    logical :: dumb
+    info = 0; space_id = -1; data_id = -1
+    gid = this%getId()
+    if(gid<0) info=-1
+    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    if(present(dims)) dims0 = dims
+    info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
+    if(info >= 0) then
+      allocate(rsc_data(dims0(1)))
+      f_ptr = C_LOC(rsc_data)
+      call H5Dread_f(data_id, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, info)
+      dumb = CheckF(info, "Error reading data: "//rsc_name)
+    endif
+    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
+  End Function mlf_hdf5_getFloat1d
+
+  Integer Function mlf_hdf5_getFloat2d(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
+    class(mlf_hdf5_handler), intent(inout), target :: this
+    real(c_float), intent(out), target, allocatable :: rsc_data(:,:)
+    integer(c_int64_t), intent(in), optional :: dims(:)
+    integer(HSIZE_T) :: dims0(2)
+    character(len=*,kind=c_char) :: rsc_name
+    logical, intent(in), optional :: fixed_dims(:)
+    integer(HID_T) :: space_id, data_id, gid
+    type(c_ptr) :: f_ptr
+    logical :: dumb
+    info = 0; space_id = -1; data_id = -1
+    gid = this%getId()
+    if(gid<0) info=-1
+    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    if(present(dims)) dims0 = dims
+    info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
+    if(info >= 0) then
+      allocate(rsc_data(dims0(1), dims0(2)))
+      f_ptr = C_LOC(rsc_data)
+      call H5Dread_f(data_id, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, info)
+      dumb = CheckF(info, "Error reading data: "//rsc_name)
+    endif
+    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
+  End Function mlf_hdf5_getFloat2d
+
+  Integer Function mlf_hdf5_getFloat3d(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
+    class(mlf_hdf5_handler), intent(inout), target :: this
+    real(c_float), intent(out), target, allocatable :: rsc_data(:,:,:)
+    integer(c_int64_t), intent(in), optional :: dims(:)
+    integer(HSIZE_T) :: dims0(3)
+    character(len=*,kind=c_char) :: rsc_name
+    logical, intent(in), optional :: fixed_dims(:)
+    integer(HID_T) :: space_id, data_id, gid
+    type(c_ptr) :: f_ptr
+    logical :: dumb
+    info = 0; space_id = -1; data_id = -1
+    gid = this%getId()
+    if(gid<0) info=-1
+    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    if(present(dims)) dims0 = dims
+    info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
+    if(info >= 0) then
+      allocate(rsc_data(dims0(1), dims0(2), dims0(3)))
+      f_ptr = C_LOC(rsc_data)
+      call H5Dread_f(data_id, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, info)
+      dumb = CheckF(info, "Error reading data: "//rsc_name)
+    endif
+    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
+  End Function mlf_hdf5_getFloat3d
+
   Integer Function mlf_hdf5_getInt64(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
     class(mlf_hdf5_handler), intent(inout), target :: this
     integer(c_int64_t), intent(out), target, allocatable :: rsc_data(:)
@@ -504,6 +584,51 @@ Contains
       rname, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, .FALSE.)
   End Function mlf_pushdata_double1d
 
+  Integer(c_int) Function mlf_pushdata_float2d(this, M, rname) result(info)
+    class(mlf_hdf5_handler), intent(inout), target :: this
+    real(c_float), target :: M(:,:)
+    integer(HID_T) :: gid
+    character(len=*,kind=c_char), intent(in) :: rname
+    type(c_ptr) :: f_ptr
+    info = 0
+    gid = this%getId()
+    if(gid<0) info=-1
+    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    f_ptr = c_loc(M)
+    info = mlf_hdf5_createOrWrite(gid, shape(M, kind=HSIZE_T), &
+      rname, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, .FALSE.)
+  End Function mlf_pushdata_float2d
+
+  Integer(c_int) Function mlf_pushdata_float3d(this, M, rname) result(info)
+    class(mlf_hdf5_handler), intent(inout), target :: this
+    real(c_float), target :: M(:,:,:)
+    integer(HID_T) :: gid
+    character(len=*,kind=c_char), intent(in) :: rname
+    type(c_ptr) :: f_ptr
+    info = 0
+    gid = this%getId()
+    if(gid<0) info=-1
+    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    f_ptr = c_loc(M)
+    info = mlf_hdf5_createOrWrite(gid, shape(M, kind=HSIZE_T), &
+      rname, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, .FALSE.)
+  End Function mlf_pushdata_float3d
+
+  Integer(c_int) Function mlf_pushdata_float1d(this, M, rname) result(info)
+    class(mlf_hdf5_handler), intent(inout), target :: this
+    real(c_float), target :: M(:)
+    integer(HID_T) :: gid
+    character(len=*,kind=c_char), intent(in) :: rname
+    type(c_ptr) :: f_ptr
+    info = 0
+    gid = this%getId()
+    if(gid<0) info=-1
+    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    f_ptr = c_loc(M)
+    info = mlf_hdf5_createOrWrite(gid, [size(M, kind=HSIZE_T)], &
+      rname, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, .FALSE.)
+  End Function mlf_pushdata_float1d
+
   Integer(c_int) Function mlf_pushdata_int32_1d(this, M, rname) result(info)
     class(mlf_hdf5_handler), intent(inout), target :: this
     integer(c_int32_t), target :: M(:)
@@ -561,6 +686,18 @@ Contains
           f_ptr = c_loc(x%V)
           info = mlf_hdf5_createOrWrite(gid, [size(x%V, kind=HSIZE_T)], &
             obj%v(i)%r_name, h5kind_to_type(c_int32_t, H5_INTEGER_KIND), f_ptr, ov)
+        class is (mlf_rsc_float1d)
+          f_ptr = c_loc(x%V)
+          info = mlf_hdf5_createOrWrite(gid, [size(x%V, kind=HSIZE_T)], &
+            obj%v(i)%r_name, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, ov)
+        class is (mlf_rsc_float2d)
+          f_ptr = c_loc(x%V)
+          info = mlf_hdf5_createOrWrite(gid, shape(x%V, kind=HSIZE_T), &
+            obj%v(i)%r_name, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, ov)
+        class is (mlf_rsc_float3d)
+          f_ptr = c_loc(x%V)
+          info = mlf_hdf5_createOrWrite(gid, shape(x%V, kind=HSIZE_T), &
+            obj%v(i)%r_name, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, ov)
         class is (mlf_rsc_double1d)
           f_ptr = c_loc(x%V)
           info = mlf_hdf5_createOrWrite(gid, [size(x%V, kind=HSIZE_T)], &

@@ -26,6 +26,7 @@
 ! NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 ! EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+! TODO: find a better way for handling multiple dimension and data type
 Module mlf_rsc_array
   Use ieee_arithmetic
   Use iso_c_binding
@@ -84,6 +85,31 @@ Module mlf_rsc_array
     procedure :: updated => mlf_double3d_updated
   End Type mlf_rsc_double3d
 
+  ! Double ressource handler
+  Type, Public, extends(mlf_rsc_intf) :: mlf_rsc_float1d
+    real(c_float), allocatable :: V(:)
+  Contains
+    procedure :: getd => mlf_float1d_getd
+    procedure :: updated => mlf_float1d_updated
+  End Type mlf_rsc_float1d
+
+  ! Double ressource handler
+  Type, Public, extends(mlf_rsc_intf) :: mlf_rsc_float2d
+    real(c_float), allocatable :: V(:,:)
+  Contains
+    procedure :: getd => mlf_float2d_getd
+    procedure :: updated => mlf_float2d_updated
+  End Type mlf_rsc_float2d
+
+  ! Double ressource handler
+  Type, Public, extends(mlf_rsc_intf) :: mlf_rsc_float3d
+    real(c_float), allocatable :: V(:,:,:)
+  Contains
+    procedure :: getd => mlf_float3d_getd
+    procedure :: updated => mlf_float3d_updated
+  End Type mlf_rsc_float3d
+
+  
   ! Generic object handler containing main parameters
   Type, Public, extends(mlf_obj) :: mlf_arr_obj
     integer(c_int64_t), pointer :: iPar(:)
@@ -96,6 +122,9 @@ Module mlf_rsc_array
     procedure :: add_rarray => mlf_obj_addRArray
     procedure :: add_rmatrix => mlf_obj_addRMatrix
     procedure :: add_rmatrix3D => mlf_obj_addRMatrix3D
+    procedure :: add_farray => mlf_obj_addFArray
+    procedure :: add_fmatrix => mlf_obj_addFMatrix
+    procedure :: add_fmatrix3D => mlf_obj_addFMatrix3D
     procedure :: addRPar => mlf_obj_addRPar
     procedure :: addIPar => mlf_obj_addIPar
   End Type mlf_arr_obj
@@ -106,10 +135,13 @@ Module mlf_rsc_array
     procedure (mlf_data_handler_getdata_double1d), deferred :: getdata_double1d
     procedure (mlf_data_handler_getdata_double2d), deferred :: getdata_double2d
     procedure (mlf_data_handler_getdata_double3d), deferred :: getdata_double3d
+    procedure (mlf_data_handler_getdata_float1d), deferred :: getdata_float1d
+    procedure (mlf_data_handler_getdata_float2d), deferred :: getdata_float2d
+    procedure (mlf_data_handler_getdata_float3d), deferred :: getdata_float3d
     procedure (mlf_data_handler_getdata_int64), deferred :: getdata_int64
     procedure (mlf_data_handler_getdata_int32), deferred :: getdata_int32
     generic :: getData => getdata_double1d, getdata_double2d, getdata_double3d, &
-      getdata_int64, getdata_int32
+      getdata_int64, getdata_int32, getdata_float1d, getdata_float2d, getdata_float3d
   End Type mlf_data_handler
 
   Abstract Interface
@@ -143,6 +175,36 @@ Module mlf_rsc_array
       integer(c_int64_t), intent(in), optional :: dims(:)
       logical, intent(in), optional :: fixed_dims(:)
     End Function mlf_data_handler_getdata_double3d
+
+    Integer Function mlf_data_handler_getdata_float1d(this, rsc_data, rsc_name, dims, fixed_dims)
+      Use iso_c_binding
+      import :: mlf_data_handler
+      class(mlf_data_handler), intent(inout), target :: this
+      real(c_float), intent(out), target, allocatable :: rsc_data(:)
+      character(len=*,kind=c_char) :: rsc_name
+      integer(c_int64_t), intent(in), optional :: dims(:)
+      logical, intent(in), optional :: fixed_dims(:)
+    End Function mlf_data_handler_getdata_float1d
+
+    Integer Function mlf_data_handler_getdata_float2d(this, rsc_data, rsc_name, dims, fixed_dims)
+      Use iso_c_binding
+      import :: mlf_data_handler
+      class(mlf_data_handler), intent(inout), target :: this
+      real(c_float), intent(out), target, allocatable :: rsc_data(:,:)
+      character(len=*,kind=c_char) :: rsc_name
+      integer(c_int64_t), intent(in), optional :: dims(:)
+      logical, intent(in), optional :: fixed_dims(:)
+    End Function mlf_data_handler_getdata_float2d
+
+    Integer Function mlf_data_handler_getdata_float3d(this, rsc_data, rsc_name, dims, fixed_dims)
+      Use iso_c_binding
+      import :: mlf_data_handler
+      class(mlf_data_handler), intent(inout), target :: this
+      real(c_float), intent(out), target, allocatable :: rsc_data(:,:,:)
+      character(len=*,kind=c_char) :: rsc_name
+      integer(c_int64_t), intent(in), optional :: dims(:)
+      logical, intent(in), optional :: fixed_dims(:)
+    End Function mlf_data_handler_getdata_float3d
 
     Integer Function mlf_data_handler_getdata_int64(this, rsc_data, rsc_name, dims, fixed_dims)
       Use iso_c_binding
@@ -333,7 +395,97 @@ Contains
       end select
     End Associate
   End Function mlf_obj_addRMatrix3D
-     
+
+  Integer Function mlf_obj_addFArray(this, numFields, nd, pnt, rsc_name, rsc_fields, &
+      data_handler, fixed_dims) result(info)
+    class(mlf_arr_obj), intent(inout), target :: this
+    class(mlf_data_handler), intent(inout), optional :: data_handler
+    real(c_float), intent(out), pointer, optional :: pnt(:)
+    class(mlf_rsc_numFields), intent(inout) :: numFields
+    integer :: id
+    integer(c_int64_t), intent (inout) :: nd
+    character(len=*,kind=c_char), optional :: rsc_name, rsc_fields
+    logical, intent(in), optional :: fixed_dims(:)
+    type(mlf_rsc_float1d) :: rsc_float
+    id = numFields%incNRsc()
+    this%v(id)%r = rsc_float
+    if(present(rsc_name)) call this%v(id)%set_str(mlf_NAME, rsc_name)
+    if(present(rsc_fields)) call this%v(id)%set_str(mlf_FIELDS, rsc_fields)
+    Associate(ip => this%v(id)%r)
+      select type(ip)
+      class is (mlf_rsc_float1d)
+        if(present(data_handler)) then
+          info = data_handler%getData(ip%V, rsc_name, [nd], fixed_dims)
+          if(info<0) RETURN
+        endif
+        if(.NOT. allocated(ip%V)) ALLOCATE(ip%V(nd), stat=info)
+        if(CheckNZ(info, "Error array allocation", [nd])) RETURN
+        nd = size(ip%V)
+        if(present(pnt)) pnt => ip%V
+      end select
+    End Associate
+  End Function mlf_obj_addFArray
+
+  Integer Function mlf_obj_addFMatrix(this, numFields, nd, pnt, rsc_name, rsc_fields, &
+      data_handler, fixed_dims) result(info)
+    class(mlf_arr_obj), intent(inout), target :: this
+    class(mlf_data_handler), intent(inout), optional :: data_handler
+    real(c_float), intent(out), pointer, optional :: pnt(:,:)
+    class(mlf_rsc_numFields), intent(inout) :: numFields
+    integer :: id
+    integer(c_int64_t), intent (inout) :: nd(2)
+    character(len=*,kind=c_char), optional :: rsc_name, rsc_fields
+    logical, intent(in), optional :: fixed_dims(:)
+    type(mlf_rsc_float2d) :: rsc_float
+    id = numFields%incNRsc()
+    this%v(id)%r = rsc_float
+    if(present(rsc_name)) call this%v(id)%set_str(mlf_NAME, rsc_name)
+    if(present(rsc_fields)) call this%v(id)%set_str(mlf_FIELDS, rsc_fields)
+    Associate(ip => this%v(id)%r)
+      select type(ip)
+      class is (mlf_rsc_float2d)
+        if(present(data_handler)) then
+          info = data_handler%getData(ip%V, rsc_name, nd, fixed_dims)
+          if(info<0) RETURN
+        endif
+        if(.NOT. allocated(ip%V)) ALLOCATE(ip%V(nd(1), nd(2)), stat=info)
+        if(CheckNZ(info, "Error matrix allocation", nd)) RETURN
+        nd = shape(ip%V)
+        if(present(pnt)) pnt => ip%V
+      end select
+    End Associate
+  End Function mlf_obj_addFMatrix
+
+  Integer Function mlf_obj_addFMatrix3D(this, numFields, nd, pnt, rsc_name, rsc_fields, &
+      data_handler, fixed_dims) result(info)
+    class(mlf_arr_obj), intent(inout), target :: this
+    class(mlf_data_handler), intent(inout), optional :: data_handler
+    real(c_float), intent(out), pointer, optional :: pnt(:,:, :)
+    class(mlf_rsc_numFields), intent(inout) :: numFields
+    integer :: id
+    integer(c_int64_t), intent (inout) :: nd(3)
+    character(len=*,kind=c_char), optional :: rsc_name, rsc_fields
+    logical, intent(in), optional :: fixed_dims(:)
+    type(mlf_rsc_float3d) :: rsc_float
+    id = numFields%incNRsc()
+    this%v(id)%r = rsc_float
+    if(present(rsc_name)) call this%v(id)%set_str(mlf_NAME, rsc_name)
+    if(present(rsc_fields)) call this%v(id)%set_str(mlf_FIELDS, rsc_fields)
+    Associate(ip => this%v(id)%r)
+      select type(ip)
+      class is (mlf_rsc_float3d)
+        if(present(data_handler)) then
+          info = data_handler%getData(ip%V, rsc_name, nd, fixed_dims) 
+          if(info<0) RETURN
+        endif
+        if(.NOT. allocated(ip%V)) ALLOCATE(ip%V(nd(1), nd(2), nd(3)), stat=info)
+        if(CheckNZ(info, "Error matrix allocation", nd)) RETURN
+        nd = shape(ip%V)
+        if(present(pnt)) pnt => ip%V
+      end select
+    End Associate
+  End Function mlf_obj_addFMatrix3D
+      
   Integer Function mlf_arr_init(this, numFields, data_handler) result(info)
     class(mlf_arr_obj), intent(inout), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
@@ -492,6 +644,47 @@ Contains
       if(.NOT. C_ASSOCIATED(rptr)) info = -1
     endif
   End Function mlf_double_updatedata
+  
+  ! Generic interface for float arrays
+  Function mlf_float_getdata(array, nD, D, ptr) result(rptr)
+    real(c_float), intent(in), target :: array(..)
+    real(c_float) :: r
+    integer(c_int), intent(out) :: nD, D(*)
+    type(c_ptr) :: rptr, ptr
+    integer :: i
+    integer(c_size_t) :: N
+    nD = rank(array)
+    N = 1
+    Do i=1,nD
+      D(i) = size(array,i)
+      N = N*D(i)
+    End do
+    rptr = C_LOC(array)
+    if(C_ASSOCIATED(ptr)) then
+      N = c_sizeof(r)*N
+      rptr = c_memcpy(ptr, rptr, N)
+    endif
+  End Function mlf_float_getdata
+
+  Function mlf_float_updatedata(array, ptr) result(info)
+    real(c_float), intent(inout), target :: array(..)
+    real(c_float) :: r
+    type(c_ptr) :: rptr, ptr
+    integer :: i, info, nD
+    integer(c_size_t) :: N
+    nD = rank(array)
+    N = 1
+    Do i=1,nD
+      N = N*size(array,i)
+    End do
+    rptr = C_LOC(array)
+    info = 0
+    if(C_ASSOCIATED(ptr)) then
+      N = c_sizeof(r)*N
+      rptr = c_memcpy(rptr, ptr, N)
+      if(.NOT. C_ASSOCIATED(rptr)) info = -1
+    endif
+  End Function mlf_float_updatedata
 
   ! Wrapper for the object int1d
   Function mlf_int32_1d_getd(this, nD, D, dt, ptr) result(cptr)
@@ -588,6 +781,64 @@ Contains
     info = -1
     if(allocated(this%v)) info = mlf_double_updatedata(this%V, ptr)
   End Function mlf_double3d_updated
+
+  ! Wrapper for the object float1d
+  Function mlf_float1d_getd(this, nD, D, dt, ptr) result(cptr)
+    class(mlf_rsc_float1d), intent(in), target :: this
+    integer(c_int), intent(out) :: nD, D(*)
+    type(mlf_dt), intent(out), pointer :: dt
+    type(c_ptr) :: cptr, ptr
+    if(associated(dt)) then
+      dt%dt = mlf_DOUBLE; dt%acc = mlf_DIRECT
+    endif
+    cptr = mlf_float_getdata(this%V, nD, D, ptr)
+  End Function mlf_float1d_getd
+
+  Function mlf_float1d_updated(this, ptr) result(info)
+    class(mlf_rsc_float1d), intent(inout), target :: this
+    type(c_ptr) :: ptr
+    integer(c_int) :: info
+    info = -1
+    if(allocated(this%v)) info = mlf_float_updatedata(this%V, ptr)
+  End Function mlf_float1d_updated
+
+  ! Wrappers for the object float2d
+  Function mlf_float2d_getd(this, nD, D, dt, ptr) result(cptr)
+    class(mlf_rsc_float2d), intent(in), target :: this
+    integer(c_int), intent(out) :: nD, D(*)
+    type(mlf_dt), intent(out), pointer :: dt
+    type(c_ptr) :: cptr, ptr
+    if(associated(dt)) then
+      dt%dt = mlf_DOUBLE; dt%acc = mlf_DIRECT
+    endif
+    cptr = mlf_float_getdata(this%V, nD, D, ptr)
+  End Function mlf_float2d_getd
+  Function mlf_float2d_updated(this, ptr) result(info)
+    class(mlf_rsc_float2d), intent(inout), target :: this
+    type(c_ptr) :: ptr
+    integer(c_int) :: info
+    info = -1
+    if(allocated(this%v)) info = mlf_float_updatedata(this%V, ptr)
+  End Function mlf_float2d_updated
+  ! Wrappers for the object float3d
+  Function mlf_float3d_getd(this, nD, D, dt, ptr) result(cptr)
+    class(mlf_rsc_float3d), intent(in), target :: this
+    integer(c_int), intent(out) :: nD, D(*)
+    type(mlf_dt), intent(out), pointer :: dt
+    type(c_ptr) :: cptr, ptr
+    if(associated(dt)) then
+      dt%dt = mlf_DOUBLE; dt%acc = mlf_DIRECT
+    endif
+    cptr = mlf_float_getdata(this%V, nD, D, ptr)
+  End Function mlf_float3d_getd
+  Function mlf_float3d_updated(this, ptr) result(info)
+    class(mlf_rsc_float3d), intent(inout), target :: this
+    type(c_ptr) :: ptr
+    integer(c_int) :: info
+    info = -1
+    if(allocated(this%v)) info = mlf_float_updatedata(this%V, ptr)
+  End Function mlf_float3d_updated
+
 
 End Module mlf_rsc_array
 

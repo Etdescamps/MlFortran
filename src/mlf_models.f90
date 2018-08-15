@@ -311,6 +311,19 @@ Contains
     end select
   End Function mlf_getProj
 
+  integer(c_int) Function mlf_getProj_f(model, Y, W, Aerror) result(info)
+    class(mlf_model), intent(inout) :: model
+    real(c_float), intent(in) :: Y(:,:)
+    real(c_float), intent(out) :: W(:,:)
+    real(c_float), optional, intent(out) :: Aerror(:,:)
+    info = -1
+    select type(model)
+      class is (mlf_reduce_model)
+        info = model%getProj(Y,W,Aerror)
+    end select
+  End Function mlf_getProj_f
+
+
   integer(c_int) Function c_getProj(cptr, cY, cW, nIn, nDimIn, nDimOut) result(info) bind(C, name="mlf_getProj")
     type(c_ptr), value :: cptr, cY, cW
     integer(c_int), value :: nIn
@@ -324,6 +337,21 @@ Contains
     call C_F_POINTER(cW, W, [nDimOut, nIn])
     info = mlf_getProj(model, Y, W)
   End Function c_getProj
+
+  integer(c_int) Function c_getProj_f(cptr, cY, cW, nIn, nDimIn, nDimOut) result(info) bind(C, name="mlf_getProj_f")
+    type(c_ptr), value :: cptr, cY, cW
+    integer(c_int), value :: nIn
+    class(mlf_model), pointer :: model
+    real(c_float), pointer :: Y(:,:), W(:,:)
+    integer(c_int), value :: nDimIn, nDimOut
+    info = -1
+    model => mlf_getModel(cptr)
+    if(.NOT. associated(model)) RETURN
+    call C_F_POINTER(cY, Y, [nDimIn, nIn])
+    call C_F_POINTER(cW, W, [nDimOut, nIn])
+    info = mlf_getProj_f(model, Y, W)
+  End Function c_getProj_f
+
 
   real(c_double) Function mlf_getValue(model, W, t) result(Y)
     class(mlf_model), intent(inout) :: model

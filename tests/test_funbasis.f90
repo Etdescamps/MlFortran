@@ -100,7 +100,11 @@ Contains
     print *, Aerror(:,1)
     print *, Aerror(:,2)
     call FExpInv(X0, Ytests, U1(:,:))
-    forall(i=1:nt, j=1:nx) U2(j,i) = (fb%getValue(W(:,i), X0(j))-U1(j,i))*exp(-alpha*X0(j))
+    do i=1,nt
+      do j=1,nx
+        U2(j,i) = (mlf_getValue(fb%model, W(:,i), X0(j))-U1(j,i))*exp(-alpha*X0(j))
+      end do
+    end do
     print *, U2(:,:)
   end function testfb
 End Program test_funbasis

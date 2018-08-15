@@ -108,6 +108,7 @@ int mlf_getClass(MLF_OBJ *obj, const double *X, int *Cl, int nX, int nIn, int nC
 int mlf_getNumClasses(MLF_OBJ *obj);
 int mlf_getProba(MLF_OBJ *obj, const double *X, double *Cl, int nX, int nIn);
 int mlf_getProj(MLF_OBJ *obj, const double *Y, double *W, int nIn, int nDimIn, int nDimOut);
+int mlf_getProj_f(MLF_OBJ *obj, const float *Y, float *W, int nIn, int nDimIn, int nDimOut);
 double mlf_getValue(MLF_OBJ *obj, const double *W, double t, int nDimOut);
 
 // Function reduction

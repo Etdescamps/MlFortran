@@ -51,7 +51,6 @@ Module mlf_funbasis
     real(c_double) :: alpha, x0, xEnd, eA0, eDiff, eAEnd
   Contains
     procedure :: initF => mlf_funbasis_init
-    procedure :: getValue => mlf_FunBasisFunValue
     procedure :: getValueBasis => mlf_FunBasisValue
   End Type mlf_algo_funbasis
 
@@ -60,7 +59,6 @@ Module mlf_funbasis
   Contains
     procedure :: getProjMult => mlf_FunBasisGetProjection
     procedure :: getProjSingle => mlf_FunBasisGetProjectionSingle
-    procedure :: getValue => mlf_model_FunBasisFunValue
     procedure :: getValueBasis => mlf_model_FunBasisValue
     procedure :: getValueBounds => mlf_model_FunBasisBounds
   End Type mlf_model_funbasis
@@ -180,7 +178,7 @@ Contains
     else
       forall(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))
     endif
-    CALL ComputeBasisValue(this, nX)
+    CALL ComputeBasisValue(this, int(nX0,4))
     CALL mlf_model_funbasis_init(this%model, this)
   End Function mlf_funbasis_init
 
@@ -382,7 +380,7 @@ Contains
     class(mlf_algo_funbasis), intent(in) :: this
     real(c_double), intent(in) :: x
     real(c_double), intent(out) :: Y(:)
-    real(c_double) :: t, dX, X1, X2, X3, X4
+    real(c_double) :: t, dX, X0(4)
     integer :: i
     info = 0
     ! The X are dreasingly ordered
@@ -393,13 +391,11 @@ Contains
         RETURN
       endif
       i = max(2,min(i,size(this%X)-2))
-      X1 = x-this%X(i-1); X2 = x-this%X(i); X3 = x-this%X(i+1); X4 = x-this%X(i+2)
+      X0 = (x-this%X(i-1:i+2))/this%eDiff
       ASSOCIATE(Y1 => this%Vals(:,i-1), Y2 => this%Vals(:,i), Y3 => this%Vals(:,i+1), &
           Y4 => this%Vals(:,i+2))
-        Y = 1.0/6.0*X2*X3*(X1*Y4-X4*Y1)
-        Y = Y+0.5*X1*X4*(X3*Y2-X2*Y3)
+        Y = 1d0/6d0*X0(2)*X0(3)*(X0(1)*Y4-X0(4)*Y1)+0.5d0*X0(1)*X0(4)*(X0(3)*Y2-X0(2)*Y3)
       END ASSOCIATE
-      Y = Y/(this%eDiff*this%eDiff*this%eDiff)
     else
       if(x < this%x0) then
         info = 1
@@ -420,54 +416,6 @@ Contains
       Y =  (1d0-t)*this%Vals(:,i+1)+t*this%Vals(:,i)
     endif
   End Function mlf_FunBasisValue
-
-  ! Get value of the function expressed as W in the current basis at position x
-  real(c_double) Function mlf_model_FunBasisFunValue(this, W, x) result(Y)
-    class(mlf_model_funbasis), intent(in) :: this
-    real(c_double), intent(in) :: x, W(:)
-    Y = mlf_FunBasisFunValue(this%top,W,x)
-  end Function mlf_model_FunBasisFunValue
-
-  pure real(c_double) Function mlf_FunBasisFunValue(this, W, x) result(Y)
-    class(mlf_algo_funbasis), intent(in) :: this
-    real(c_double), intent(in) :: x, W(:)
-    real(c_double) :: t, Y1, Y2, Y3, Y4, dX, X1, X2, X3, X4
-    integer :: i
-    if(x < this%x0 .OR. x > this%xEnd) then
-      Y = ieee_value(0d0, ieee_quiet_nan)
-      RETURN
-    endif
-    ! The X are dreasingly ordered
-    if(this%alpha == 0) then
-      i = INT((x-this%x0)/this%eDiff)+1
-      i = max(2,min(i,size(this%X)-2))
-      X1 = x-this%X(i-1); X2 = x-this%X(i); X3 = x-this%X(i+1); X4 = x-this%X(i+2)
-      Y1 = dot_product(this%Vals(:,i-1), W)
-      Y2 = dot_product(this%Vals(:,i), W)
-      Y3 = dot_product(this%Vals(:,i+1), W)
-      Y4 = dot_product(this%Vals(:,i+2), W)
-      Y = 1.0/6.0*X2*X3*(X1*Y4-X4*Y1)
-      Y = Y+0.5*X1*X4*(X3*Y2-X2*Y3)
-      Y = Y/(this%eDiff*this%eDiff*this%eDiff)
-    else
-      if(x>=this%X(1)) then
-        Y1 = dot_product(this%Vals(:,1), W)
-        Y2 = dot_product(this%Vals(:,2), W)
-        Y =  Y1*exp(log(Y1/Y2)/(this%X(1)-this%X(2))*(x-this%X(1)))
-        RETURN
-      endif
-      i = 1+INT((exp(-this%alpha*x)-this%eAEnd)/this%eDiff)
-      if(i >= size(this%X, 1)) i = size(this%X, 1)-1
-      dX = this%X(i)-this%X(i+1)
-      ! We define t as (x-X(i+1))/dX
-      !  so when t=0 -> x=X(i+1) and t=1 -> x=X(i)
-      t = (x-this%X(i+1))/dX
-      ! We get values Y1=F_W(X(i+1)) and Y2=F_W(X(i))
-      Y1 = dot_product(this%Vals(:,i+1), W)
-      Y2 = dot_product(this%Vals(:,i), W)
-      Y =  (1d0-t)*Y1+t*Y2
-    endif
-  End Function mlf_FunBasisFunValue
 
   ! Compute the vectors X and V from the structure
   subroutine ComputeBasisValue(this, N)

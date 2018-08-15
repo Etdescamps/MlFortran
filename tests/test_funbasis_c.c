@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
     }
   }
   double alpha = 0.0;
-  MLF_OBJ *fbasis = mlf_funBasisInit(fobj, 2, alpha, 0.0, 3.0, (double *) params, NR*NG, NPAR, 8192, 1024, (double *) weights);
+  MLF_OBJ *fbasis = mlf_funBasisInit(fobj, 2, alpha, 0.0, 3.0, (double *) params, NR*NG, NPAR, 1024, 1024, (double *) weights);
   MLF_OBJ *f2dgrid = mlf_2dgridModelInit(fbasis, 0.0, 4.0, -6.0, 0.0, NPAR, 512, 512);
   //MLF_OBJ *f2dgrid = mlf_2dgridModelInit(fbasis, 0.0, 4.0, 0.0, 4.0, NPAR, 2048, 2048);
   double Y[2];

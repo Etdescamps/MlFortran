@@ -385,7 +385,7 @@ Contains
     info = 0
     ! The X are dreasingly ordered
     if(this%alpha == 0) then
-      i = INT((x-this%x0)/this%eDiff)+1
+      i = CEILING((x-this%x0)/this%eDiff)
       if(i < -1 .OR. i > size(this%X)+2) then
         info = 1 ! Interpolation too far to be accurate
         RETURN
@@ -418,7 +418,7 @@ Contains
   End Function mlf_FunBasisValue
 
   ! Compute the vectors X and V from the structure
-  subroutine ComputeBasisValue(this, N)
+  Subroutine ComputeBasisValue(this, N)
     class(mlf_algo_funbasis), intent(inout) :: this
     integer, intent(in) :: N
     integer :: M, i, info
@@ -453,5 +453,5 @@ Contains
       info = this%fun%eval(this%X(i:i), this%P, Y)
       this%Vals(:,i) = matmul(Y(1,:),this%W)
     end do
-  end subroutine ComputeBasisValue
+  End Subroutine ComputeBasisValue
 End Module mlf_funbasis

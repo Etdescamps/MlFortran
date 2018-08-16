@@ -422,13 +422,14 @@ Contains
     class(mlf_algo_funbasis), intent(inout) :: this
     integer, intent(in) :: N
     integer :: M, i, info
-    real(c_double) :: eA0, eAEnd, eDiff, invAlpha
+    real(c_double) :: eA0, eAEnd, eDiff, invAlpha, coeff, Z
     real(c_double), allocatable :: Y(:,:)
     M = size(this%P,2)
     ALLOCATE(Y(1,M))
     if(this%alpha == 0) then
       this%eDiff = (this%xEnd-this%x0)/real(N-1, kind=8)
-      forall(i=1:N) this%X(i) = real(i-1, kind=8)*this%eDiff+this%x0 
+      forall(i=1:N) this%X(i) = real(i-1, kind=8)*this%eDiff+this%x0
+      coeff = this%eDiff
     else
       eA0 = exp(-this%alpha*this%x0)
       invAlpha = 1d0/this%alpha
@@ -448,10 +449,16 @@ Contains
       do i = 2,N-1
         this%X(i) = -invAlpha*log(eAEnd+(i-1)*eDiff)
       end do
+      coeff = this%eDiff*this%alpha
     endif
-    do i = 1,N
+    Do i = 1,N
       info = this%fun%eval(this%X(i:i), this%P, Y)
       this%Vals(:,i) = matmul(Y(1,:),this%W)
-    end do
+    End Do
+    ! Fix the values Vals to ensure that each vector has norm 1
+    Do i = 1,size(this%Vals,1)
+      Z = coeff*ComputeDotProduct(this%Vals(i,:), this%Vals(i,:), this%xEnd)
+      this%Vals(i,:) = this%Vals(i,:)/sqrt(Z)
+    End Do
   End Subroutine ComputeBasisValue
 End Module mlf_funbasis

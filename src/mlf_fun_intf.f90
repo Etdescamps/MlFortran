@@ -61,6 +61,13 @@ Module mlf_fun_intf
     procedure (mlf_basis_eval), deferred :: eval
   End Type mlf_basis_fun
 
+  ! Function handler for basis functions
+  Type, Public, abstract, extends(mlf_obj) :: mlf_basis_funder
+  Contains
+    procedure (mlf_basis_evalder), deferred :: eval
+  End Type mlf_basis_funder
+
+
   ! C function wrapper
   Type, Public, extends(mlf_basis_fun) :: mlf_basis_fun_c
     procedure (mlf_basis_eval_c), nopass, pointer :: evalC => NULL()
@@ -149,6 +156,15 @@ Module mlf_fun_intf
       real(c_double), intent(in), target :: X(:), rpar(:,:)
       real(c_double), intent(out), target :: Y(:,:)
     End Function mlf_basis_eval
+
+    ! Abstract basis function type (for dimension reduction)
+    integer Function mlf_basis_evalder(this, X, rpar, Y)
+      use iso_c_binding
+      import :: mlf_basis_funder
+      class(mlf_basis_funder), intent(in), target :: this
+      real(c_double), intent(in), target :: X(:), rpar(:,:)
+      real(c_double), intent(out), target :: Y(:,:,:)
+    End Function mlf_basis_evalder
 
     ! C interface for basis functions
     Function mlf_basis_eval_c(X, rpar, Y, nX, nPar, sPar, ptr) bind(C)

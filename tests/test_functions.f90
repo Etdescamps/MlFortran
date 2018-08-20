@@ -60,7 +60,7 @@ Module test_functions
   End Type mlf_odeTest
 
   ! Test function ODE
-  Type, extends(mlf_ode_funCstr) :: mlf_odeTestCstr
+  Type, extends(mlf_ode_funCstrVect) :: mlf_odeTestCstr
     procedure (odeTest_fun), nopass, pointer :: evalF => NULL()
   Contains
     procedure :: eval => odeTestCstr_eval

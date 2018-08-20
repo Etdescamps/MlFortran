@@ -105,6 +105,13 @@ Module mlf_fun_intf
   End Type mlf_ode_fun
 
   Type, Public, abstract, extends(mlf_ode_fun) :: mlf_ode_funCstr
+  Contains
+    procedure (mlf_ode_funCstr_update), deferred :: updateCstr
+    procedure (mlf_ode_funCstr_reach), deferred :: reachCstr
+    procedure (mlf_ode_funCstr_getDerivatives), deferred :: getDerivatives
+  End Type mlf_ode_funCstr
+
+  Type, Public, abstract, extends(mlf_ode_funCstr) :: mlf_ode_funCstrVect
     real(c_double), allocatable :: cstrVect(:,:)
     real(c_double), allocatable :: cstrValRef(:)
     real(c_double), allocatable :: cstrLastVal(:)
@@ -120,11 +127,38 @@ Module mlf_fun_intf
     procedure :: updateCstr => mlf_ode_updateCstr
     procedure :: reachCstr => mlf_ode_reachCstr
     procedure :: getDerivatives => mlf_ode_getDerivatives
-  End Type mlf_ode_funCstr
+  End Type mlf_ode_funCstrVect
 
   Integer, Parameter, Public :: mlf_ODE_StopT = 2, mlf_ODE_SoftCstr = 3, mlf_ODE_HardCstr = 4
 
   Abstract Interface
+
+    Integer Function mlf_ode_funCstr_reach(this, t, id, X, F)
+      Use iso_c_binding
+      import :: mlf_ode_funCstr
+      class(mlf_ode_funCstr), intent(inout), target :: this
+      real(c_double), intent(inout), target :: t, X(:), F(:)
+      integer, intent(in) :: id
+    End Function mlf_ode_funCstr_reach
+
+    Subroutine mlf_ode_funCstr_getDerivatives(this, ids, K, C0, C, Q)
+      Use iso_c_binding
+      import :: mlf_ode_funCstr
+      class(mlf_ode_funCstr), intent(inout), target :: this
+      real(c_double), intent(in), target :: K(:,:)
+      real(c_double), intent(out), target :: C0(:), C(:), Q(:,:)
+      integer, intent(inout), target :: ids(:)
+    End Subroutine mlf_ode_funCstr_getDerivatives
+
+    Function mlf_ode_funCstr_update(this, t, X, F, ids)
+      Use iso_c_binding
+      import :: mlf_ode_funCstr
+      class(mlf_ode_funCstr), intent(inout), target :: this
+      real(c_double), intent(in) :: t
+      real(c_double), intent(in), target :: X(:), F(:)
+      integer, intent(out), optional, pointer :: ids(:)
+      real(c_double) :: mlf_ode_funCstr_update
+    End Function mlf_ode_funCstr_update
 
     ! Abstract ODE function type
     Integer Function mlf_ode_eval(this, t, X, F)
@@ -198,7 +232,7 @@ Module mlf_fun_intf
 Contains
 
   Subroutine mlf_ode_allocateCstr(this, N, M)
-    class(mlf_ode_funCstr), intent(inout), target :: this
+    class(mlf_ode_funCstrVect), intent(inout), target :: this
     integer, intent(in) :: N, M
     ALLOCATE(this%cstrVect(N,M), this%cstrValRef(M), this%cstrLastVal(M), &
       this%cstrLastDer(M), this%cstrTmp(M, 2), this%cstrAlpha(M), this%cstrIds(M))
@@ -210,7 +244,7 @@ Contains
   End Subroutine mlf_ode_allocateCstr
 
   Subroutine mlf_ode_allocateCstrVect(this, Vect, ValRef)
-    class(mlf_ode_funCstr), intent(inout), target :: this
+    class(mlf_ode_funCstrVect), intent(inout), target :: this
     real(c_double) :: Vect(:,:)
     real(c_double), optional :: ValRef(:)
     call mlf_ode_allocateCstr(this, size(Vect,1), size(Vect,2))
@@ -218,12 +252,11 @@ Contains
     if(present(ValRef)) this%cstrValRef = ValRef
   End Subroutine mlf_ode_allocateCstrVect
 
-
   ! Default function that update the alpha if t is reached after cstrT
   ! Reevaluate dF/dt and move slightly t and X for reaching the condition
   ! The root should be near the value t (< tol)
   Integer Function mlf_ode_reachCstr(this, t, id, X, F) result(info)
-    class(mlf_ode_funCstr), intent(inout), target :: this
+    class(mlf_ode_funCstrVect), intent(inout), target :: this
     real(c_double), intent(inout), target :: t, X(:), F(:)
     real(c_double) :: h, Uid
     integer, intent(in) :: id
@@ -268,7 +301,7 @@ Contains
   End Function SelectIdsCrossing
 
   Subroutine mlf_ode_getDerivatives(this, ids, K, C0, C, Q)
-    class(mlf_ode_funCstr), intent(inout), target :: this
+    class(mlf_ode_funCstrVect), intent(inout), target :: this
     real(c_double), intent(in), target :: K(:,:)
     real(c_double), intent(out), target :: C0(:), C(:), Q(:,:)
     integer, intent(inout), target :: ids(:)
@@ -281,7 +314,7 @@ Contains
 
   ! Default function for updateCstr
   Real(c_double) Function mlf_ode_updateCstr(this, t, X, F, ids) result(hMax)
-    class(mlf_ode_funCstr), intent(inout), target :: this
+    class(mlf_ode_funCstrVect), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:), F(:)
     integer, intent(out), optional, pointer :: ids(:)

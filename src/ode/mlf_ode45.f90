@@ -206,7 +206,7 @@ Contains
     class(mlf_ode45_obj), intent(inout) :: this
     class(mlf_ode_funCstr), intent(inout) :: fun
     real(c_double), intent(inout) :: hMax
-    real(c_double) :: C(size(fun%cstrTmp)), U, dt, h
+    real(c_double) :: U, dt, h
     integer :: i, j, id, N
     integer, pointer :: ids(:)
     info = 0

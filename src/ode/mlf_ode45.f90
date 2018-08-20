@@ -223,7 +223,7 @@ Contains
     id = ids(id)
     call this%denseEvaluation(this%t0+h, this%X)
     this%t = this%t0 + h
-    info = fun%reachCstr(this%t, id, this%X, this%K(:,1))
+    info = fun%reachCstr(this%t, id, this%X, this%K(:,1), hMax)
   End Function mlf_ode45_findRoot
 
   ! Find root of the constraints using dense output

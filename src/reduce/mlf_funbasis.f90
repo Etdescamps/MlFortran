@@ -40,7 +40,9 @@ Module mlf_funbasis
   IMPLICIT NONE
   PRIVATE
 
+  ! Coefficients from Numerical Recipies in C (Press, Teukolsky) Chapter 4.1
   real(c_double), parameter :: fb_icoeff(4) =  [3d0/8d0, 7d0/6d0, 23d0/24d0, 1d0]
+
   ! Object handling timer and step evaluations
   Type, Public, extends(mlf_obj_model) :: mlf_algo_funbasis
     class(mlf_basis_fun), pointer :: fun ! Reference function
@@ -456,9 +458,11 @@ Contains
       this%Vals(:,i) = matmul(Y(1,:),this%W)
     End Do
     ! Fix the values Vals to ensure that each vector has norm 1
+    ! The value of the norm is close to 1 but sufficiently different to add an error
     Do i = 1,size(this%Vals,1)
       Z = coeff*ComputeDotProduct(this%Vals(i,:), this%Vals(i,:), this%xEnd)
       this%Vals(i,:) = this%Vals(i,:)/sqrt(Z)
     End Do
   End Subroutine ComputeBasisValue
 End Module mlf_funbasis
+

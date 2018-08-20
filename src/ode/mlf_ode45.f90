@@ -207,46 +207,28 @@ Contains
     class(mlf_ode_funCstr), intent(inout) :: fun
     real(c_double), intent(inout) :: hMax
     real(c_double) :: C(size(fun%cstrTmp)), U, dt, h
-    integer :: ids(size(fun%cstrTmp)), i, j, id
+    integer :: i, j, id, N
+    integer, pointer :: ids(:)
     info = 0
-    CALL fun%getCstr(this%X, C)
-    j = 0
-    Do i =1,size(C)
-      if(C(i) /= 0) then
-        U = C(i)*fun%cstrTmp(i)
-        if(U > 0) CYCLE
-        if(U == 0) then
-          U = dot_product(this%K(:,1), fun%cstrVect(:,i))*C(i)
-          if(U >= 0) CYCLE
-        endif
-      endif
-      j = j+1
-      ids(j) = i
-    End Do
-    if(j == 0) then
-      h = fun%updateCstr(this%t, this%X, C, this%K(:,7))
-      hMax = MIN(h, hMax)
-      RETURN
-    endif
+    hMax = MIN(fun%updateCstr(this%t, this%X, this%K(:,7), ids), hMax)
+    if(.NOT. ASSOCIATED(ids)) RETURN
     dt = this%t-this%t0
-    h = ODE45FindRoot(this%rtoli, this%atoli, ids(1:j), fun%cstrVect, this%K, &
-      fun%cstrTmp, C, dt, id)
+    N = size(ids)
+    BLOCK
+      real(c_double) :: C0(N), C(N), Q(N,7)
+      call fun%getDerivatives(ids, this%K, C0, C, Q)
+      Q = dt*Q
+      h = ODE45FindRoot(this%rtoli, this%atoli, Q, C0, C, id)
+    END BLOCK
+    id = ids(id)
     call this%denseEvaluation(this%t0+h, this%X)
     this%t = this%t0 + h
     info = fun%reachCstr(this%t, id, this%X, this%K(:,1))
   End Function mlf_ode45_findRoot
 
-  real(c_double) Function ODE45FindRoot(rtol, atol, ids, A, K, C0, C, dt, id) result(hMax)
-    real(c_double), intent(in) :: A(:,:), K(:, :), C0(:), C(:), rtol, atol, dt
-    integer, intent(in) :: ids(:)
-    integer, intent(out) :: id
-    hMax = dt*Dense45FindRoot(rtol, atol, dt*MATMUL(transpose(A(:,ids)), K), C0(ids), C(ids), id)
-    id = ids(id)
-  End Function ODE45FindRoot
-
   ! Find root of the constraints using dense output
   ! CORNER CASE: the case where C0=C(t0)=0 and dC/dt(t0)=Q(:,1)=0 shall be avoided
-  real(c_double) Function Dense45FindRoot(rtol, atol, Q, C0, C, id) result(th)
+  real(c_double) Function ODE45FindRoot(rtol, atol, Q, C0, C, id) result(th)
     real(c_double), intent(in) :: Q(:, :), C0(:), C(:), rtol, atol
     integer, intent(out) :: id
     integer :: i
@@ -289,7 +271,7 @@ Contains
         if(abs(Y)<V) EXIT
       End Do
     END ASSOCIATE
-  End Function Dense45FindRoot
+  End Function ODE45FindRoot
 
   Subroutine mlf_ode45_updateDense(this)
     class(mlf_ode45_obj), intent(inout) :: this
@@ -389,11 +371,7 @@ Contains
       this%nFun = this%nFun + 1
       SELECT TYPE(fun)
       class is (mlf_ode_funCstr)
-        BLOCK
-          real(c_double) :: C(size(fun%cstrTmp))
-          CALL fun%getCstr(X0, C)
-          hMax = fun%updateCstr(t, X, C, K(:,1))
-        END BLOCK
+        hMax = fun%updateCstr(t, X, K(:,1))
       END SELECT
       do while(i <= niter0)
         this%t0 = t

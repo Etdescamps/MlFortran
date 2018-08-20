@@ -67,6 +67,14 @@ Module test_functions
     procedure :: init => odeTestCstr_init
   End Type mlf_odeTestCstr
 
+  ! Test function ODE
+  Type, extends(mlf_ode_funCstrIds) :: mlf_odeTestCstrIds
+    procedure (odeTest_fun), nopass, pointer :: evalF => NULL()
+  Contains
+    procedure :: eval => odeTestCstrIds_eval
+    procedure :: init => odeTestCstrIds_init
+  End Type mlf_odeTestCstrIds
+
 
   real(c_double) , Parameter :: X0Arenstorf(4) = [0.994d0, 0d0, 0d0, -2.00158510637908252240537862224d0]
   real(c_double) , Parameter :: TEndArenstorf = 17.0652165601579625588917206249d0
@@ -108,6 +116,25 @@ Contains
     procedure (odeTest_fun) :: fun
     this%evalF => fun
   End Subroutine odeTest_init
+
+  Integer Function odeTestCstrIds_eval(this, t, X, F) result(info)
+    class(mlf_odeTestCstrIds), intent(in), target :: this
+    real(c_double), intent(in) :: t
+    real(c_double), intent(in), target :: X(:)
+    real(c_double), intent(out), target :: F(:)
+    call this%evalF(t, X, F)
+    info = 0
+  End Function odeTestCstrIds_eval
+
+  Subroutine odeTestCstrIds_init(this, fun, Ids, ValRef)
+    class(mlf_odeTestCstrIds), intent(inout), target :: this
+    procedure (odeTest_fun) :: fun
+    integer, intent(in) :: Ids(:)
+    real(c_double), optional :: ValRef(:)
+    integer :: sC
+    call this%allocateCstr(Ids, ValRef)
+    this%evalF => fun
+  End Subroutine odeTestCstrIds_init
 
   Integer Function odeTestCstr_eval(this, t, X, F) result(info)
     class(mlf_odeTestCstr), intent(in), target :: this

@@ -111,6 +111,24 @@ Module mlf_fun_intf
     procedure (mlf_ode_funCstr_getDerivatives), deferred :: getDerivatives
   End Type mlf_ode_funCstr
 
+  Type, Public, abstract, extends(mlf_ode_funCstr) :: mlf_ode_funCstrIds
+    real(c_double), allocatable :: cstrValRef(:)
+    real(c_double), allocatable :: cstrLastVal(:)
+    real(c_double), allocatable :: cstrLastDer(:)
+    real(c_double), allocatable :: cstrAlpha(:)
+    real(c_double), allocatable :: cstrTmp(:)
+    integer, allocatable :: cstrSelIds(:)
+    integer, allocatable :: cstrIds(:)
+    real(c_double) :: cstrT
+    integer :: cstrId
+  Contains
+    procedure :: allocateCstr => mlf_ode_allocateCstrIds
+    procedure :: updateCstr => mlf_ode_updateCstrIds
+    procedure :: reachCstr => mlf_ode_reachCstrIds
+    procedure :: getDerivatives => mlf_ode_getDerivativesIds
+  End Type mlf_ode_funCstrIds
+
+
   Type, Public, abstract, extends(mlf_ode_funCstr) :: mlf_ode_funCstrVect
     real(c_double), allocatable :: cstrVect(:,:)
     real(c_double), allocatable :: cstrValRef(:)
@@ -252,14 +270,31 @@ Contains
     if(present(ValRef)) this%cstrValRef = ValRef
   End Subroutine mlf_ode_allocateCstrVect
 
+  Subroutine mlf_ode_allocateCstrIds(this, Ids, ValRef)
+    class(mlf_ode_funCstrIds), intent(inout), target :: this
+    integer, intent(in) :: Ids(:)
+    real(c_double), optional :: ValRef(:)
+    integer :: N
+    N = size(Ids)
+    ALLOCATE(this%cstrValRef(N), this%cstrLastVal(N), this%cstrLastDer(N), &
+      this%cstrAlpha(N), this%cstrSelIds(N), this%cstrIds(N), this%cstrTmp(N))
+    this%cstrSelIds = Ids
+    this%cstrValRef = 0
+    this%cstrLastVal = 0
+    this%cstrLastDer = 0
+    this%cstrAlpha = 1.5d0
+    this%cstrId = -1
+    if(present(ValRef)) this%cstrValRef = ValRef
+  End Subroutine mlf_ode_allocateCstrIds
+
   ! Default function that update the alpha if t is reached after cstrT
   ! Reevaluate dF/dt and move slightly t and X for reaching the condition
   ! The root should be near the value t (< tol)
   Integer Function mlf_ode_reachCstr(this, t, id, X, F) result(info)
     class(mlf_ode_funCstrVect), intent(inout), target :: this
     real(c_double), intent(inout), target :: t, X(:), F(:)
-    real(c_double) :: h, Uid
     integer, intent(in) :: id
+    real(c_double) :: h, Uid
     if(this%cstrId == id .AND. t > this%cstrT) then
       this%cstrAlpha(id) = 1.5d0*this%cstrAlpha(id)
     endif
@@ -280,6 +315,29 @@ Contains
     info = mlf_ODE_SoftCstr
   End Function mlf_ode_reachCstr
   
+  Integer Function mlf_ode_reachCstrIds(this, t, id, X, F) result(info)
+    class(mlf_ode_funCstrIds), intent(inout), target :: this
+    real(c_double), intent(inout), target :: t, X(:), F(:)
+    integer, intent(in) :: id
+    real(c_double) :: h, Uid
+    integer :: k
+    if(this%cstrId == id .AND. t > this%cstrT) then
+      this%cstrAlpha(id) = 1.5d0*this%cstrAlpha(id)
+    endif
+    k = this%cstrSelIds(id)
+    this%cstrId = id
+    ! Compute the value of the constraints
+    Uid = X(k)-this%cstrValRef(id)
+    info = this%eval(t, X, F)
+    if(info /= 0) RETURN ! If there is an error or a hard constraints
+    h = -Uid/F(k)
+    t = t+h
+    X = X + h*F
+    this%cstrLastVal = X(this%cstrSelIds) - this%cstrValRef
+    this%cstrLastDer = F(this%cstrSelIds)
+    info = mlf_ODE_SoftCstr
+  End Function mlf_ode_reachCstrIds
+
   Integer Function SelectIdsCrossing(ids, X0, F0, X) result(n)
     real(c_double), intent(in) :: X0(:), F0(:), X(:)
     integer, intent(inout) :: ids(:)
@@ -312,7 +370,54 @@ Contains
     Q = MATMUL(TRANSPOSE(this%cstrVect(:,ids)), K)
   End Subroutine mlf_ode_getDerivatives
 
-  ! Default function for updateCstr
+  Subroutine mlf_ode_getDerivativesIds(this, ids, K, C0, C, Q)
+    class(mlf_ode_funCstrIds), intent(inout), target :: this
+    real(c_double), intent(in), target :: K(:,:)
+    real(c_double), intent(out), target :: C0(:), C(:), Q(:,:)
+    integer, intent(inout), target :: ids(:)
+    integer :: N
+    N = size(ids)
+    C0(1:N) = this%cstrLastVal(ids)
+    C(1:N) = this%cstrTmp(ids)
+    Q = K(this%cstrSelIds(ids),:)
+  End Subroutine mlf_ode_getDerivativesIds
+
+  ! Update function for single value constraints
+  Real(c_double) Function mlf_ode_updateCstrIds(this, t, X, F, ids) result(hMax)
+    class(mlf_ode_funCstrIds), intent(inout), target :: this
+    real(c_double), intent(in) :: t
+    real(c_double), intent(in), target :: X(:), F(:)
+    integer, intent(out), optional, pointer :: ids(:)
+    real(c_double) :: h
+    integer :: i
+    hmax = HUGE(hMax)
+    this%cstrId = -1
+    if(PRESENT(ids)) then
+      ids => NULL()
+      this%cstrTmp = X(this%cstrSelIds) - this%cstrValRef
+      i = SelectIdsCrossing(this%cstrIds, this%cstrLastVal, this%cstrLastDer, &
+                            this%cstrTmp)
+      if(i > 0) then
+        ids => this%cstrIds(1:i)
+        RETURN
+      endif
+    endif
+    this%cstrLastVal = X(this%cstrSelIds) - this%cstrValRef
+    this%cstrLastDer = F(this%cstrSelIds)
+    ASSOCIATE(C => this%cstrLastVal, U => this%cstrLastDer)
+      Do i=1, size(C)
+        if(U(i)*C(i)<0) then
+          h = -this%cstrAlpha(i)*C(i)/U(i)
+          if(h >= hMax) CYCLE
+          hMax = h
+          this%cstrId = i
+          this%cstrT = t+hMax
+        endif
+      End Do
+    END ASSOCIATE
+  End Function mlf_ode_updateCstrIds
+
+  ! Update function for vector constraints
   Real(c_double) Function mlf_ode_updateCstr(this, t, X, F, ids) result(hMax)
     class(mlf_ode_funCstrVect), intent(inout), target :: this
     real(c_double), intent(in) :: t

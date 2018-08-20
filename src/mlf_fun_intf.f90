@@ -115,7 +115,8 @@ Module mlf_fun_intf
     real(c_double) :: cstrT
     integer :: cstrId
   Contains
-    procedure :: allocateCstr => mlf_ode_allocateCstr
+    procedure :: mlf_ode_allocateCstr, mlf_ode_allocateCstrVect
+    generic :: allocateCstr => mlf_ode_allocateCstr, mlf_ode_allocateCstrVect
     procedure :: updateCstr => mlf_ode_updateCstr
     procedure :: reachCstr => mlf_ode_reachCstr
     procedure :: getDerivatives => mlf_ode_getDerivatives
@@ -201,7 +202,22 @@ Contains
     integer, intent(in) :: N, M
     ALLOCATE(this%cstrVect(N,M), this%cstrValRef(M), this%cstrLastVal(M), &
       this%cstrLastDer(M), this%cstrTmp(M, 2), this%cstrAlpha(M), this%cstrIds(M))
+    this%cstrValRef = 0
+    this%cstrLastVal = 0
+    this%cstrLastDer = 0
+    this%cstrAlpha = 1.5d0
+    this%cstrId = -1
   End Subroutine mlf_ode_allocateCstr
+
+  Subroutine mlf_ode_allocateCstrVect(this, Vect, ValRef)
+    class(mlf_ode_funCstr), intent(inout), target :: this
+    real(c_double) :: Vect(:,:)
+    real(c_double), optional :: ValRef(:)
+    call mlf_ode_allocateCstr(this, size(Vect,1), size(Vect,2))
+    this%cstrVect = Vect
+    if(present(ValRef)) this%cstrValRef = ValRef
+  End Subroutine mlf_ode_allocateCstrVect
+
 
   ! Default function that update the alpha if t is reached after cstrT
   ! Reevaluate dF/dt and move slightly t and X for reaching the condition

@@ -118,18 +118,14 @@ Contains
     info = 0
   End Function odeTestCstr_eval
 
-  Subroutine odeTestCstr_init(this, fun, vC)
+  Subroutine odeTestCstr_init(this, fun, vC, ValRef)
     class(mlf_odeTestCstr), intent(inout), target :: this
     procedure (odeTest_fun) :: fun
     real(c_double), intent(in) :: vC(:,:)
+    real(c_double), optional :: ValRef(:)
     integer :: sC
+    call this%allocateCstr(vC, ValRef)
     this%evalF => fun
-    sC = size(vC,2)
-    ALLOCATE(this%cstrVect, source = vC)
-    ALLOCATE(this%cstrVal(sC), this%cstrTmp(sC), this%cstrAlpha(sC))
-    this%cstrVal = 0; this%cstrTmp = 0
-    this%cstrAlpha = 1.5
-    this%cstrId = -1
   End Subroutine odeTestCstr_init
 
   Subroutine mlf_obj_test_init(this, evalF, nD, cstrF, nC)

@@ -218,7 +218,7 @@ Contains
       real(c_double) :: C0(N), C(N), Q(N,7)
       call fun%getDerivatives(ids, this%K, C0, C, Q)
       Q = dt*Q
-      h = ODE45FindRoot(this%rtoli, this%atoli, Q, C0, C, id)
+      h = dt*ODE45FindRoot(this%rtoli, this%atoli, Q, C0, C, id)
     END BLOCK
     id = ids(id)
     call this%denseEvaluation(this%t0+h, this%X)

@@ -137,7 +137,7 @@ Module mlf_fun_intf
     real(c_double), allocatable :: cstrTmp(:,:)
     real(c_double), allocatable :: cstrAlpha(:)
     integer, allocatable :: cstrIds(:)
-    real(c_double) :: cstrT
+    real(c_double) :: cstrT, epsilonT
     integer :: cstrId
   Contains
     procedure :: mlf_ode_allocateCstr, mlf_ode_allocateCstrVect
@@ -259,6 +259,7 @@ Contains
     this%cstrLastDer = 0
     this%cstrAlpha = 1.5d0
     this%cstrId = -1
+    this%epsilonT = 4d0*epsilon(1d0)*sqrt(real(N))
   End Subroutine mlf_ode_allocateCstr
 
   Subroutine mlf_ode_allocateCstrVect(this, Vect, ValRef)
@@ -308,7 +309,8 @@ Contains
     ! So with h = -<X(t),cstrVect(:,id)>/<F(t),cstrVect(:,id)>
     ! we will have <X(t)+h*F(t),cstrVect(:,id)> = 0
     h = -Uid/DOT_PRODUCT(F, this%cstrVect(:,id))
-    t = t+h
+    h = h + abs(h)*this%epsilonT ! Add epsilon, so t will be slightly after collison
+    t = t + h
     X = X + h*F
     this%cstrLastVal = MATMUL(X, this%cstrVect) - this%cstrValRef
     this%cstrLastDer = MATMUL(F, this%cstrVect)
@@ -331,8 +333,9 @@ Contains
     info = this%eval(t, X, F)
     if(info /= 0) RETURN ! If there is an error or a hard constraints
     h = -Uid/F(k)
-    t = t+h
+    t = t + h
     X = X + h*F
+    X(k) = 0
     this%cstrLastVal = X(this%cstrSelIds) - this%cstrValRef
     this%cstrLastDer = F(this%cstrSelIds)
     info = mlf_ODE_SoftCstr

@@ -206,8 +206,8 @@ Contains
     class(mlf_ode45_obj), intent(inout) :: this
     class(mlf_ode_funCstr), intent(inout) :: fun
     real(c_double), intent(inout) :: hMax
-    real(c_double) :: U, dt, h
-    integer :: i, j, id, N
+    real(c_double) :: dt, h
+    integer :: id, N
     integer, pointer :: ids(:)
     info = 0
     hMax = MIN(fun%updateCstr(this%t, this%X, this%K(:,7), ids), hMax)

@@ -131,7 +131,6 @@ Contains
     procedure (odeTest_fun) :: fun
     integer, intent(in) :: Ids(:)
     real(c_double), optional :: ValRef(:)
-    integer :: sC
     call this%allocateCstr(Ids, ValRef)
     this%evalF => fun
   End Subroutine odeTestCstrIds_init
@@ -150,7 +149,6 @@ Contains
     procedure (odeTest_fun) :: fun
     real(c_double), intent(in) :: vC(:,:)
     real(c_double), optional :: ValRef(:)
-    integer :: sC
     call this%allocateCstr(vC, ValRef)
     this%evalF => fun
   End Subroutine odeTestCstr_init

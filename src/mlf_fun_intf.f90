@@ -111,7 +111,12 @@ Module mlf_fun_intf
     procedure (mlf_ode_funCstr_getDerivatives), deferred :: getDerivatives
   End Type mlf_ode_funCstr
 
-  Type, Public, abstract, extends(mlf_ode_funCstr) :: mlf_ode_funCstrIds
+  Type, Public, abstract, extends(mlf_ode_funCstr) :: mlf_ode_funStop
+  Contains
+    procedure :: funStop => mlf_ode_dummy_funStop
+  End Type mlf_ode_funStop
+
+  Type, Public, abstract, extends(mlf_ode_funStop) :: mlf_ode_funCstrIds
     real(c_double), allocatable :: cstrValRef(:)
     real(c_double), allocatable :: cstrLastVal(:)
     real(c_double), allocatable :: cstrLastDer(:)
@@ -129,7 +134,7 @@ Module mlf_fun_intf
   End Type mlf_ode_funCstrIds
 
 
-  Type, Public, abstract, extends(mlf_ode_funCstr) :: mlf_ode_funCstrVect
+  Type, Public, abstract, extends(mlf_ode_funStop) :: mlf_ode_funCstrVect
     real(c_double), allocatable :: cstrVect(:,:)
     real(c_double), allocatable :: cstrValRef(:)
     real(c_double), allocatable :: cstrLastVal(:)
@@ -146,9 +151,6 @@ Module mlf_fun_intf
     procedure :: reachCstr => mlf_ode_reachCstr
     procedure :: getDerivatives => mlf_ode_getDerivatives
   End Type mlf_ode_funCstrVect
-
-  Public :: mlf_ode_updateCstr, mlf_ode_reachCstr, mlf_ode_getDerivatives
-  Public :: mlf_ode_updateCstrIds, mlf_ode_reachCstrIds, mlf_ode_getDerivativesIds
 
   Integer, Parameter, Public :: mlf_ODE_StopT = 2, mlf_ODE_SoftCstr = 3, mlf_ODE_HardCstr = 4
 
@@ -309,6 +311,14 @@ Contains
     T = T + hMax
   End Function GetHMaxFromCU
 
+  ! Dummy function for function event
+  Integer Function mlf_ode_dummy_funStop(this, t, id, X, F) result(info)
+    class(mlf_ode_funStop), intent(inout), target :: this
+    real(c_double), intent(inout), target :: t, X(:), F(:)
+    integer, intent(in) :: id
+    info = mlf_ODE_SoftCstr
+  End Function mlf_ode_dummy_funStop
+
   ! Default function that update the alpha if t is reached after cstrT
   ! Reevaluate dF/dt and move slightly t and X for reaching the condition
   ! The root should be near the value t (< tol)
@@ -333,11 +343,11 @@ Contains
     h = h + abs(h)*this%epsilonT ! Add epsilon, so t will be slightly after collison
     t = t + h
     X = X + h*F
+    info = this%funStop(t, id, X, F)
     this%cstrLastVal = MATMUL(X, this%cstrVect) - this%cstrValRef
     this%cstrLastDer = MATMUL(F, this%cstrVect)
     this%cstrT = t
     hMax = GetHMaxFromCU(this%cstrLastVal, this%cstrLastDer, this%cstrAlpha, this%cstrId, this%cstrT)
-    info = mlf_ODE_SoftCstr
   End Function mlf_ode_reachCstr
   
   Integer Function mlf_ode_reachCstrIds(this, t, id, X, F, hMax) result(info)
@@ -359,11 +369,11 @@ Contains
     t = t + h
     X = X + h*F
     X(k) = 0
+    info = this%funStop(t, id, X, F)
     this%cstrLastVal = X(this%cstrSelIds) - this%cstrValRef
     this%cstrLastDer = F(this%cstrSelIds)
     this%cstrT = t
     hMax = GetHMaxFromCU(this%cstrLastVal, this%cstrLastDer, this%cstrAlpha, this%cstrId, this%cstrT)
-    info = mlf_ODE_SoftCstr
   End Function mlf_ode_reachCstrIds
 
   Integer Function SelectIdsCrossing(ids, X0, F0, X) result(n)

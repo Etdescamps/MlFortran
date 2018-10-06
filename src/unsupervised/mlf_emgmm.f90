@@ -37,7 +37,7 @@ Module mlf_emgmm
   Use mlf_rand
   Use mlf_matrix
   Use mlf_gaussian
-  Use mlf_kmeans
+  Use mlf_kmeans_naive
   Use mlf_errors
   IMPLICIT NONE
   PRIVATE
@@ -124,7 +124,7 @@ Contains
   ! Step function
   integer Function mlf_algo_emgmm_stepF(this, niter) result(info)
     class(mlf_algo_emgmm), intent(inout), target :: this
-    type(mlf_algo_kmeans) :: km_algo
+    type(mlf_algo_kmeans_naive) :: km_algo
     integer(kind=8), intent(inout), optional :: niter
     integer(kind=8) :: i, N, nkm
     integer :: j,nC

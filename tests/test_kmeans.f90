@@ -34,13 +34,13 @@ Program test_kmeans
   Use mlf_step_algo
   Use mlf_utils
   Use mlf_rand
-  Use mlf_kmeans
+  Use mlf_kmeans_naive
   IMPLICIT NONE
   integer, parameter :: nX = 1024, nY = 16, nC = 6
   real(c_double), allocatable, target :: X(:,:), Mu(:,:)
   real(c_double) :: dt
   integer(kind=8) :: nstep = 32
-  type(mlf_algo_kmeans) :: km_algo
+  type(mlf_algo_kmeans_naive) :: km_algo
   integer :: i, info
 
   info = mlf_init()

@@ -40,10 +40,10 @@ Module mlf_kmeans
   IMPLICIT NONE
   
   PRIVATE
-  public :: mlf_kmeans_c, mlf_match_points
+  Public :: mlf_match_points, mlf_GetFarPoint, mlf_EvaluateClass, mlf_InitKMeans
 
   ! Kmean object type
-  Type, Public, extends(mlf_step_obj) :: mlf_algo_kmeans
+  Type, Public, Abstract, extends(mlf_step_obj) :: mlf_algo_kmeans
     real(c_double), pointer :: X(:,:), Mu(:,:), meanDist
     real(c_double), allocatable :: minDist(:)
     integer(c_int32_t), allocatable :: cl(:)
@@ -51,7 +51,6 @@ Module mlf_kmeans
   Contains
     procedure :: init => mlf_algo_kmeans_init
     procedure :: reinit => mlf_algo_kmeans_reinit
-    procedure :: stepF => mlf_algo_kmeans_stepF
   End Type mlf_algo_kmeans
 
   Type, Public, extends(mlf_class_model) :: mlf_model_kmeans
@@ -59,6 +58,7 @@ Module mlf_kmeans
   Contains
     procedure :: getClass => mlf_model_kmean_getClass
   End Type mlf_model_kmeans
+
 
 Contains
   ! Model initilisator
@@ -72,7 +72,13 @@ Contains
     end select
   End Subroutine mlf_model_kmean_init
 
-  ! Simple K-means algorithm implementation
+  integer Function mlf_model_kmean_getClass(this, X, Cl) result(info)
+    class(mlf_model_kmeans), intent(in), target :: this
+    real(c_double), intent(in) :: X(:,:)
+    integer(c_int), intent(out) :: Cl(:)
+    info = 0
+    call mlf_EvaluateClass(X, this%top%Mu, Cl)
+  End Function mlf_model_kmean_getClass
 
   ! Init function for the step object
   integer Function mlf_algo_kmeans_init(this, X, nC, Mu, data_handler) result(info)
@@ -120,28 +126,8 @@ Contains
     if(CheckF(info, "Error reinit")) RETURN
     ALLOCATE(this%minDist(nX), this%cl(nX))
     call this%addRVar(numFields, this%meanDist, "meanDist")
-    call mlf_model_kmean_init(this%model, this)
+    if(.NOT. ALLOCATED(this%model)) call mlf_model_kmean_init(this%model, this)
   End Function mlf_algo_kmeans_init
-
-  ! C interface to k-means algorithm
-  type(c_ptr) Function mlf_kmeans_c(pX, nX, nY, nC, pMu) result(cptr) bind(C, name="mlf_kmeans_c")
-    type(c_ptr), value :: pX, pMu
-    real(c_double), pointer :: X(:,:), Mu(:,:)
-    integer(c_int), value :: nX, nY, nC
-    integer :: info
-    type(mlf_algo_kmeans), pointer :: this
-    class (*), pointer :: obj
-    ALLOCATE(this)
-    call C_F_POINTER(pX, X, [nY, nX])
-    if(C_ASSOCIATED(pMu)) then
-      call C_F_POINTER(pMu, Mu, [nC, nX])
-      info = this%init(X, Mu = Mu)
-    else
-      info = this%init(X, nC = nC)
-    endif
-    obj => this
-    cptr = c_allocate(obj)
-  End Function mlf_kmeans_c
 
   ! Reinit algorithm parameters
   integer Function mlf_algo_kmeans_reinit(this) result(info)
@@ -151,36 +137,18 @@ Contains
     this%initialized = .FALSE.
   End Function mlf_algo_kmeans_reinit
 
-  ! Algorithm step function
-  integer Function mlf_algo_kmeans_stepF(this, niter) result(info)
-    class(mlf_algo_kmeans), intent(inout), target :: this
-    integer(kind=8), intent(inout), optional :: niter
-    integer(kind=8) :: i, N
-    N = 1
-    if(present(niter)) N = niter
-    do i=1,N
-      if(.NOT. this%initialized) then
-        call InitKMeans(this%X, this%Mu)
-        this%initialized = .TRUE.
-      else
-        call EvaluateClass(this%X, this%Mu, this%cl, this%minDist)
-        this%meanDist = mean(this%minDist)
-        call EvaluateCentres(this%X, this%Mu, this%cl)
-      endif
-    end do
-    info = 0
-  End Function mlf_algo_kmeans_stepF
+  Function mlf_GetFarPoint(X,Mu) result(V)
+    real(c_double), intent(in) :: X(:,:), Mu(:,:)
+    real(c_double) :: V(size(X,1)) ! Output of the function
+    real(c_double) :: minDist(size(X,2))
+    integer :: k(1)
+    ! Use in this case to get the farest point from the selected centres Mu
+    call mlf_EvaluateClass(X,Mu, minDist = minDist)
+    call mlf_rand_class(mlf_cumulativefromvect(minDist*minDist), k)
+    V = X(:,k(1))
+  End Function mlf_GetFarPoint
 
-  integer Function mlf_model_kmean_getClass(this, X, Cl) result(info)
-    class(mlf_model_kmeans), intent(in), target :: this
-    real(c_double), intent(in) :: X(:,:)
-    integer(c_int), intent(out) :: Cl(:)
-    info = 0
-    call EvaluateClass(X, this%top%Mu, Cl)
-  End Function mlf_model_kmean_getClass
-
-  Subroutine EvaluateClass(X, Mu, cl, minDist)
-    ! Naive algorithm (TODO use a better structure when the number of points is huge)
+  Subroutine mlf_EvaluateClass(X, Mu, cl, minDist)
     real(c_double), intent(in) :: X(:,:), Mu(:,:)
     real(c_double), intent(out), optional :: minDist(:)
     integer, intent(out), optional :: cl(:)
@@ -194,43 +162,10 @@ Contains
     End Do
     if(present(cl)) cl = minloc(dist, 2) 
     if(present(minDist)) minDist = minval(dist, 2)
-  End Subroutine EvaluateClass
+  End Subroutine mlf_EvaluateClass
 
-  subroutine EvaluateCentres(X, Mu, cl)
-    real(c_double), intent(in) :: X(:,:)
-    real(c_double), intent(out) :: Mu(:,:)
-    integer, intent(in) :: cl(:)
-    integer :: NX, NC, i, k, Ncl(size(cl,1))
-    NX = size(X,2)
-    NC = size(Mu,2)
-    Mu = 0
-    Ncl = 0
-    Do i=1, NX
-      k = cl(i)
-      Ncl(k) = Ncl(k)+1
-      Mu(:,k) = Mu(:,k)+X(:,i)
-    End Do
-    Do i=1,NC
-      if(Ncl(i) == 0) then
-        ! Set to the farest position
-        Mu(:,i) = GetFarPoint(X,Mu)
-      else
-        Mu(:,i) = Mu(:,i)/real(Ncl(i), kind=c_double)
-      endif
-    End Do
-  End Subroutine EvaluateCentres
 
-  Function GetFarPoint(X,Mu) result(V)
-    real(c_double), intent(in) :: X(:,:), Mu(:,:)
-    real(c_double) :: V(size(X,1)), minDist(size(X,2))
-    integer :: k(1)
-    ! Use in this case to get the farest point from the selected centres Mu
-    call EvaluateClass(X,Mu, minDist = minDist)
-    call mlf_rand_class(mlf_cumulativefromvect(minDist*minDist), k)
-    V = X(:,k(1))
-  End Function GetFarPoint
-
-  Subroutine InitKMeans(X, Mu)
+  Subroutine mlf_InitKMeans(X, Mu)
     real(c_double), intent(in) :: X(:,:)
     real(c_double), intent(out) :: Mu(:,:)
     integer :: NX, NC, i
@@ -239,12 +174,12 @@ Contains
     ! Determine mean of the points
     Mu(:,1) = mean(X,2)
     ! Select the farthest point
-    Mu(:,1) = GetFarPoint(X, Mu(:,1:1))
+    Mu(:,1) = mlf_GetFarPoint(X, Mu(:,1:1))
     Do i=2,NC
       ! Reiter the farthest point selection method
-      Mu(:,i) = GetFarPoint(X, Mu(:,1:i-1))
+      Mu(:,i) = mlf_GetFarPoint(X, Mu(:,1:i-1))
     End Do
-  End Subroutine InitKMeans
+  End Subroutine mlf_InitKMeans
 
   Subroutine mlf_match_points(X, Y, idx)
     real(c_double), intent(in) :: X(:,:), Y(:,:)

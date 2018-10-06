@@ -85,7 +85,7 @@ Contains
     R = R * A
   End Function mlf_randD1
   
-  ! Utility function for generating random integer
+  ! Utility function for generating random integer (from 0 to N-1)
   ! (if N is huge, it is better to use a more precise generator)
   integer(c_int) Function randInt(N)
     integer(c_int), intent(in) :: N

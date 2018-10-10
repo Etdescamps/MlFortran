@@ -44,7 +44,8 @@ Module mlf_emgmm
   
   ! Algorithm structure of Expectation-Maximization on Gaussian Mixture Model
   Type, public, extends(mlf_step_obj) :: mlf_algo_emgmm
-    real(c_double), pointer :: X(:,:), Mu(:,:), Cov(:,:,:), lambda(:), sumLL
+    real(c_double), pointer :: X(:,:), Mu(:,:), Cov(:,:,:), lambda(:)
+    real(c_double), pointer :: sumLL, minProba
     real(c_double), allocatable :: ProbaC(:,:)
     integer(c_int32_t), pointer :: cl(:)
     logical :: initialized
@@ -76,14 +77,15 @@ Contains
   End Subroutine mlf_model_emgmm_init
 
 
-  integer Function mlf_algo_emgmm_init(this, X, nC, data_handler) result(info)
+  integer Function mlf_algo_emgmm_init(this, X, nC, minProba, data_handler) result(info)
     class(mlf_algo_emgmm), intent(out), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
+    real(c_double), optional :: minProba
     real(c_double), target :: X(:,:)
     integer, intent(inout) :: nC
     type(mlf_step_numFields) :: numFields
     integer(c_int64_t) :: nY, nX, ndMu(2), ndC(3), nC2
-    call numFields%initFields(nRVar = 1, nRsc = 3)
+    call numFields%initFields(nRVar = 1, nRsc = 3, nIVar = 1)
     info = mlf_step_obj_init(this, numFields, data_handler = data_handler)
     this%X => X
     if(info < 0) RETURN
@@ -103,6 +105,8 @@ Contains
     nC = int(nC2, kind=4)
     ALLOCATE(this%ProbaC(nX, nC))
     call this%addRVar(numFields, this%sumLL, "sumLL")
+    call this%addRPar(numFields, this%minProba, "minProba")
+    call InitOrDefault(this%minProba, 0.0d0, minProba)
     if(present(data_handler)) then
       this%initialized = .TRUE.
     else
@@ -146,7 +150,7 @@ Contains
       else
         info = ExpStep(this%X, this%ProbaC, this%Mu, this%Cov, this%Lambda, this%sumLL)
         if(info /= 0) RETURN
-        call MaxStep(this%X, this%ProbaC, this%Mu, this%Cov, this%Lambda)
+        call MaxStep(this%X, this%ProbaC, this%Mu, this%Cov, this%Lambda, this%minProba)
       endif
     end do
     info = 0
@@ -171,8 +175,8 @@ Contains
   End Function mlf_algo_emgmm_getLikelihood
 
   ! Maximum likelihood step of the EM algorithm
-  subroutine MaxStep(X, Proba, Mu, Covar, Lambda)
-    real(c_double), intent(in) :: X(:,:), Proba(:,:)
+  subroutine MaxStep(X, Proba, Mu, Covar, Lambda, minProba)
+    real(c_double), intent(in) :: X(:,:), Proba(:,:), minProba
     real(c_double), intent(out) :: Mu(:,:), Covar(:,:,:), Lambda(:)
     integer :: Nmix, i
     Nmix = size(Proba,2)
@@ -181,6 +185,9 @@ Contains
       Lambda(i) = mlf_MaxGaussian(X, Proba(:,i), Mu(:,i), Covar(:,:,i))
     end do
     !$OMP END PARALLEL DO
+    if(minProba > 0) then
+      Lambda(:) = MAX(Lambda(:), minProba*MAXVAL(Lambda))
+    endif
     Lambda(:) = Lambda(:)/sum(Lambda)
   end subroutine MaxStep
 

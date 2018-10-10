@@ -122,7 +122,7 @@ contains
     idx = (/ (i, i=1,NX*NC) /)
     call randPerm(idx)
     X = X(:,idx)
-    info = em_algo%init(X, nC)
+    info = em_algo%init(X, nC, 1d0)
     if(info<0) then
       print *,"Error initialization"
       RETURN

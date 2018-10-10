@@ -185,19 +185,37 @@ Contains
     real(c_double), intent(in) :: X(:,:), Y(:,:)
     integer(c_int), intent(out) :: idx(:)
     real(c_double) :: dist(size(X,2), size(X,2))
-    integer :: i, j, N, k, pos(2)
+    integer :: i, j, N, k
     N = size(X,2)
+    idx = 0
     ! Compute all pair of distance between the points of X and Y
     forall(i=1:N, j=1:N) dist(i,j) = norm2(X(:,i)-Y(:,j))
     Do k=1,N
       ! Find the best match
-      pos = MINLOC(dist)
-      i = pos(1); j = pos(2)
+      i = FirstEltVal(idx, 0); j = 0
+      CALL findJ(i, j)
       ! Remove i and j from possible solutions
       dist(i,:) = HUGE(1d0)
       dist(:,j) = HUGE(1d0)
       idx(i) = j ! Associate j with i
     End Do
+    Contains
+      Subroutine findJ(i, j)
+        integer, intent(inout) :: i, j
+        integer :: l
+        l = MINLOC(dist(i,:), 1)
+        if(l == j) RETURN
+        j = l
+        call findI(i,j)
+      End Subroutine findJ
+      Subroutine findI(i, j)
+        integer, intent(inout) :: i, j
+        integer :: l
+        l = MINLOC(dist(:,j), 1)
+        if(l == i) RETURN
+        i = l
+        call findJ(i,j)
+      End Subroutine findI
   End Subroutine mlf_match_points
 End Module mlf_kmeans
 

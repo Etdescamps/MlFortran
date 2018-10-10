@@ -113,13 +113,13 @@ contains
     ! Generates random centres
     call RandN(XC, sigmaC)
     ! Weights used as diagonal matrix (multiplied by orthogonal matrix)
-    weight = (/ (1d0/real(i), i=1,ND) /)
+    weight = [(1d0/real(i), i=1,ND)]
     weight = sqrt(sigmaX*weight/Mean(weight))
     do i = 1,NC
       call randOrthogonal(C12(:,:,i), weight)
       call randN(X(:,1+(i-1)*NX:i*NX), X0 = XC(:,i), C12 = C12(:,:,i))
     end do
-    idx = (/ (i, i=1,NX*NC) /)
+    idx = [(i, i=1,NX*NC)]
     call randPerm(idx)
     X = X(:,idx)
     info = em_algo%init(X, nC, 1d0)

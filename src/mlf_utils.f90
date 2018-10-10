@@ -34,8 +34,13 @@ Module mlf_utils
   PRIVATE
 
   Public :: Xchange, QSortIdx, QSort, Mean, PrintMatrix, mlf_countcl, mlf_reversecl, SetIf
-  Public :: InitOrDefault
+  Public :: InitOrDefault, FirstEltVal
   Public :: mlf_reverseid, mlf_cumulativefromvect, mlf_di_search, mlf_printmatrix_c, mlf_isSorted
+
+  Interface FirstEltVal
+    module procedure mlf_firstIntVal
+    module procedure mlf_firstDoubleVal
+  End Interface FirstEltVal
 
   Interface SetIf
     module procedure mlf_setIfInt
@@ -75,7 +80,7 @@ Module mlf_utils
   real(c_double), public, parameter :: mlf_PI = acos(-1d0)
 Contains
 
-  Subroutine mlf_initOrDefault_bool(var, def, opt)
+  Pure Subroutine mlf_initOrDefault_bool(var, def, opt)
     logical, intent(out) :: var
     logical, intent(in) :: def
     logical, intent(in), optional :: opt
@@ -86,7 +91,7 @@ Contains
     endif
   End Subroutine mlf_initOrDefault_bool
 
-  Subroutine mlf_initOrDefault_int(var, def, opt)
+  Pure Subroutine mlf_initOrDefault_int(var, def, opt)
     integer, intent(out) :: var
     integer, intent(in) :: def
     integer, intent(in), optional :: opt
@@ -97,7 +102,7 @@ Contains
     endif
   End Subroutine mlf_initOrDefault_int
 
-  Subroutine mlf_initOrDefault_int64(var, def, opt)
+  Pure Subroutine mlf_initOrDefault_int64(var, def, opt)
     integer(8), intent(out) :: var
     integer(8), intent(in) :: def
     integer(8), intent(in), optional :: opt
@@ -108,7 +113,7 @@ Contains
     endif
   End Subroutine mlf_initOrDefault_int64
 
-  Subroutine mlf_initOrDefault_real(var, def, opt)
+  Pure Subroutine mlf_initOrDefault_real(var, def, opt)
     real, intent(out) :: var
     real, intent(in) :: def
     real, intent(in), optional :: opt
@@ -119,7 +124,7 @@ Contains
     endif
   End Subroutine mlf_initOrDefault_real
 
-  Subroutine mlf_initOrDefault_double(var, def, opt)
+  Pure Subroutine mlf_initOrDefault_double(var, def, opt)
     real(8), intent(out) :: var
     real(8), intent(in) :: def
     real(8), intent(in), optional :: opt
@@ -130,7 +135,7 @@ Contains
     endif
   End Subroutine mlf_initOrDefault_double
 
-  Subroutine mlf_setIfInt(dest, def, val)
+  Pure Subroutine mlf_setIfInt(dest, def, val)
     integer(c_int), intent(out) :: dest
     integer(c_int), intent(in) :: def
     integer(c_int), intent(in), optional :: val
@@ -141,7 +146,7 @@ Contains
     endif
   End Subroutine mlf_setIfInt
 
-  Subroutine mlf_setIfInt64(dest, def, val)
+  Pure Subroutine mlf_setIfInt64(dest, def, val)
     integer(c_int64_t), intent(out) :: dest
     integer(c_int64_t), intent(in) :: def
     integer(c_int64_t), intent(in), optional :: val
@@ -152,7 +157,7 @@ Contains
     endif
   End Subroutine mlf_setIfInt64
 
-  Subroutine mlf_setIfDouble(dest, def, val)
+  Pure Subroutine mlf_setIfDouble(dest, def, val)
     real(c_double), intent(out) :: dest
     real(c_double), intent(in) :: def
     real(c_double), intent(in), optional :: val
@@ -163,6 +168,31 @@ Contains
     endif
   End Subroutine mlf_setIfDouble
 
+  Pure Integer Function mlf_firstIntVal(array, val) Result(k)
+    integer(c_int32_t), intent(in) :: array(:), val
+    integer :: i, N
+    N = size(array)
+    k = -1 ! Not found
+    Do i = 1,N
+      if(array(i) == val) then
+        k = i
+        RETURN
+      endif
+    End Do
+  End Function mlf_firstIntVal
+
+  Pure Integer Function mlf_firstDoubleVal(array, val) Result(k)
+    real(c_double), intent(in) :: array(:), val
+    integer :: i, N
+    N = size(array)
+    k = -1 ! Not found
+    Do i = 1,N
+      if(array(i) == val) then
+        k = i
+        RETURN
+      endif
+    End Do
+  End Function mlf_firstDoubleVal
 
   ! Utility functions for exchanging to variables
   Pure Elemental Subroutine mlf_xchangeInt(a,b)
@@ -200,8 +230,8 @@ Contains
   End Subroutine mlf_xchangeFloat
 
   ! Test function written to test QSort function
-  logical Function mlf_isSorted(Y) result(T)
-    real(c_double) :: Y(:)
+  Pure Logical Function mlf_isSorted(Y) result(T)
+    real(c_double), intent(in) :: Y(:)
     integer :: i
     T=.FALSE.
     do i=1,size(Y)-1
@@ -262,20 +292,20 @@ Contains
   End Function mlf_sortOutM
 
   ! Useful functions for getting a mean value
-  real(c_double) function mlf_MeanV(V)
+  Pure Real(c_double) function mlf_MeanV(V)
     real(c_double), intent(in) :: V(:)
     mlf_MeanV = sum(V)/real(size(V),kind=8)
   end function mlf_MeanV
 
-  real(c_double) function mlf_MeanM(M)
+  Pure Real(c_double) function mlf_MeanM(M)
     real(c_double), intent(in) :: M(:,:)
     mlf_MeanM = sum(M)/real(size(M), kind=8)
   end function mlf_MeanM
 
-  function mlf_MeanMV(M, dim) result(V)
+  Pure Function mlf_MeanMV(M, dim) result(V)
     real(c_double), allocatable :: V(:)
     real(c_double), intent(in) :: M(:,:)
-    integer :: dim
+    integer, intent(in) :: dim
     V = sum(M, dim=dim)/real(size(M,dim), kind=8)
   end function mlf_MeanMV
 
@@ -299,7 +329,7 @@ Contains
   ! Reverse class association array
   ! Use last appearance of the class
   ! Keep the value of cl if cl not present within id
-  integer(c_int) function Mlf_reversecl(id, cl) result(N)
+  integer(c_int) function mlf_reversecl(id, cl) result(N)
     integer(c_int), intent(in) :: id(:)
     integer(c_int), intent(inout) :: cl(:)
     integer :: l, u, i, k
@@ -323,7 +353,7 @@ Contains
   End Function mlf_reverseid
  
   ! Utility function generating cumulative vector
-  Function mlf_cumulativefromvect(V) result(W)
+  Pure Function mlf_cumulativefromvect(V) result(W)
     real(c_double), intent(in) :: V(:)
     real(c_double) :: W(size(V)), S
     integer :: i
@@ -335,7 +365,7 @@ Contains
   End Function mlf_cumulativefromvect
 
   ! Do a dichotomous search for a value 
-  integer(c_int) Function mlf_di_search(V, x) result(k)
+  Pure integer(c_int) Function mlf_di_search(V, x) result(k)
     real(c_double), intent(in) :: V(:), x
     integer :: i, j
     i = lbound(V, 1); j = ubound(V,1)

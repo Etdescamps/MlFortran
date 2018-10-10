@@ -184,21 +184,19 @@ Contains
   Subroutine mlf_match_points(X, Y, idx)
     real(c_double), intent(in) :: X(:,:), Y(:,:)
     integer(c_int), intent(out) :: idx(:)
-    real(c_double) :: minDist, d
-    integer :: i, j, N, k
+    real(c_double) :: dist(size(X,2), size(X,2))
+    integer :: i, j, N, k, pos(2)
     N = size(X,2)
-    idx = [(i, i=1,N)]
-    Do i=1,N
-      minDist = norm2(X(:,i)-Y(:,idx(i)))
-      k = i
-      Do j=i+1,N
-        d = norm2(X(:,i)-Y(:,idx(j)))
-        if(d < minDist) then
-          d = minDist
-          k = j
-        endif
-      End Do
-      call XChange(idx(i), idx(k))
+    ! Compute all pair of distance between the points of X and Y
+    forall(i=1:N, j=1:N) dist(i,j) = norm2(X(:,i)-Y(:,j))
+    Do k=1,N
+      ! Find the best match
+      pos = MINLOC(dist)
+      i = pos(1); j = pos(2)
+      ! Remove i and j from possible solutions
+      dist(i,:) = HUGE(1d0)
+      dist(:,j) = HUGE(1d0)
+      idx(i) = j ! Associate j with i
     End Do
   End Subroutine mlf_match_points
 End Module mlf_kmeans

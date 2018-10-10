@@ -131,7 +131,7 @@ contains
     print *,"Time: ", dt
     print *, "Matrix Mu: (determined by GMM_EMAlgo)/ XC"
     call mlf_match_points(em_algo%Mu, XC, idc)
-    call PrintMatrix(em_algo%Mu, XC(:, mlf_reverseid(idc)))
+    call PrintMatrix(em_algo%Mu, XC(:, idc))
     do i=1,NC
       print *, "Matrix Covar:", i
       call PrintMatrix(em_algo%Cov(:,:,i), matmul(C12(:,:,idc(i)), transpose(C12(:,:,idc(i)))))

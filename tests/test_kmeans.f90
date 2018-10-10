@@ -35,9 +35,11 @@ Program test_kmeans
   Use mlf_utils
   Use mlf_rand
   Use mlf_kmeans_naive
+  Use mlf_kmeans
   IMPLICIT NONE
   integer, parameter :: nX = 1024, nY = 16, nC = 6
   real(c_double), allocatable, target :: X(:,:), Mu(:,:)
+  integer, allocatable :: idx(:)
   real(c_double) :: dt
   integer(kind=8) :: nstep = 32
   type(mlf_algo_kmeans_naive) :: km_algo
@@ -45,17 +47,17 @@ Program test_kmeans
 
   info = mlf_init()
 
-  allocate(X(nY,nX*nC), Mu(nY, nC))
+  allocate(X(nY,nX*nC), Mu(nY, nC), idx(NC))
   call RandN(Mu, 10d0)
-  call PrintMatrix(QSort(Mu))
+  call PrintMatrix(Mu)
   do i=1,nC
     call RandN(X(:,(1+(i-1)*nX):(i*nX)), 1d0, Mu(:,i))
   End do
   info = km_algo%init(X, nC)
   info = km_algo%step(dt, nstep)
   print *, dt
-  call PrintMatrix(QSort(km_algo%Mu))
-
+  call mlf_match_points(Mu, km_algo%Mu, idx)
+  call PrintMatrix(km_algo%Mu(:,idx))
   info = mlf_quit()
 End program test_kmeans
 

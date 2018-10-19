@@ -401,11 +401,14 @@ Contains
     real(c_double), intent(in), target :: K(:,:)
     real(c_double), intent(out), target :: C0(:), C(:), Q(:,:)
     integer, intent(inout), target :: ids(:)
-    integer :: N
+    integer :: N, i
     N = size(ids)
     C0(1:N) = this%cstrLastVal(ids)
     C(1:N) = this%cstrTmp(ids,1)
-    Q = MATMUL(TRANSPOSE(this%cstrVect(:,ids)), K)
+    Do i = 1,N
+      Q(i,:) = MATMUL(this%cstrVect(:,ids(i)), K)
+    End Do
+    ! Q(1:N,:) = MATMUL(TRANSPOSE(this%cstrVect(:,ids)), K)
   End Subroutine mlf_ode_getDerivatives
 
   Subroutine mlf_ode_getDerivativesIds(this, ids, K, C0, C, Q)

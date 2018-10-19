@@ -50,9 +50,9 @@ Program test_kmeans
   allocate(X(nY,nX*nC), Mu(nY, nC), idx(NC))
   call RandN(Mu, 10d0)
   call PrintMatrix(Mu)
-  do i=1,nC
+  Do i=1,nC
     call RandN(X(:,(1+(i-1)*nX):(i*nX)), 1d0, Mu(:,i))
-  End do
+  End Do
   info = km_algo%init(X, nC)
   info = km_algo%step(dt, nstep)
   print *, dt

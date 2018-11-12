@@ -128,6 +128,7 @@ Contains
     type(mlf_rsc_numFields) :: numFields
     integer :: i, j, nP, N
     integer(c_int64_t) :: ndP(2), ndW(2), ndV(2), nX0
+    N = -1
     numFields = mlf_rsc_numFields(0,0,4)
     info = mlf_arr_init(this, numFields, data_handler)
     if(PRESENT(P) .AND. PRESENT(sizeBase) .AND. PRESENT(nX)) then
@@ -144,6 +145,7 @@ Contains
     endif
     info = this%add_rmatrix(numFields, ndP, this%P, C_CHAR_"P", data_handler = data_handler)
     if(info /= 0) RETURN
+    if(N<0) N = int(ndP(2), kind=4)
     ndW(1) = ndP(2)
     info = this%add_rmatrix(numFields, ndW, this%W, C_CHAR_"W", &
       data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])

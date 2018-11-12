@@ -39,22 +39,27 @@ Module mlf_ode45
   PRIVATE
 
   ! Contains a Runge-Kutta ODE solver based on Dormand and Prince method
-  ! This code is based on formulæ from the book Solving Ordinary Differential Equation I
-  ! by Hairer, Nørsett and Wanner (DOPRI5) (2009 Springer, ISBN 978-3-642-05163-0)
+  ! This code is based on formulæ from the book Solving Ordinary Differential
+  ! Equation I by Hairer, Nørsett and Wanner (DOPRI5)
+  ! (2009 Springer, ISBN 978-3-642-05163-0)
 
   real(c_double), Parameter :: DOPRI5_A2 = 0.2d0
   real(c_double), Parameter :: DOPRI5_A3(2) = [3d0/40d0, 9d0/40d0]
   real(c_double), Parameter :: DOPRI5_A4(3) = [44d0/45d0, -56d0/15d0, 32d0/9d0]
-  real(c_double), Parameter :: DOPRI5_A5(4) = [19372d0/6561d0, -25360d0/2187d0, 64448d0/6561d0, -212d0/729d0]
-  real(c_double), Parameter :: DOPRI5_A6(5) = [9017d0/3168d0, -355d0/33d0, 46732d0/5247d0, &
-    49d0/176d0, -5103d0/18656d0]
-  real(c_double), Parameter :: DOPRI5_A7(6) = [35d0/384d0, 0d0, 500d0/1113d0, 125d0/192d0, &
-    -2187d0/6784d0, 11d0/84d0]
-  real(c_double), Parameter :: DOPRI5_C(7) = [0d0, 0.2d0, 0.3d0, 0.8d0, 8d0/9d0, 1d0, 1d0]
-  real(c_double), Parameter :: DOPRI5_EC(7) = [71d0/57600d0, 0d0, -71d0/16695d0, &
-    71d0/1920d0, -17253d0/339200d0, 22d0/525d0, -0.025d0]
-  real(c_double), Parameter :: DOPRI5_DC(7) = [-12715105075d0/11282082432d0, 0d0, 87487479700d0/32700410799d0, &
-    -10690763975d0/1880347072d0, 701980252875d0/199316789632d0, -1453857185d0/822651844d0, 69997945d0/29380423d0]
+  real(c_double), Parameter :: DOPRI5_A5(4) = [19372d0/6561d0, -25360d0/2187d0,&
+    64448d0/6561d0, -212d0/729d0]
+  real(c_double), Parameter :: DOPRI5_A6(5) = [9017d0/3168d0, -355d0/33d0, &
+    46732d0/5247d0, 49d0/176d0, -5103d0/18656d0]
+  real(c_double), Parameter :: DOPRI5_A7(6) = [35d0/384d0, 0d0, 500d0/1113d0, &
+    125d0/192d0, -2187d0/6784d0, 11d0/84d0]
+  real(c_double), Parameter :: DOPRI5_C(7) = [0d0, 0.2d0, 0.3d0, 0.8d0, &
+    8d0/9d0, 1d0, 1d0]
+  real(c_double), Parameter :: DOPRI5_EC(7) = [71d0/57600d0, 0d0, &
+    -71d0/16695d0, 71d0/1920d0, -17253d0/339200d0, 22d0/525d0, -0.025d0]
+  real(c_double), Parameter :: DOPRI5_DC(7) = [-12715105075d0/11282082432d0, &
+    0d0, 87487479700d0/32700410799d0, -10690763975d0/1880347072d0, &
+    701980252875d0/199316789632d0, -1453857185d0/822651844d0, &
+    69997945d0/29380423d0]
 
   Type, Public, extends(mlf_step_obj) :: mlf_ode45_obj
     real(c_double), pointer :: atoli, rtoli, facMin, facMax, hMax
@@ -96,10 +101,11 @@ Contains
     this%nStiff = 1000_8; this%nonStiff = 0; this%iStiff = 0
   End Function mlf_ode45_reinit
 
-  integer Function mlf_ode45_reinitT(this, X0, t0, tMax, atoli, rtoli, fac, facMin, &
-      facMax, hMax, nStiff) result(info)
+  integer Function mlf_ode45_reinitT(this, X0, t0, tMax, atoli, rtoli, fac, &
+      facMin, facMax, hMax, nStiff) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
-    real(c_double), intent(in), optional :: X0(:), t0, atoli, rtoli, fac, facMin, facMax, hMax, tMax
+    real(c_double), intent(in), optional :: X0(:), t0, atoli, rtoli, fac, &
+      facMin, facMax, hMax, tMax
     integer(c_int64_t), intent(in), optional :: nStiff
     info = this%reinit()
     if(present(X0)) then
@@ -120,8 +126,8 @@ Contains
     if(present(nStiff)) this%nStiff = nStiff
   End Function mlf_ode45_reinitT
 
-  integer Function mlf_ode45_init(this, fun, X0, t0, tMax, atoli, rtoli, fac, facMin, &
-      facMax, hMax, nStiff, data_handler) result(info)
+  integer Function mlf_ode45_init(this, fun, X0, t0, tMax, atoli, rtoli, fac, &
+      facMin, facMax, hMax, nStiff, data_handler) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
     class(mlf_ode_fun), intent(inout), target :: fun
     class(mlf_data_handler), intent(inout), optional :: data_handler
@@ -202,16 +208,16 @@ Contains
     endif
   End Function mlf_ode45_errorFun
 
-  Integer Function mlf_ode45_findRoot(this, fun, hMax) result(info)
+  Integer Function mlf_ode45_findRoot(this, fun, t, X, hMax) result(info)
     class(mlf_ode45_obj), intent(inout) :: this
     class(mlf_ode_funCstr), intent(inout) :: fun
-    real(c_double), intent(inout) :: hMax
+    real(c_double), intent(inout) :: hMax, t, X(:)
     real(c_double) :: dt, h
     integer :: id, N
     integer, pointer :: ids(:)
-    info = 0
-    hMax = MIN(fun%updateCstr(this%t, this%X, this%K(:,7), ids), hMax)
-    if(.NOT. ASSOCIATED(ids)) RETURN
+    info = mlf_ODE_Continue
+    hMax = MIN(fun%updateCstr(t, X, this%K(:,7), ids), hMax)
+    if(.NOT. ASSOCIATED(ids)) RETURN ! No constraints reached
     dt = this%t-this%t0
     N = size(ids)
     BLOCK
@@ -221,9 +227,9 @@ Contains
       h = dt*ODE45FindRoot(this%rtoli, this%atoli, Q, C0, C, id)
     END BLOCK
     id = ids(id)
-    call this%denseEvaluation(this%t0+h, this%X)
-    this%t = this%t0 + h
-    info = fun%reachCstr(this%t, id, this%X, this%K(:,1), hMax)
+    t = this%t0 + h
+    call this%denseEvaluation(t,X)
+    info = fun%reachCstr(t, id, X, this%K(:,1), hMax)
   End Function mlf_ode45_findRoot
 
   ! Find root of the constraints using dense output
@@ -410,16 +416,28 @@ Contains
         ! Check if the constraint is present
         SELECT TYPE(fun)
         class is (mlf_ode_funCstr)
-          info = this%findRoot(fun, hMax)
-          if(info > 0) EXIT
-          if(info < 0) RETURN
+          info = this%findRoot(fun, t, X, hMax)
+          this%t = t
+          Select Case(info)
+            Case(mlf_ODE_StopTime,mlf_ODE_HardCstr)
+              ! Stops the evaluation of the ODE
+              RETURN
+            Case(mlf_ODE_SoftCstr)
+              ! The function reachCstr has already updated the values of X and T
+              ! So we update the value of K(:,7)
+              info = fun%eval(t, X, K(:,7))
+              this%nFun = this%nFun + 1
+              if(info /=0) RETURN
+            Case(mlf_ODE_Continue)
+              ! Continue the loop
+          End Select
         END SELECT
         if(wasStopped) then ! The evaluation constraint is reach
           info = mlf_ODE_HardCstr
           EXIT
         endif
         if(this%tMax <= t) then
-            info = mlf_ODE_StopT
+            info = mlf_ODE_StopTime
             EXIT
         endif
         if(i == niter0) EXIT

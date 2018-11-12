@@ -152,7 +152,8 @@ Module mlf_fun_intf
     procedure :: getDerivatives => mlf_ode_getDerivatives
   End Type mlf_ode_funCstrVect
 
-  Integer, Parameter, Public :: mlf_ODE_StopT = 2, mlf_ODE_SoftCstr = 3, mlf_ODE_HardCstr = 4
+  Integer, Parameter, Public :: mlf_ODE_Continue = 0, mlf_ODE_SoftCstr = 1
+  Integer, Parameter, Public :: mlf_ODE_StopTime = 2, mlf_ODE_HardCstr = 3
 
   Abstract Interface
 

@@ -45,7 +45,7 @@ Contains
       End Do
       steps(:,i) = ode%X
       j = k
-      if(info == mlf_ODE_StopT) EXIT
+      if(info == mlf_ODE_StopTime) EXIT
     End Do
     print *, ode%t, ode%X
     Do k = j,Npoints

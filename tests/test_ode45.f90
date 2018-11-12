@@ -24,7 +24,7 @@ Contains
       nstep = 2 
       info = ode%step(niter = nstep)
       print *, ode%nFun, ode%t, ode%X, int(nstep,4)
-      if(info == mlf_ODE_StopT) EXIT
+      if(info == mlf_ODE_StopTime) EXIT
     End Do
     
   End Subroutine test

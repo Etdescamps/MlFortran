@@ -35,6 +35,8 @@ After having clone this repository, you can compile the project using CMake:
 foo@bar:MlFortran$ mkdir build 
 foo@bar:MlFortran$ cd build
 foo@bar:build$ cmake ..
+foo@bar:build$ make
+foo@bar:build$ sudo make install
 ```
 
 For the instance, only a few demo are present for testing purposes.

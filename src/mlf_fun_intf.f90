@@ -30,6 +30,7 @@ Module mlf_fun_intf
   Use ieee_arithmetic
   Use iso_c_binding
   Use mlf_intf
+  Use mlf_errors
   IMPLICIT NONE
   PRIVATE
  
@@ -105,6 +106,7 @@ Module mlf_fun_intf
   End Type mlf_ode_fun
 
   Type, Public, abstract, extends(mlf_ode_fun) :: mlf_ode_funCstr
+    integer :: NCstr
   Contains
     procedure (mlf_ode_funCstr_update), deferred :: updateCstr
     procedure (mlf_ode_funCstr_reach), deferred :: reachCstr
@@ -123,7 +125,6 @@ Module mlf_fun_intf
     real(c_double), allocatable :: cstrAlpha(:)
     real(c_double), allocatable :: cstrTmp(:)
     integer, allocatable :: cstrSelIds(:)
-    integer, allocatable :: cstrIds(:)
     real(c_double) :: cstrT
     integer :: cstrId
   Contains
@@ -141,7 +142,6 @@ Module mlf_fun_intf
     real(c_double), allocatable :: cstrLastDer(:)
     real(c_double), allocatable :: cstrTmp(:,:)
     real(c_double), allocatable :: cstrAlpha(:)
-    integer, allocatable :: cstrIds(:)
     real(c_double) :: cstrT, epsilonT
     integer :: cstrId
   Contains
@@ -174,13 +174,14 @@ Module mlf_fun_intf
       integer, intent(inout), target :: ids(:)
     End Subroutine mlf_ode_funCstr_getDerivatives
 
-    Function mlf_ode_funCstr_update(this, t, X, F, ids)
+    Function mlf_ode_funCstr_update(this, t, X, F, ids, N)
       Use iso_c_binding
       import :: mlf_ode_funCstr
       class(mlf_ode_funCstr), intent(inout), target :: this
       real(c_double), intent(in) :: t
       real(c_double), intent(in), target :: X(:), F(:)
-      integer, intent(out), optional, pointer :: ids(:)
+      integer, intent(out), optional, target :: ids(:)
+      integer, intent(out), optional :: N
       real(c_double) :: mlf_ode_funCstr_update
     End Function mlf_ode_funCstr_update
 
@@ -195,7 +196,7 @@ Module mlf_fun_intf
     End Function mlf_ode_eval
 
     ! Abstract objective function type
-    integer Function mlf_obj_eval(this, X, Y)
+    Integer Function mlf_obj_eval(this, X, Y)
       Use iso_c_binding
       import :: mlf_objective_fun
       class(mlf_objective_fun), intent(in), target :: this
@@ -212,7 +213,7 @@ Module mlf_fun_intf
     End Function mlf_obj_eval_c
 
     ! Abstract basis function type (for dimension reduction)
-    integer Function mlf_basis_eval(this, X, rpar, Y)
+    Integer Function mlf_basis_eval(this, X, rpar, Y)
       use iso_c_binding
       import :: mlf_basis_fun
       class(mlf_basis_fun), intent(in), target :: this
@@ -221,7 +222,7 @@ Module mlf_fun_intf
     End Function mlf_basis_eval
 
     ! Abstract basis function type (for dimension reduction)
-    integer Function mlf_basis_evalder(this, X, rpar, Y)
+    Integer Function mlf_basis_evalder(this, X, rpar, Y)
       use iso_c_binding
       import :: mlf_basis_funder
       class(mlf_basis_funder), intent(in), target :: this
@@ -259,7 +260,8 @@ Contains
     class(mlf_ode_funCstrVect), intent(inout), target :: this
     integer, intent(in) :: N, M
     ALLOCATE(this%cstrVect(N,M), this%cstrValRef(M), this%cstrLastVal(M), &
-      this%cstrLastDer(M), this%cstrTmp(M, 2), this%cstrAlpha(M), this%cstrIds(M))
+      this%cstrLastDer(M), this%cstrTmp(M, 2), this%cstrAlpha(M))
+    this%NCstr = M
     this%cstrValRef = 0
     this%cstrLastVal = 0
     this%cstrLastDer = 0
@@ -272,9 +274,9 @@ Contains
     class(mlf_ode_funCstrVect), intent(inout), target :: this
     real(c_double) :: Vect(:,:)
     real(c_double), optional :: ValRef(:)
-    call mlf_ode_allocateCstr(this, size(Vect,1), size(Vect,2))
+    CALL mlf_ode_allocateCstr(this, size(Vect,1), size(Vect,2))
     this%cstrVect = Vect
-    if(present(ValRef)) this%cstrValRef = ValRef
+    if(PRESENT(ValRef)) this%cstrValRef = ValRef
   End Subroutine mlf_ode_allocateCstrVect
 
   Subroutine mlf_ode_allocateCstrIds(this, Ids, ValRef)
@@ -284,14 +286,15 @@ Contains
     integer :: N
     N = size(Ids)
     ALLOCATE(this%cstrValRef(N), this%cstrLastVal(N), this%cstrLastDer(N), &
-      this%cstrAlpha(N), this%cstrSelIds(N), this%cstrIds(N), this%cstrTmp(N))
-    this%cstrSelIds = Ids
+      this%cstrAlpha(N), this%cstrTmp(N))
+    this%NCstr = N
     this%cstrValRef = 0
     this%cstrLastVal = 0
     this%cstrLastDer = 0
     this%cstrAlpha = 1.5d0
     this%cstrId = -1
-    if(present(ValRef)) this%cstrValRef = ValRef
+    ALLOCATE(this%cstrSelIds, SOURCE = Ids)
+    if(PRESENT(ValRef)) this%cstrValRef = ValRef
   End Subroutine mlf_ode_allocateCstrIds
 
   Real(c_double) Function GetHMaxFromCU(C, U, Alpha, id, T) result(hMax)
@@ -302,12 +305,12 @@ Contains
     real(c_double) :: h
     id = -1; hMax = HUGE(hMax)
     Do i=1, size(C)
-      if(U(i)*C(i)<0) then
+      If(U(i)*C(i)<0) Then
         h = -Alpha(i)*C(i)/U(i)
-        if(h >= hMax) CYCLE
+        If(h >= hMax) CYCLE
         hMax = h
         id = i
-      endif
+      Endif
     End Do
     T = T + hMax
   End Function GetHMaxFromCU
@@ -328,14 +331,14 @@ Contains
     real(c_double), intent(inout), target :: t, X(:), F(:), hMax
     integer, intent(in) :: id
     real(c_double) :: h, Uid
-    if(this%cstrId == id .AND. t > this%cstrT) then
+    If(this%cstrId == id .AND. t > this%cstrT) Then
       this%cstrAlpha(id) = 1.5d0*this%cstrAlpha(id)
-    endif
+    Endif
     this%cstrId = id
     ! Compute the value of the constraints
     Uid = DOT_PRODUCT(X, this%cstrVect(:,id))-this%cstrValRef(id)
     info = this%eval(t, X, F)
-    if(info /= 0) RETURN ! If there is an error or a hard constraints
+    If(info /= 0) RETURN ! If there is an error or a hard constraints
     ! Compute h such as <X(t+h),cstrVect(:,id)> = 0
     ! As h is very small, X(t+h)=X(t)+h*F(t)+O(h²)
     ! So with h = -<X(t),cstrVect(:,id)>/<F(t),cstrVect(:,id)>
@@ -357,15 +360,15 @@ Contains
     integer, intent(in) :: id
     real(c_double) :: h, Uid
     integer :: k
-    if(this%cstrId == id .AND. t > this%cstrT) then
+    If(this%cstrId == id .AND. t > this%cstrT) Then
       this%cstrAlpha(id) = 1.5d0*this%cstrAlpha(id)
-    endif
+    Endif
     k = this%cstrSelIds(id)
     this%cstrId = id
     ! Compute the value of the constraints
     Uid = X(k)-this%cstrValRef(id)
     info = this%eval(t, X, F)
-    if(info /= 0) RETURN ! If there is an error or a hard constraints
+    If(info /= 0) RETURN ! If there is an error or a hard constraints
     h = -Uid/F(k)
     t = t + h
     X = X + h*F
@@ -384,14 +387,14 @@ Contains
     integer :: i
     n = 0
     Do i = 1,size(X0)
-      if(X(i) /= 0) then
+      If(X(i) /= 0) then
         U = X0(i)*X(i)
-        if(U > 0) CYCLE
-        if(U == 0) then ! Initial point has reached X0 == 0
+        If(U > 0) CYCLE
+        If(U == 0) then ! Initial point has reached X0 == 0
           U = F0(i)*X(i) ! Use the derivative instead to look if X == 0 has been crossed
-          if(U >= 0) CYCLE
-        endif
-      endif ! else X == 0 has been reached
+          If(U >= 0) CYCLE
+        Endif
+      Endif ! else X == 0 has been reached
       n = n + 1
       ids(n) = i
     End Do
@@ -425,24 +428,22 @@ Contains
   End Subroutine mlf_ode_getDerivativesIds
 
   ! Update function for single value constraints
-  Real(c_double) Function mlf_ode_updateCstrIds(this, t, X, F, ids) result(hMax)
+  Real(c_double) Function mlf_ode_updateCstrIds(this, t, X, F, ids, N) &
+      result(hMax)
     class(mlf_ode_funCstrIds), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:), F(:)
-    integer, intent(out), optional, pointer :: ids(:)
-    integer :: i
+    integer, intent(out), optional, target :: ids(:)
+    integer, intent(out), optional :: N
     hmax = HUGE(hMax)
     this%cstrId = -1
-    if(PRESENT(ids)) then
-      ids => NULL()
+    If(PRESENT(ids)) Then
+      if(Assert(N, 'updateCstr: Error missing parameter N')) RETURN
       this%cstrTmp = X(this%cstrSelIds) - this%cstrValRef
-      i = SelectIdsCrossing(this%cstrIds, this%cstrLastVal, this%cstrLastDer, &
+      N = SelectIdsCrossing(ids, this%cstrLastVal, this%cstrLastDer, &
                             this%cstrTmp)
-      if(i > 0) then
-        ids => this%cstrIds(1:i)
-        RETURN
-      endif
-    endif
+      if(N>0) RETURN
+    Endif
     this%cstrLastVal = X(this%cstrSelIds) - this%cstrValRef
     this%cstrLastDer = F(this%cstrSelIds)
     this%cstrT = t
@@ -450,30 +451,28 @@ Contains
   End Function mlf_ode_updateCstrIds
 
   ! Update function for vector constraints
-  Real(c_double) Function mlf_ode_updateCstr(this, t, X, F, ids) result(hMax)
+  Real(c_double) Function mlf_ode_updateCstr(this, t, X, F, ids, N) &
+      result(hMax)
     class(mlf_ode_funCstrVect), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:), F(:)
-    integer, intent(out), optional, pointer :: ids(:)
-    integer :: i
+    integer, intent(out), optional, target :: ids(:)
+    integer, intent(out), optional :: N
     hmax = HUGE(hMax)
     this%cstrId = -1
-    if(PRESENT(ids)) then
-      ids => NULL()
+    If(PRESENT(ids)) Then
+      if(Assert(N, 'updateCstr: Error missing parameter N')) RETURN
       this%cstrTmp(:,1) = MATMUL(X, this%cstrVect) - this%cstrValRef
       this%cstrTmp(:,2) = MATMUL(F, this%cstrVect)
-      i = SelectIdsCrossing(this%cstrIds, this%cstrLastVal, this%cstrLastDer, &
+      N = SelectIdsCrossing(ids, this%cstrLastVal, this%cstrLastDer, &
                             this%cstrTmp(:,1))
-      if(i > 0) then
-        ids => this%cstrIds(1:i)
-        RETURN
-      endif
+      if(N>0) RETURN
       this%cstrLastVal = this%cstrTmp(:,1)
       this%cstrLastDer = this%cstrTmp(:,2)
-    else
+    Else
       this%cstrLastVal = MATMUL(X, this%cstrVect) - this%cstrValRef
       this%cstrLastDer = MATMUL(F, this%cstrVect)
-    endif
+    Endif
     this%cstrT = t
     hMax = GetHMaxFromCU(this%cstrLastVal, this%cstrLastDer, this%cstrAlpha, this%cstrId, this%cstrT)
   End Function mlf_ode_updateCstr
@@ -483,14 +482,14 @@ Contains
     real(c_double), intent(in), target :: X(:), rpar(:,:)
     real(c_double), intent(out), target :: Y(:,:)
     integer(c_int) :: nX, sPar, nPar
-    if(.NOT. associated(this%evalC)) then
+    If(.NOT. ASSOCIATED(this%evalC)) Then
       info = mlf_UNINIT
       RETURN
-    endif
+    Endif
     nX = size(X,1)
     sPar = size(rpar,1)
     nPar = size(rpar,2)
-    info = this%evalC(c_loc(X), c_loc(rpar), c_loc(Y), nX, nPar, sPar, this%ptr)
+    info = this%evalC(C_LOC(X), C_LOC(rpar), C_LOC(Y), nX, nPar, sPar, this%ptr)
   End Function mlf_basis_c_eval
 
   Integer Function mlf_obj_c_eval(this, X, Y) result(info)
@@ -498,14 +497,14 @@ Contains
     real(c_double), intent(in), target :: X(:,:)
     real(c_double), intent(inout), target :: Y(:,:)
     integer(c_int) :: ND, NY, lambda
-    if(.NOT. associated(this%evalC)) then
+    If(.NOT. associated(this%evalC)) Then
       info = mlf_UNINIT
       RETURN
-    endif
+    Endif
     lambda = size(X,2)
     ND = size(X,1)
     NY = size(Y,1)
-    info = this%evalC(c_loc(X), c_loc(Y), ND, nY, lambda, this%ptr)
+    info = this%evalC(C_LOC(X), C_LOC(Y), ND, nY, lambda, this%ptr)
   End Function mlf_obj_c_eval
 
   Integer Function mlf_obj_c_constraints(this, X, Y) result(info)
@@ -513,15 +512,15 @@ Contains
     real(c_double), intent(in), target :: X(:,:)
     real(c_double), intent(inout), target :: Y(:,:)
     integer(c_int) :: ND, NY, lambda
-    if(associated(this%constraintsC)) then
+    If(ASSOCIATED(this%constraintsC)) Then
       lambda = size(X,2)
       ND = size(X,1)
       NY = size(Y,1)
-      info = this%constraintsC(c_loc(X), c_loc(Y), ND, nY, lambda, this%ptr)
-    else
+      info = this%constraintsC(C_LOC(X), C_LOC(Y), ND, nY, lambda, this%ptr)
+    Else
       info = mlf_OK
       Y=0
-    endif
+    Endif
   End Function mlf_obj_c_constraints
 
   type(c_ptr) Function c_objfunction(cfun, cptr, ccst, funinfo) bind(C, name="mlf_objfunction")
@@ -533,8 +532,8 @@ Contains
     ALLOCATE(x)
     x%ptr = cptr
     x%nD = funinfo%nDimIn; x%nY = funinfo%nDimOut; x%nC = funinfo%nDimCstr
-    if(C_ASSOCIATED(cfun)) call C_F_PROCPOINTER(cfun, x%evalC)
-    if(C_ASSOCIATED(ccst)) call C_F_PROCPOINTER(ccst, x%constraintsC)
+    If(C_ASSOCIATED(cfun)) call C_F_PROCPOINTER(cfun, x%evalC)
+    If(C_ASSOCIATED(ccst)) call C_F_PROCPOINTER(ccst, x%constraintsC)
     obj => x
     c_objfunction = c_allocate(obj)
   End Function c_objfunction
@@ -546,7 +545,7 @@ Contains
     class (*), pointer :: obj
     ALLOCATE(x)
     x%ptr = cptr
-    if(C_ASSOCIATED(cfun)) call C_F_PROCPOINTER(cfun, x%evalC)
+    If(C_ASSOCIATED(cfun)) call C_F_PROCPOINTER(cfun, x%evalC)
     obj => x
     c_basisfunction = c_allocate(obj)
   End Function c_basisfunction
@@ -556,7 +555,7 @@ Contains
     class(mlf_weight_simple_fun), intent(in), target :: this
     real(c_double), intent(out) :: Y(:)
     integer :: lambda
-    call this%evalS(Y, lambda)
+    CALL this%evalS(Y, lambda)
   End Subroutine mlf_weight_simple_ev
 
 End Module mlf_fun_intf

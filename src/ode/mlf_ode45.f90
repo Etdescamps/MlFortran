@@ -213,13 +213,11 @@ Contains
     class(mlf_ode_funCstr), intent(inout) :: fun
     real(c_double), intent(inout) :: hMax, t, X(:)
     real(c_double) :: dt, h
-    integer :: id, N
-    integer, pointer :: ids(:)
+    integer :: id, N, ids(fun%NCstr)
     info = mlf_ODE_Continue
-    hMax = MIN(fun%updateCstr(t, X, this%K(:,7), ids), hMax)
-    If(.NOT. ASSOCIATED(ids)) RETURN ! No constraints reached
+    hMax = MIN(fun%updateCstr(t, X, this%K(:,7), ids, N), hMax)
+    If(N == 0) RETURN ! No constraints reached
     dt = this%t-this%t0
-    N = size(ids)
     BLOCK
       real(c_double) :: C0(N), C(N), Q(N,7)
       CALL fun%getDerivatives(ids, this%K, C0, C, Q)
@@ -360,7 +358,7 @@ Contains
     real(c_double) :: h, hMax, err, Xsti(size(this%X))
     real(c_double) :: alphaH, t
     i=1; niter0=1; info = 0
-    If(present(niter)) niter0 = niter
+    If(PRESENT(niter)) niter0 = niter
     info = mlf_ODE_FunError
     wasStopped = .FALSE.
     If(this%t == this%tMax) Then
@@ -375,10 +373,10 @@ Contains
       info = fun%eval(t, X, K(:,1))
       If(info /=0) RETURN
       this%nFun = this%nFun + 1
-      SELECT TYPE(fun)
+      Select Type(fun)
       Class is (mlf_ode_funCstr)
         hMax = fun%updateCstr(t, X, K(:,1))
-      END SELECT
+      End Select
       Do While(i <= niter0)
         this%t0 = t
         h = this%deltaFun(hMax)
@@ -414,7 +412,7 @@ Contains
           Endif
         Endif
         ! Check if the constraint is present
-        SELECT TYPE(fun)
+        Select Type(fun)
         Class is (mlf_ode_funCstr)
           info = this%findRoot(fun, t, X, hMax)
           this%t = t
@@ -432,7 +430,7 @@ Contains
             Case(mlf_ODE_Continue)
               ! Continue the loop
           End Select
-        END SELECT
+        End Select
         If(wasStopped) Then ! The evaluation constraint is reach
           info = mlf_ODE_HardCstr
           EXIT
@@ -447,7 +445,7 @@ Contains
         i = i+1
       End Do
     END ASSOCIATE
-    If(present(niter)) niter = i
+    If(PRESENT(niter)) niter = i
     If(info < 0) info = 0
   End Function mlf_ode45_stepFun
 End Module mlf_ode45

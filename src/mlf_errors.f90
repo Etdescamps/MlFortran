@@ -32,20 +32,42 @@ Module mlf_errors
   IMPLICIT NONE
   PRIVATE
 
-  Public :: CheckF, CheckNZ
+  Public :: CheckF, CheckNZ, Assert
   
   Interface CheckF
     module procedure mlf_checkF
     module procedure mlf_checkF_dims
   End Interface CheckF
-  
+
+  Interface Assert
+    module procedure mlf_assert
+    module procedure mlf_assert_optional_int
+  End Interface Assert
+   
   Interface CheckNZ
     module procedure mlf_checkNZ
     module procedure mlf_checkNZ_dims
   End Interface CheckNZ
 Contains
 
-  Logical Function mlf_checkNZ(info, msg) result(x)
+  Logical Function mlf_assert(test, msg) Result(x)
+    logical, intent(in) :: test
+    character(len=*), intent(in) :: msg
+    x = .NOT. test 
+    if(.NOT. x) RETURN
+    write (error_unit, *) msg
+  End Function mlf_assert
+
+  Logical Function mlf_assert_optional_int(i, msg) Result(x)
+    integer, intent(in), optional :: i
+    character(len=*), intent(in) :: msg
+    x = .NOT. PRESENT(i)
+    if(.NOT. x) RETURN
+    write (error_unit, *) msg
+  End Function mlf_assert_optional_int
+
+
+  Logical Function mlf_checkNZ(info, msg) Result(x)
     integer, intent(inout) :: info
     character(len=*), intent(in) :: msg
     x = .FALSE.
@@ -55,7 +77,7 @@ Contains
     x = .TRUE.
   End Function mlf_checkNZ
 
-  Logical Function mlf_checkF(info, msg) result(x)
+  Logical Function mlf_checkF(info, msg) Result(x)
     integer, intent(in) :: info
     character(len=*), intent(in) :: msg
     x = .FALSE.
@@ -64,7 +86,7 @@ Contains
     x = .TRUE.
   End Function mlf_checkF
 
-  Logical Function mlf_checkF_dims(info, msg, dims) result(x)
+  Logical Function mlf_checkF_dims(info, msg, dims) Result(x)
     integer, intent(in) :: info
     character(len=*), intent(in) :: msg
     integer(kind=8), intent(in) :: dims(:)
@@ -74,7 +96,7 @@ Contains
     x = .TRUE.
   End Function mlf_checkF_dims
 
-  Logical Function mlf_checkNZ_dims(info, msg, dims) result(x)
+  Logical Function mlf_checkNZ_dims(info, msg, dims) Result(x)
     integer, intent(inout) :: info
     character(len=*), intent(in) :: msg
     integer(kind=8), intent(in) :: dims(:)

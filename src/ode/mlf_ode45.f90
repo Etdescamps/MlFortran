@@ -215,19 +215,20 @@ Contains
     real(c_double) :: dt, h
     integer :: id, N, ids(fun%NCstr)
     info = mlf_ODE_Continue
-    hMax = MIN(fun%updateCstr(t, X, this%K(:,7), ids, N), hMax)
+    N = fun%updateCstr(t, this%X0, X, this%K(:,1), this%K(:,7), ids, hMax)
     If(N == 0) RETURN ! No constraints reached
-    dt = this%t-this%t0
+    dt = this%t - this%t0
     BLOCK
       real(c_double) :: C0(N), C(N), Q(N,7)
-      CALL fun%getDerivatives(ids, this%K, C0, C, Q)
-      Q = dt*Q
-      h = dt*ODE45FindRoot(this%rtoli, this%atoli, Q, C0, C, id)
+      CALL fun%getDerivatives(ids, this%X0, X, this%K, C0, C, Q)
+      Q = dt * Q
+      h = dt * ODE45FindRoot(this%rtoli, this%atoli, Q, C0, C, id)
     END BLOCK
     id = ids(id)
     t = this%t0 + h
-    CALL this%denseEvaluation(t,X)
-    info = fun%reachCstr(t, id, X, this%K(:,1), hMax)
+    CALL this%denseEvaluation(t,X, this%K(:,7))
+    info = fun%reachCstr(t, id, X, this%K(:,7))
+    if(t >= this%tMax) info = mlf_ODE_StopTime
   End Function mlf_ode45_findRoot
 
   ! Find root of the constraints using dense output
@@ -290,16 +291,21 @@ Contains
     this%lastT = this%t
   End Subroutine mlf_ode45_updateDense
 
-  Subroutine mlf_ode45_denseEvaluation(this, t, Y)
+  Subroutine mlf_ode45_denseEvaluation(this, t, Y, K)
     class(mlf_ode45_obj), intent(inout) :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(out) :: Y(:)
-    real(c_double) :: th, th1 
+    real(c_double), intent(out), optional :: K(:)
+    real(c_double) :: th, th1
     If(this%lastT < this%t) CALL this%updateDense()
     th = (t-this%t0)/(this%lastT-this%t0)
-    th1 = 1d0 - th
+    th1 = (1d0 - th)*th
     ASSOCIATE(X0 => this%X0, X => this%X, A => this%Cont)
-      Y = X0+th*(A(:,1)+th1*(A(:,2)+th*(A(:,3)+th1*A(:,4))))
+      Y = X0+th*A(:,1)+th1*A(:,2)+th*th1*A(:,3)+th1*th1*A(:,4)
+      If(PRESENT(K)) Then
+        K = A(:,1)+(1-2*th)*A(:,2)+th*(2-3*th)*A(:,3) &
+          + 2*th1*(1-2*th)*A(:,4)
+      Endif
     END ASSOCIATE
   End Subroutine mlf_ode45_denseEvaluation
 
@@ -375,7 +381,7 @@ Contains
       this%nFun = this%nFun + 1
       Select Type(fun)
       Class is (mlf_ode_funCstr)
-        hMax = fun%updateCstr(t, X, K(:,1))
+        hMax = MIN(hMax, fun%getHMax(t, X, K(:,1)))
       End Select
       Do While(i <= niter0)
         this%t0 = t
@@ -424,6 +430,7 @@ Contains
               ! The function reachCstr has already updated the values of X and T
               ! So we update the value of K(:,7)
               info = fun%eval(t, X, K(:,7))
+              hMax = MIN(hMax, fun%getHMax(t, X, this%K(:,7)))
               this%nFun = this%nFun + 1
               If(info < 0) RETURN
               If(info > 0) EXIT

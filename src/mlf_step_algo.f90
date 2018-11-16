@@ -78,11 +78,11 @@ Contains
   Subroutine mlf_step_addFields(this, nIPar, nRPar, nRsc, nIVar, nRVar)
     class(mlf_step_numFields), intent(inout) :: this
     integer, intent(in), optional :: nIPar, nRPar, nRsc, nIVar, nRVar
-    if(present(nIPar)) this%nIPar = this%nIPar+nIPar
-    if(present(nRPar)) this%nRPar = this%nRPar+nRPar
-    if(present(nRsc)) this%nRsc = this%nRsc+nRsc
-    if(present(nIVar)) this%nIVar = this%nIVar+nIVar
-    if(present(nRVar)) this%nRVar = this%nRVar+nRVar
+    If(present(nIPar)) this%nIPar = this%nIPar+nIPar
+    If(present(nRPar)) this%nRPar = this%nRPar+nRPar
+    If(present(nRsc)) this%nRsc = this%nRsc+nRsc
+    If(present(nIVar)) this%nIVar = this%nIVar+nIVar
+    If(present(nRVar)) this%nRVar = this%nRVar+nRVar
   End Subroutine mlf_step_addFields
 
   Subroutine mlf_step_initFields(this, nIPar, nRPar, nRsc, nIVar, nRVar)
@@ -90,11 +90,11 @@ Contains
     integer, intent(in), optional :: nIPar, nRPar, nRsc, nIVar, nRVar
     this%nIPar = 0; this%nRPar = 0; this%nRsc = 0
     this%nIVar = 0; this%nRVar = 0
-    if(present(nIPar)) this%nIPar = nIPar
-    if(present(nRPar)) this%nRPar = nRPar
-    if(present(nRsc)) this%nRsc = nRsc
-    if(present(nIVar)) this%nIVar = nIVar
-    if(present(nRVar)) this%nRVar = nRVar
+    If(present(nIPar)) this%nIPar = nIPar
+    If(present(nRPar)) this%nRPar = nRPar
+    If(present(nRsc)) this%nRsc = nRsc
+    If(present(nIVar)) this%nIVar = nIVar
+    If(present(nRVar)) this%nRVar = nRVar
   End Subroutine mlf_step_initFields
 
   Subroutine mlf_step_obj_addRVar(this, numFields, pnt, field)
@@ -104,7 +104,7 @@ Contains
     character(len=*,kind=c_char), optional :: field
     numFields%nRVar = numFields%nRVar+1
     pnt => this%rVar(numFields%nRVar)
-    if(present(field)) call this%v(this%idRVar)%addField(field)
+    If(PRESENT(field)) CALL this%v(this%idRVar)%addField(field)
   End Subroutine mlf_step_obj_addRVar
 
   Subroutine mlf_step_obj_addIVar(this, numFields, pnt, field)
@@ -114,42 +114,42 @@ Contains
     character(len=*,kind=c_char), optional :: field
     numFields%nIVar = numFields%nIVar+1
     pnt => this%iVar(numFields%nIVar)
-    if(present(field)) call this%v(this%idIVar)%addField(field)
+    If(PRESENT(field)) CALL this%v(this%idIVar)%addField(field)
   End Subroutine mlf_step_obj_addIVar
   
   ! Init function for the step object
-  integer Function mlf_step_obj_init(this, numFields, data_handler) result(info)
+  Integer Function mlf_step_obj_init(this, numFields, data_handler) Result(info)
     class(mlf_step_obj), intent(inout), target :: this
     class(mlf_step_numFields), intent(inout) :: numFields
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    call numFields%addFields(nIPar = 1, nRPar = 2, nRsc = 2, nIVar = 1, nRVar = 2)
+    CALL numFields%addFields(nIPar = 1, nRPar = 2, nRsc = 2, nIVar = 1, nRVar = 2)
     info = mlf_arr_init(this, numFields, data_handler)
-    if(info < 0) RETURN
+    If(info < 0) RETURN
     info = this%add_i64array(numFields, numFields%niVar, this%iVar, C_CHAR_"iVar", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
-    if(CheckF(info, "Error creating iVar")) RETURN
+    If(CheckF(info, "Error creating iVar")) RETURN
     this%idIVar = numFields%nRsc
     info = this%add_rarray(numFields, numFields%nrVar, this%rVar, C_CHAR_"rVar", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
-    if(CheckF(info, "Error creating rVar")) RETURN
+    If(CheckF(info, "Error creating rVar")) RETURN
     this%idRVar = numFields%nRsc
     numFields%nIVar = 0; numFields%nRVar = 0 ! Reinit these fields to zero
-    call this%addIVar(numFields, this%niter, "niter")
-    call this%addIPar(numFields, this%niterMax, "niterMax")
-    call this%addRVar(numFields, this%cpuTime, "cpuTime")
-    call this%addRVar(numFields, this%realTime, "realTime")
-    call this%addRPar(numFields, this%cpuMax, "cpuMax")
-    call this%addRPar(numFields, this%realMax, "realMax")
+    CALL this%addIVar(numFields, this%niter, "niter")
+    CALL this%addIPar(numFields, this%niterMax, "niterMax")
+    CALL this%addRVar(numFields, this%cpuTime, "cpuTime")
+    CALL this%addRVar(numFields, this%realTime, "realTime")
+    CALL this%addRPar(numFields, this%cpuMax, "cpuMax")
+    CALL this%addRPar(numFields, this%realMax, "realMax")
   End Function mlf_step_obj_init
 
-  integer Function mlf_step_obj_reinit(this) result(info)
+  Integer Function mlf_step_obj_reinit(this) Result(info)
     class(mlf_step_obj), intent(inout), target :: this
     this%niter = 0
-    this%nitermax = huge(this%nitermax)
+    this%nitermax = HUGE(this%nitermax)
     this%cputime = 0d0
     this%realtime = 0d0
-    this%realmax = huge(0d0)
-    this%cpumax = huge(0d0)
+    this%realmax = HUGE(0d0)
+    this%cpumax = HUGE(0d0)
     info = 0
   End Function mlf_step_obj_reinit
 
@@ -157,52 +157,52 @@ Contains
     class(mlf_step_obj), intent(inout), target :: this
     integer(c_int64_t), optional :: niterMax
     real(c_double), optional :: realMax, cpuMax
-    if(present(niterMax)) this%nitermax = niterMax
-    if(present(realMax)) this%realmax = realMax
-    if(present(cpuMax)) this%cpumax = cpuMax
+    If(PRESENT(niterMax)) this%nitermax = niterMax
+    If(PRESENT(realMax)) this%realmax = realMax
+    If(PRESENT(cpuMax)) this%cpumax = cpuMax
   End Subroutine mlf_step_constraints
 
-  real(c_double) Function mlf_step_stop_timer(this, niter) result(t)
+  Real(c_double) Function mlf_step_stop_timer(this, niter) Result(t)
     class(mlf_step_obj), intent(inout), target :: this
     integer(kind=8) :: eltime, clock_rate
     integer(kind=8), optional :: niter
     real :: cputime
-    call system_clock(eltime, clock_rate)
-    call cpu_time(cputime)
-    t = real(eltime-this%start_time,8)/real(clock_rate,8)
+    CALL SYSTEM_CLOCK(eltime, clock_rate)
+    CALL CPU_TIME(cputime)
+    t = REAL(eltime-this%start_time,8)/REAL(clock_rate,8)
     this%realtime = this%realtime + t
-    this%cputime = this%cputime + real(cputime-this%cpu_start, 8)
-    if(present(niter)) then
+    this%cputime = this%cputime + REAL(cputime-this%cpu_start, 8)
+    If(PRESENT(niter)) Then
       this%niter = this%niter+niter
-    else
+    Else
       this%niter = this%niter+1
-    endif
+    Endif
   End Function mlf_step_stop_timer
   
   Subroutine mlf_step_start_timer(this)
     class(mlf_step_obj), intent(inout), target :: this
-    call cpu_time(this%cpu_start)
-    call system_clock(this%start_time)
+    CALL CPU_TIME(this%cpu_start)
+    CALL SYSTEM_CLOCK(this%start_time)
   End Subroutine mlf_step_start_timer
 
-  integer Function mlf_step_f(this, dt, niter) result(info)
+  Integer Function mlf_step_f(this, dt, niter) result(info)
     class(mlf_step_obj), intent(inout), target :: this
     real(c_double), intent(out), optional :: dt
     integer(kind=8), intent(inout), optional :: niter
     real(c_double) :: dt0
-    call this%start_timer()
+    CALL this%start_timer()
     info = this%stepF(niter)
     dt0 = this%stop_timer(niter)
-    if(present(dt)) dt0 = dt
-    if(info /= mlf_STEP_OK) RETURN
-    if(this%cputime > this%cpumax .OR. this%realtime > this%realmax) then
+    If(PRESENT(dt)) dt0 = dt
+    If(info /= mlf_STEP_OK) RETURN
+    If(this%cputime > this%cpumax .OR. this%realtime > this%realmax) Then
       info = mlf_STEP_STOP
-      return
-    endif
+      RETURN
+    Endif
   End Function mlf_step_f
 
   ! C interface to step function
-  integer(c_int) Function mlf_step_c(cptr, dt, niter) result(info) bind(C, name="mlf_step")
+  Integer(c_int) Function mlf_step_c(cptr, dt, niter) Result(info) bind(C, name="mlf_step")
     type(c_ptr), value :: cptr
     real(c_double), intent(out) :: dt
     integer(c_int64_t), intent(inout) :: niter
@@ -211,11 +211,11 @@ Contains
     info = -1
     niterX = niter
     obj => mlf_getobjfromc(cptr)
-    if(.NOT. associated(obj)) RETURN
-    select type(obj)
-      class is (mlf_step_obj)
+    If(.NOT. ASSOCIATED(obj)) RETURN
+    SELECT TYPE(obj)
+      CLASS is (mlf_step_obj)
         info = obj%step(dt, niterX)
         niter = niterX
-    end select
+    END SELECT
   End Function mlf_step_c
 End Module mlf_step_algo

@@ -39,6 +39,8 @@ Module mlf_kmc
   IMPLICIT NONE
   PRIVATE
 
+  Public :: mlf_kmc_reinit, mlf_kmc_init
+  
   ! Simple Kinetic Monte-Carlo class, used for comparison with hybrid methods.
   ! It is not the most efficient way to simulate this kind of models.
   Type, Public, Abstract, Extends(mlf_step_obj) :: mlf_kmc_model
@@ -48,6 +50,7 @@ Module mlf_kmc
     procedure (mlf_kmc_apply_action), deferred :: applyAction
     procedure (mlf_kmc_transition_rates), deferred :: funTransitionRates
     procedure :: stepF => mlf_kmc_stepFun
+    procedure :: reinit => mlf_kmc_reinit
   End Type mlf_kmc_model
 
   Abstract Interface
@@ -71,7 +74,26 @@ Module mlf_kmc
 
 Contains
 
-  Integer Function mlf_kmc_stepFun(this, niter) result(info)
+  Integer Function mlf_kmc_init(this, numFields, t0, data_handler) Result(info)
+    class(mlf_kmc_model), intent(inout), target :: this
+    class(mlf_step_numFields), intent(inout) :: numFields
+    class(mlf_data_handler), intent(inout), optional :: data_handler
+    real(c_double), optional :: t0
+    CALL numFields%addFields(nRVar = 1)
+    info = mlf_step_obj_init(this, numFields, data_handler)
+    if(info < 0) RETURN
+    CALL this%addRVar(numFields, this%t, "t")
+    if(PRESENT(t0)) this%t = t0
+  End Function mlf_kmc_init
+
+  Integer Function mlf_kmc_reinit(this) Result(info)
+    class(mlf_kmc_model), intent(inout), target :: this
+    info = mlf_step_obj_reinit(this)
+    if(info < 0) RETURN
+    this%t = 0d0
+  End Function mlf_kmc_reinit
+
+  Integer Function mlf_kmc_stepFun(this, niter) Result(info)
     class(mlf_kmc_model), intent(inout), target :: this
     integer(kind=8), intent(inout), optional :: niter
     integer(kind=8) :: i, niter0

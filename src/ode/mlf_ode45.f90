@@ -83,6 +83,7 @@ Module mlf_ode45
     procedure :: findRoot => mlf_ode45_findRoot
     procedure :: init => mlf_ode45_init
     procedure :: stiffDetect => mlf_ode45_stiffDetect
+    procedure :: searchHardCstr => mlf_ode45_searchHardCstr
   End Type mlf_ode45_obj
 
   Integer, Parameter, Public :: mlf_ODE_FunError = -1, mlf_ODE_Stiff = -2 
@@ -356,14 +357,36 @@ Contains
     this%lastTheta = hopt
   End Function mlf_ode45_deltaFun
 
+  Real(c_double) Function mlf_ode45_searchHardCstr(this, K, t, hMax) Result(h)
+    class(mlf_ode45_obj), intent(inout), target :: this
+    real(c_double), intent(inout) :: K(:,:)
+    real(c_double), intent(in) :: t, hMax
+    real(c_double) :: h0, h1
+    integer :: info
+    h0 = 0; h1 = hMax
+    Do While(h1-h0 > MAX(this%atoli, hMax*this%rtoli))
+      h = 0.5d0*(h0+h1)
+      info = this%fun%eval(t+h, this%X0+h*DOPRI5_A2*K(:,1), K(:,2))
+      If(info < 0) Then
+        h = -1; RETURN
+      Endif
+      If(info == 0) Then
+        h0 = h
+      Else
+        h1 = h
+      Endif
+      this%nFun = this%nFun + 1
+    End Do
+  End Function mlf_ode45_searchHardCstr
+
   Integer Function mlf_ode45_stepFun(this, niter) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
     integer(kind=8), intent(inout), optional :: niter
-    integer(kind=8) :: i, niter0
+    integer(kind=8) :: i, niter0, nHard
     logical :: wasStopped
     real(c_double) :: h, hMax, err, Xsti(size(this%X))
     real(c_double) :: alphaH, t
-    i=1; niter0=1; info = 0
+    i=1; niter0=1; info = 0; nHard = 0
     If(PRESENT(niter)) niter0 = niter
     info = mlf_ODE_FunError
     wasStopped = .FALSE.
@@ -390,22 +413,43 @@ Contains
         If(t+h >= this%tMax) h = this%tMax-t
         If(h<0) RETURN
         info = fun%eval(t+DOPRI5_C(2)*h, X0+h*DOPRI5_A2*K(:,1), K(:,2))
-        If(info<0) RETURN; If(info>0) Then; hMax = 0.5*DOPRI5_C(2)*h; CYCLE; Endif
+        If(info<0) RETURN; If(info>0) Then;
+          this%nFun = this%nFun + 1; nHard = nHard + 1
+          hMax = this%searchHardCstr(K(:,1:2), t, DOPRI5_C(2)*h);
+          If(hMax < 0) Then
+            info = -1; RETURN
+          Endif
+          If(nHard < 5) CYCLE ! Continue the evaluation
+          info = mlf_ODE_HardCstr; RETURN ! Stop the evaluation
+        Endif
+        nHard = 0
         info = fun%eval(t+DOPRI5_C(3)*h, X0+h*MATMUL(K(:,1:2), DOPRI5_A3), K(:,3))
-        If(info<0) RETURN; If(info>0) Then; hMax = DOPRI5_C(2)*h; CYCLE; Endif
+        If(info<0) RETURN; If(info>0) Then
+          this%nFun = this%nFun + 2; hMax = DOPRI5_C(2)*h; CYCLE
+        Endif
         info = fun%eval(t+DOPRI5_C(4)*h, X0+h*MATMUL(K(:,1:3), DOPRI5_A4), K(:,4))
-        If(info<0) RETURN; If(info>0) Then; hMax = DOPRI5_C(3)*h; CYCLE; Endif
+        If(info<0) RETURN; If(info>0) Then
+          this%nFun = this%nFun + 3; hMax = DOPRI5_C(3)*h; CYCLE
+        Endif
         info = fun%eval(t+DOPRI5_C(5)*h, X0+h*MATMUL(K(:,1:4), DOPRI5_A5), K(:,5))
-        If(info<0) RETURN; If(info>0) Then; hMax = DOPRI5_C(4)*h; CYCLE; Endif
+        If(info<0) RETURN; If(info>0) Then
+          this%nFun = this%nFun + 4; hMax = DOPRI5_C(4)*h; CYCLE
+        Endif
+
         ! Ysti is used by DOPRI5 for stiffness detection
         Xsti = X0+h*MATMUL(K(:,1:5), DOPRI5_A6)
         info = fun%eval(t+DOPRI5_C(6)*h, Xsti, K(:,6))
-        If(info<0) RETURN; If(info>0) Then; hMax = DOPRI5_C(5)*h; CYCLE; Endif
+        If(info<0) RETURN; If(info>0) Then
+          this%nFun = this%nFun + 5; hMax = DOPRI5_C(5)*h; CYCLE
+        Endif
+
         ! Y Contains the value of X(t+h)
         X = X0+h*MATMUL(K(:,1:6), DOPRI5_A7)
         info = fun%eval(t+DOPRI5_C(7)*h, X, K(:,7))
-        If(info<0) RETURN; If(info>0) Then; hMax = 0.5*SUM(DOPRI5_C(5:6))*h; CYCLE; Endif
         this%nFun = this%nFun + 6
+        If(info<0) RETURN; If(info>0) Then;
+          hMax = 0.5*SUM(DOPRI5_C(5:6))*h; CYCLE
+        Endif
         err = this%errorFun(MATMUL(K,DOPRI5_EC), X0, X, h)
         If(err > 1d0) CYCLE
         ! Update X and t
@@ -430,13 +474,16 @@ Contains
               ! The function reachCstr has already updated the values of X and T
               ! So we update the value of K(:,7)
               info = fun%eval(t, X, K(:,7))
-              hMax = MIN(hMax, fun%getHMax(t, X, this%K(:,7)))
+              hMax = fun%getHMax(t, X, this%K(:,7))
               this%nFun = this%nFun + 1
               If(info < 0) RETURN
               If(info > 0) EXIT
             Case(mlf_ODE_Continue)
               ! Continue the loop
           End Select
+          hMax = MIN(hMax, this%hMax)
+        Class Default
+          hMax = this%hMax
         End Select
         If(wasStopped) Then ! The evaluation constraint is reach
           info = mlf_ODE_HardCstr

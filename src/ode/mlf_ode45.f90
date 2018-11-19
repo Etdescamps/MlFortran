@@ -43,20 +43,20 @@ Module mlf_ode45
   ! Equation I by Hairer, Nørsett and Wanner (DOPRI5)
   ! (2009 Springer, ISBN 978-3-642-05163-0)
 
-  real(c_double), Parameter :: DOPRI5_A2 = 0.2d0
-  real(c_double), Parameter :: DOPRI5_A3(2) = [3d0/40d0, 9d0/40d0]
-  real(c_double), Parameter :: DOPRI5_A4(3) = [44d0/45d0, -56d0/15d0, 32d0/9d0]
-  real(c_double), Parameter :: DOPRI5_A5(4) = [19372d0/6561d0, -25360d0/2187d0,&
+  Real(c_double), Parameter :: DOPRI5_A2 = 0.2d0
+  Real(c_double), Parameter :: DOPRI5_A3(2) = [3d0/40d0, 9d0/40d0]
+  Real(c_double), Parameter :: DOPRI5_A4(3) = [44d0/45d0, -56d0/15d0, 32d0/9d0]
+  Real(c_double), Parameter :: DOPRI5_A5(4) = [19372d0/6561d0, -25360d0/2187d0,&
     64448d0/6561d0, -212d0/729d0]
-  real(c_double), Parameter :: DOPRI5_A6(5) = [9017d0/3168d0, -355d0/33d0, &
+  Real(c_double), Parameter :: DOPRI5_A6(5) = [9017d0/3168d0, -355d0/33d0, &
     46732d0/5247d0, 49d0/176d0, -5103d0/18656d0]
-  real(c_double), Parameter :: DOPRI5_A7(6) = [35d0/384d0, 0d0, 500d0/1113d0, &
+  Real(c_double), Parameter :: DOPRI5_A7(6) = [35d0/384d0, 0d0, 500d0/1113d0, &
     125d0/192d0, -2187d0/6784d0, 11d0/84d0]
-  real(c_double), Parameter :: DOPRI5_C(7) = [0d0, 0.2d0, 0.3d0, 0.8d0, &
+  Real(c_double), Parameter :: DOPRI5_C(7) = [0d0, 0.2d0, 0.3d0, 0.8d0, &
     8d0/9d0, 1d0, 1d0]
-  real(c_double), Parameter :: DOPRI5_EC(7) = [71d0/57600d0, 0d0, &
+  Real(c_double), Parameter :: DOPRI5_EC(7) = [71d0/57600d0, 0d0, &
     -71d0/16695d0, 71d0/1920d0, -17253d0/339200d0, 22d0/525d0, -0.025d0]
-  real(c_double), Parameter :: DOPRI5_DC(7) = [-12715105075d0/11282082432d0, &
+  Real(c_double), Parameter :: DOPRI5_DC(7) = [-12715105075d0/11282082432d0, &
     0d0, 87487479700d0/32700410799d0, -10690763975d0/1880347072d0, &
     701980252875d0/199316789632d0, -1453857185d0/822651844d0, &
     69997945d0/29380423d0]
@@ -89,7 +89,7 @@ Module mlf_ode45
   Integer, Parameter, Public :: mlf_ODE_FunError = -1, mlf_ODE_Stiff = -2 
 
 Contains
-  integer Function mlf_ode45_reinit(this) result(info)
+  Integer Function mlf_ode45_reinit(this) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
     info = mlf_step_obj_reinit(this)
     this%nAccept = 0; this%nReject = 0; this%nFun = 0
@@ -102,7 +102,7 @@ Contains
     this%nStiff = 1000_8; this%nonStiff = 0; this%iStiff = 0
   End Function mlf_ode45_reinit
 
-  integer Function mlf_ode45_reinitT(this, X0, t0, tMax, atoli, rtoli, fac, &
+  Integer Function mlf_ode45_reinitT(this, X0, t0, tMax, atoli, rtoli, fac, &
       facMin, facMax, hMax, nStiff) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
     real(c_double), intent(in), optional :: X0(:), t0, atoli, rtoli, fac, &
@@ -127,7 +127,7 @@ Contains
     If(PRESENT(nStiff)) this%nStiff = nStiff
   End Function mlf_ode45_reinitT
 
-  integer Function mlf_ode45_init(this, fun, X0, t0, tMax, atoli, rtoli, fac, &
+  Integer Function mlf_ode45_init(this, fun, X0, t0, tMax, atoli, rtoli, fac, &
       facMin, facMax, hMax, nStiff, data_handler) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
     class(mlf_ode_fun), intent(inout), target :: fun

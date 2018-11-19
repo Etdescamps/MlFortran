@@ -139,5 +139,6 @@ contains
     info = mh5%createFile("emgmm.h5")
     info = mh5%pushState(em_algo)
     call mh5%finalize()
+    call em_algo%finalize()
   end subroutine testGMM
 End Program test_emgmm

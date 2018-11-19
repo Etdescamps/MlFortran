@@ -39,13 +39,12 @@ Module mlf_kmc
   IMPLICIT NONE
   PRIVATE
 
-  Public :: mlf_kmc_reinit, mlf_kmc_init
+  Public :: mlf_kmc_reinit, mlf_kmc_init, mlf_kmc_reinitT
   
   ! Simple Kinetic Monte-Carlo class, used for comparison with hybrid methods.
   ! It is not the most efficient way to simulate this kind of models.
   Type, Public, Abstract, Extends(mlf_step_obj) :: mlf_kmc_model
-    integer :: NActions
-    real(c_double), pointer :: t
+    real(c_double), pointer :: t, Rates(:)
   Contains
     procedure (mlf_kmc_apply_action), deferred :: applyAction
     procedure (mlf_kmc_transition_rates), deferred :: funTransitionRates
@@ -67,31 +66,45 @@ Module mlf_kmc
       import :: mlf_kmc_model
       class(mlf_kmc_model), intent(inout), target :: this
       real(c_double), intent(in) :: Rate
-      integer :: id
+      integer, intent(in) :: id
     End Function mlf_kmc_apply_action
 
   End Interface
 
 Contains
 
-  Integer Function mlf_kmc_init(this, numFields, t0, data_handler) Result(info)
+  Integer Function mlf_kmc_init(this, numFields, t0, NActions, data_handler) Result(info)
     class(mlf_kmc_model), intent(inout), target :: this
     class(mlf_step_numFields), intent(inout) :: numFields
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    real(c_double), optional :: t0
-    CALL numFields%addFields(nRVar = 1)
+    real(c_double), intent(in), optional :: t0
+    integer, intent(in), optional :: NActions
+    integer(8) :: N
+    N = -1
+    CALL numFields%addFields(nRsc = 1, nRVar = 1)
     info = mlf_step_obj_init(this, numFields, data_handler)
-    if(info < 0) RETURN
+    If(info < 0) RETURN
+    If(PRESENT(NActions)) N = NActions
+    info = this%add_rarray(numFields, N, this%Rates, C_CHAR_"Rates", &
+      data_handler = data_handler)
+    If(info < 0) RETURN
     CALL this%addRVar(numFields, this%t, "t")
-    if(PRESENT(t0)) this%t = t0
+    If(.NOT. PRESENT(data_handler)) info = mlf_kmc_reinitT(this, t0)
   End Function mlf_kmc_init
 
   Integer Function mlf_kmc_reinit(this) Result(info)
     class(mlf_kmc_model), intent(inout), target :: this
     info = mlf_step_obj_reinit(this)
-    if(info < 0) RETURN
+    If(info < 0) RETURN
     this%t = 0d0
   End Function mlf_kmc_reinit
+
+  Integer Function mlf_kmc_reinitT(this, t0) Result(info)
+    class(mlf_kmc_model), intent(inout), target :: this
+    real(c_double), intent(in), optional :: t0
+    info = this%reinit()
+    If(PRESENT(t0)) this%t = t0
+  End Function mlf_kmc_reinitT
 
   Integer Function mlf_kmc_stepFun(this, niter) Result(info)
     class(mlf_kmc_model), intent(inout), target :: this
@@ -99,29 +112,34 @@ Contains
     integer(kind=8) :: i, niter0
     integer :: N, idAction
     real(c_double) :: U, r
-    real(c_double), target :: Rates(this%NActions)
     niter0=1; info = 0
     If(PRESENT(niter)) niter0 = niter
     Do i=1,niter0
-      N = this%funTransitionRates(Rates)
+      N = this%funTransitionRates(this%Rates)
       If(N <= 0) Then
         info = N
         If(N == 0) info = mlf_ODE_HardCstr
         RETURN
       Endif
-      U = SUM(Rates(1:N))
+      U = SUM(this%Rates(1:N))
+      If(U <= 0) Then
+        info = mlf_STEP_STOP
+        If(U < 0) info = -1
+        RETURN
+      Endif
       CALL RANDOM_NUMBER(r)
-      this%t = this%t-U*log(1d0-r)
+      ! If r == 0 -> we consider the rare case where dt = 0
+      If(r > 0) this%t = this%t-log(r)/U
       CALL RANDOM_NUMBER(r)
       r = r*U
       Do idAction = 1,N-1
-        r = r - Rates(idAction)
+        r = r - this%Rates(idAction)
         If(r <= 0) Then
-          info = this%applyAction(idAction, Rates(idAction))
+          info = this%applyAction(idAction, this%Rates(idAction))
           EXIT
         Endif
       End Do
-      If(r > 0) info = this%applyAction(N, Rates(N))
+      If(r > 0) info = this%applyAction(N,this%Rates(N))
     End Do
   End Function mlf_kmc_stepFun
 

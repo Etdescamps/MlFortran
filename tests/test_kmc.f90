@@ -31,20 +31,67 @@ Program test_kmc
   Use iso_c_binding
   Use test_kmc_model
   Use mlf_hdf5
+  Use mlf_ode45
+  Use mlf_step_algo
+  Use mlf_fun_intf
+  Use mlf_intf
   integer :: info
-  info = eval(10.0d0, 0.5d0, 20000d0, Int([9999, 1, 0], 8))
+  type(mlf_hdf5_file) :: h5f
+  info = mlf_init()
+  info = h5f%createFile("kmc.h5")
+  info = eval(h5f, "r200000", 10.0d0, 1d0, 200000d0, [0.4d0, 0.001d0, 0d0])
+  info = eval(h5f, "r20000", 10.0d0, 1d0, 20000d0, [0.4d0, 0.001d0, 0d0])
+  info = eval(h5f, "r5000", 10.0d0, 1d0, 5000d0, [0.4d0, 0.001d0, 0d0])
+  info = eval(h5f, "r1000", 10.0d0, 1d0, 1000d0, [0.4d0, 0.001d0, 0d0])
+  info = eval_ode(h5f, "rODE", 10.0d0, 1d0, [0.4d0, 0.001d0, 0d0])
+  CALL h5f%finalize()
+  info = mlf_quit()
 Contains
-  Integer Function eval(Alpha, Beta, Volume, NIndiv) Result(info)
-    real(c_double), intent(in) :: Alpha, Beta, Volume
-    integer(c_int64_t), intent(in) :: NIndiv(3)
-    type(kmc_model) :: model
-    integer(8) :: i
-    info = model%init(Alpha, Beta, Volume, NIndiv)
-    Do i = 1,SUM(NIndiv)*2
-      info = model%step()
-      print *, model%t, model%NIndiv, model%Rates
+  Integer Function eval_ode(h5f, rname, Alpha, Beta, CIndiv) Result(info)
+    class(mlf_hdf5_file), intent(inout) :: h5f
+    character(len=*), intent(in) :: rname
+    real(c_double), intent(in) :: Alpha, Beta
+    real(c_double), intent(in) :: CIndiv(3)
+    real(c_double), allocatable :: points(:,:)
+    type(kmc_ode) :: fun
+    type(mlf_ode45_obj) :: ode
+    integer, parameter :: NStepMax = 100000
+    integer :: i
+    fun%Alpha = Alpha; fun%Beta = Beta
+    info = ode%init(fun, CIndiv, atoli = 1d-6, rtoli = 1d-6)
+    ALLOCATE(points(4, NStepMax))
+    Do i = 1,NStepMax
+      info = ode%step()
+      points(1,i)   = ode%t
+      points(2:4,i) = ode%X
       If(info /= 0) EXIT
     End Do
+    i = MIN(i, NStepMax)
+    info = h5f%pushData(points(:,1:i), rname)
+  End Function eval_ode
+
+  Integer Function eval(h5f, rname, Alpha, Beta, Volume, CIndiv) Result(info)
+    class(mlf_hdf5_file), intent(inout) :: h5f
+    character(len=*), intent(in) :: rname
+    real(c_double), intent(in) :: Alpha, Beta, Volume
+    real(c_double), intent(in) :: CIndiv(3)
+    integer(c_int64_t) :: NIndiv(3)
+    type(kmc_model) :: model
+    integer(8) :: i, N
+    real(c_double), allocatable :: points(:,:)
+    NIndiv = INT(CIndiv*Volume, KIND=8)
+    info = model%init(Alpha, Beta, Volume, NIndiv)
+    N = SUM(NIndiv)*2
+    ALLOCATE(points(6, N))
+    Do i = 1,N
+      info = model%step()
+      points(1,i)   = model%t
+      points(2:4,i) = REAL(model%NIndiv, KIND=8)
+      points(5:6,i) = model%Rates
+      If(info /= 0) EXIT
+    End Do
+    i = MIN(i, N)
+    info = h5f%pushData(points(:,1:i), rname)
     CALL model%finalize()
   End Function eval
 End

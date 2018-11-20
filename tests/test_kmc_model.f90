@@ -40,6 +40,12 @@ Module test_kmc_model
   IMPLICIT NONE
   PRIVATE
 
+  Type, Public, Extends(mlf_ode_fun) :: kmc_ode
+    real(c_double) :: Alpha, Beta
+  Contains
+    procedure :: eval => kmc_ode_fun
+  End Type kmc_ode
+
   Type, Public, Extends(mlf_kmc_model) :: kmc_model
     integer(c_int64_t), pointer :: NIndiv(:)
     real(c_double), pointer :: Alpha, Beta, Volume
@@ -50,6 +56,21 @@ Module test_kmc_model
   End Type kmc_model
 
 Contains
+  Integer Function kmc_ode_fun(this, t, X, F) Result(info)
+    class(kmc_ode), intent(in), target :: this
+    real(c_double), intent(in) :: t
+    real(c_double), intent(in), target :: X(:)
+    real(c_double), intent(out), target :: F(:)
+    ASSOCIATE(alpha => this%Alpha, beta => this%Beta, &
+        cS => X(1), cI => X(2), cR => X(3))
+      F(1) = -alpha*cS*cI
+      F(3) = beta*cI
+      F(2) = -F(1) - F(3)
+      info = mlf_ODE_Continue
+      If(cI == 0) info = mlf_ODE_StopTime
+    END ASSOCIATE
+  End Function kmc_ode_fun
+
   Integer Function kmc_init(this, Alpha, Beta, Volume, NIndiv, data_handler) Result(info)
     class(kmc_model), intent(inout), target :: this
     real(c_double), intent(in), optional :: Alpha, Beta, Volume

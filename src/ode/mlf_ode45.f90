@@ -213,8 +213,9 @@ Contains
     class(mlf_ode45_obj), intent(inout) :: this
     class(mlf_ode_funCstr), intent(inout) :: fun
     real(c_double), intent(inout) :: hMax, t, X(:)
-    real(c_double) :: dt, h
+    real(c_double) :: dt, h, hMax0
     integer :: id, N, ids(fun%NCstr)
+    hMax0 = hMax
     info = mlf_ODE_Continue
     N = fun%updateCstr(t, this%X0, X, this%K(:,1), this%K(:,7), ids, hMax)
     If(N == 0) RETURN ! No constraints reached
@@ -229,7 +230,14 @@ Contains
     t = this%t0 + h
     CALL this%denseEvaluation(t,X, this%K(:,7))
     info = fun%reachCstr(t, id, X, this%K(:,7))
-    if(t >= this%tMax) info = mlf_ODE_StopTime
+    If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
+    If(t >= this%tMax) Then
+      info = mlf_ODE_StopTime
+      RETURN
+    Endif
+    ! reachCstr makes a supplementary evaluation of the function
+    this%nFun = this%nFun + 1
+    hMax = MIN(hMax0, fun%getHMax(t, X, this%K(:,7)))
   End Function mlf_ode45_findRoot
 
   ! Find root of the constraints using dense output
@@ -391,13 +399,13 @@ Contains
     info = mlf_ODE_FunError
     wasStopped = .FALSE.
     If(this%t == this%tMax) Then
-      info = 1
+      info = mlf_ODE_StopTime
       niter = 0
       RETURN
     Endif
     t = this%t
     ASSOCIATE(K => this%K, X0 =>this%X0, X => this%X, fun => this%fun)
-      hMax = this%hMax; alphaH = HUGE(alphaH)
+      hMax = MIN(this%hMax, this%tMax-this%t); alphaH = HUGE(alphaH)
       X0 = X
       info = fun%eval(t, X, K(:,1))
       If(info /=0) RETURN
@@ -461,29 +469,14 @@ Contains
             EXIT
           Endif
         Endif
+        hMax = MIN(this%hMax, this%tMax-this%t)
         ! Check if the constraint is present
         Select Type(fun)
         Class is (mlf_ode_funCstr)
           info = this%findRoot(fun, t, X, hMax)
           this%t = t
-          Select Case(info)
-            Case(mlf_ODE_StopTime,mlf_ODE_HardCstr)
-              ! Stops the evaluation of the ODE
-              RETURN
-            Case(mlf_ODE_SoftCstr)
-              ! The function reachCstr has already updated the values of X and T
-              ! So we update the value of K(:,7)
-              info = fun%eval(t, X, K(:,7))
-              hMax = fun%getHMax(t, X, this%K(:,7))
-              this%nFun = this%nFun + 1
-              If(info < 0) RETURN
-              If(info > 0) EXIT
-            Case(mlf_ODE_Continue)
-              ! Continue the loop
-          End Select
-          hMax = MIN(hMax, this%hMax)
-        Class Default
-          hMax = this%hMax
+          If(info < 0) RETURN
+          If(info == mlf_ODE_StopTime .OR. info == mlf_ODE_HardCstr) EXIT
         End Select
         If(wasStopped) Then ! The evaluation constraint is reach
           info = mlf_ODE_HardCstr

@@ -40,6 +40,7 @@ Module mlf_kmc
   PRIVATE
 
   Public :: mlf_kmc_reinit, mlf_kmc_init, mlf_kmc_reinitT
+  Public :: mlf_kmc_stepFun
   
   ! Simple Kinetic Monte-Carlo class, used for comparison with hybrid methods.
   ! It is not the most efficient way to simulate this kind of models.

@@ -344,9 +344,6 @@ Contains
     this%cstrId = id
     ! Compute the value of the constraints
     Uid = DOT_PRODUCT(X, this%cstrVect(:,id))-this%cstrValRef(id)
-    info = this%eval(t, X, F)
-    ! Check if there is an error or a hard constraints
-    If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
 
     ! Compute h such as <X(t+h),cstrVect(:,id)> = 0
     ! As h is very small, X(t+h)=X(t)+h*F(t)+O(h²)
@@ -358,6 +355,9 @@ Contains
     t = t + h
     X = X + h*F
     info = this%funStop(t, id, X, F)
+    ! Check if there is an error or a hard constraints
+    If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
+    info = this%eval(t, X, F)
   End Function mlf_ode_reachCstr
   
   Integer Function mlf_ode_reachCstrIds(this, t, id, X, F) result(info)
@@ -373,14 +373,14 @@ Contains
     this%cstrId = id
     ! Compute the value of the constraints
     Uid = X(k)-this%cstrValRef(id)
-    info = this%eval(t, X, F)
-    ! Check if there is an error or a hard constraints
-    If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
     h = -Uid/F(k)
     t = t + h
     X = X + h*F
     X(k) = 0
     info = this%funStop(t, id, X, F)
+    ! Check if there is an error or a hard constraints
+    If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
+    info = this%eval(t, X, F)
   End Function mlf_ode_reachCstrIds
 
   Integer Function SelectIdsCrossing(ids, X0, F0, X) result(n)

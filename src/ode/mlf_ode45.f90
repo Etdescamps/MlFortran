@@ -309,7 +309,7 @@ Contains
     If(this%lastT < this%t) CALL this%updateDense()
     th = (t-this%t0)/(this%lastT-this%t0)
     th1 = (1d0 - th)*th
-    ASSOCIATE(X0 => this%X0, X => this%X, A => this%Cont)
+    ASSOCIATE(X0 => this%X0, A => this%Cont)
       Y = X0+th*A(:,1)+th1*A(:,2)+th*th1*A(:,3)+th1*th1*A(:,4)
       If(PRESENT(K)) Then
         K = A(:,1)+(1-2*th)*A(:,2)+th*(2-3*th)*A(:,3) &

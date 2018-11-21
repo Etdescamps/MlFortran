@@ -28,7 +28,7 @@ Contains
     info = h5f%createFile("arenstorf.h5")
     call fun%init(FArenstorf, RESHAPE([1d0,0d0,0d0,0d0], [4,1]))
     !call fun%init(FArenstorf, [1])
-    info = ode%init(fun, X0Arenstorf, tMax = TEndArenstorf, atoli = 1d-5, rtoli = 1d-5)
+    info = ode%init(fun, X0Arenstorf, tMax = TEndArenstorf, atoli = 1d-6, rtoli = 1d-6)
     if(info < 0) RETURN
     j = 1
     print *, ode%t0, ode%X0

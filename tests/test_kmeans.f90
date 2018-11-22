@@ -37,27 +37,32 @@ Program test_kmeans
   Use mlf_kmeans_naive
   Use mlf_kmeans
   IMPLICIT NONE
-  integer, parameter :: nX = 1024, nY = 16, nC = 6
-  real(c_double), allocatable, target :: X(:,:), Mu(:,:)
-  integer, allocatable :: idx(:)
-  real(c_double) :: dt
-  integer(kind=8) :: nstep = 32
-  type(mlf_algo_kmeans_naive) :: km_algo
-  integer :: i, info
+  CALL testkmeans()
+CONTAINS
+  Subroutine testkmeans()
+    integer, parameter :: nX = 1024, nY = 16, nC = 6
+    real(c_double), allocatable, target :: X(:,:), Mu(:,:)
+    integer, allocatable :: idx(:)
+    real(c_double) :: dt
+    integer(kind=8) :: nstep = 32
+    type(mlf_algo_kmeans_naive) :: km_algo
+    integer :: i, info
 
-  info = mlf_init()
+    info = mlf_init()
 
-  allocate(X(nY,nX*nC), Mu(nY, nC), idx(NC))
-  call RandN(Mu, 10d0)
-  call PrintMatrix(Mu)
-  Do i=1,nC
-    call RandN(X(:,(1+(i-1)*nX):(i*nX)), 1d0, Mu(:,i))
-  End Do
-  info = km_algo%init(X, nC)
-  info = km_algo%step(dt, nstep)
-  print *, dt
-  call mlf_match_points(Mu, km_algo%Mu, idx)
-  call PrintMatrix(km_algo%Mu(:,idx))
-  info = mlf_quit()
+    ALLOCATE(X(nY,nX*nC), Mu(nY, nC), idx(NC))
+    CALL RandN(Mu, 10d0)
+    CALL PrintMatrix(Mu)
+    Do i=1,nC
+      CALL RandN(X(:,(1+(i-1)*nX):(i*nX)), 1d0, Mu(:,i))
+    End Do
+    info = km_algo%init(X, nC)
+    info = km_algo%step(dt, nstep)
+    PRINT *, dt
+    CALL mlf_match_points(Mu, km_algo%Mu, idx)
+    CALL PrintMatrix(km_algo%Mu(:,idx))
+    CALL km_algo%finalize()
+    info = mlf_quit()
+  End Subroutine testkmeans
 End program test_kmeans
 

@@ -40,14 +40,14 @@ Program test_pareto
 
   info = mlf_init()
 
-  if(COMMAND_ARGUMENT_COUNT()<2) then
-    print *, "Error missing arguments: ND NX"
-    stop
-  endif
+  If(COMMAND_ARGUMENT_COUNT()<2) Then
+    PRINT *, "Error missing arguments: ND NX"
+    STOP
+  Endif
   ND = GetIntParameter(1)
   NX = GetIntParameter(2)
-  print *,"ND: ", ND, " NX: ", NX
-  call testPareto()
+  PRINT *,"ND: ", ND, " NX: ", NX
+  CALL testPareto()
 
   info = mlf_init()
 Contains
@@ -55,18 +55,20 @@ Contains
   Subroutine testPareto()
     real(c_double), allocatable :: M(:,:), M2(:,:)
     integer(c_int), allocatable :: np(:), sel(:), idx(:)
-    integer :: N, Mu
+    integer :: N, Mu,i
     ALLOCATE(idx(NX), M(ND, NX), M2(ND,NX))
     call RandN(M)
     np = mlf_getPareto(M, idx)
     N = size(np)
-    print *, np
-    M2 = M(:,idx)
-    print *, test_non_dominance(M2(:,:np(1)))
-    print *, test_dominance(M2(:,:np(1)), M2(:,np(1)+1:np(2)))
+    PRINT *, np
+    Do i=1,NX
+      M2(:,i) = M(:,idx(i))
+    End Do
+    PRINT *, test_non_dominance(M2(:,:np(1)))
+    PRINT *, test_dominance(M2(:,:np(1)), M2(:,np(1)+1:np(2)))
     Mu = NX/2
     ALLOCATE(sel(Mu))
-    call mlf_paretoSelect(M, Mu, idx, np)
+    CALL mlf_paretoSelect(M, Mu, idx, np)
   End Subroutine testPareto
 
   logical Function is_dominated(P, V) result(r)
@@ -74,10 +76,10 @@ Contains
     integer :: i, N
     N = size(P,2)
     Do i=1,N
-      if(mlf_pareto_dominate(P(:,i), V) == 1) then
+      If(mlf_pareto_dominate(P(:,i), V) == 1) Then
         r = .TRUE.
         RETURN
-      endif
+      Endif
     End Do
     r = .FALSE.
   End Function is_dominated
@@ -89,10 +91,10 @@ Contains
     Do i=1,N-1
       Do j=i+1,N
         k = mlf_pareto_dominate(V(:,i), V(:,j))
-        if(k == 1 .OR. k == -1) then
+        If(k == 1 .OR. k == -1) Then
           r = .FALSE.
           RETURN
-        endif
+        Endif
       End Do
     End Do
     r = .TRUE.
@@ -103,10 +105,10 @@ Contains
     integer :: i, N
     N = size(V,2)
     Do i=1,N
-      if(.NOT. is_dominated(P, V(:,1))) then
+      If(.NOT. is_dominated(P, V(:,1))) Then
         r = .FALSE.
         RETURN
-      endif
+      Endif
     End Do
     r = .TRUE.
   End Function test_dominance

@@ -123,9 +123,8 @@ Contains
       call H5GOpen_f(id, groupName, handler%group_id, hdferr)
     endif
     if(hdferr<0) GOTO 10
-    handler%obj_name = groupName // C_NULL_CHAR
     np => handler
-    call this%add_subobject(np)
+    call this%add_subobject(groupName, np)
     RETURN
 10  ALLOCATE(handler)
     DEALLOCATE(handler)
@@ -166,7 +165,6 @@ Contains
       call H5Fcreate_f(fname, H5F_ACC_TRUNC_F, this%file_id, hdferr)
     endif
     if(hdferr<0) write (error_unit, *) 'Error while creating file: ', fname
-    this%obj_name = fname // C_NULL_CHAR
   End Function mlf_hdf5_createFile
 
   type(c_ptr) Function c_hdf5_createFile(pfname, trunk) result(cptr) bind(C, name="mlf_hdf5_createFile")
@@ -195,7 +193,6 @@ Contains
     class(mlf_hdf5_file), intent(inout) :: this
     character(LEN=*), intent(in) :: fname
     integer, intent(in), optional :: access_flag
-    this%obj_name = fname
     ! Close file if the handler as been previously used
     call this%finalize()
     if(present(access_flag)) then
@@ -205,7 +202,6 @@ Contains
       call H5Fopen_f(fname, H5F_ACC_RDWR_F, this%file_id, hdferr)
     endif
     if(hdferr<0) write (error_unit, *) 'Error while opening file: ', fname
-    this%obj_name = fname // C_NULL_CHAR
   End Function mlf_hdf5_openFile
 
   type(c_ptr) Function c_hdf5_openFile(pfname, rw) result(cptr) bind(C, name="mlf_hdf5_openFile")

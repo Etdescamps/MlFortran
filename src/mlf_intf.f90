@@ -70,6 +70,7 @@ Module mlf_intf
 
   Type, Public :: mlf_universal
     class(*), pointer :: elt => NULL()
+    character(:,kind=c_char), allocatable :: obj_name
   End Type mlf_universal
 
   ! Generic ressource handler with c pointer structure
@@ -94,12 +95,12 @@ Module mlf_intf
     type(mlf_rsc), allocatable :: v(:)
     type(mlf_universal), allocatable :: sub_objects(:)
     integer :: num_subobjects = 0
-    character(:,kind=c_char), allocatable :: obj_name
   Contains
     ! FINAL not yet correctly implemented in GNU Fortran
     procedure :: finalize => mlf_obj_finalize
     procedure :: add_subobject => obj_add_subobject
-    procedure :: del_subobject => obj_del_subobject
+    procedure :: obj_del_subobject, obj_del_subobject_id
+    generic :: del_subobject => obj_del_subobject, obj_del_subobject_id
     procedure :: get_subobject => obj_get_subobject
   End Type mlf_obj
 
@@ -143,100 +144,112 @@ Module mlf_intf
 
 Contains
   Function obj_get_subobject(this, name_obj) result(ptr)
-    class(mlf_obj), intent(inout) :: this
+    class(mlf_obj), intent(inout), target :: this
     class(mlf_obj), pointer :: ptr
-    character(len=*,kind=c_char) :: name_obj
+    character(len=*,kind=c_char), intent(in) :: name_obj
     character(len=:,kind=c_char), allocatable, target :: nobj
     type(c_ptr) :: p1, p2
     integer :: i
     integer(c_size_t) :: lng
     ptr => NULL()
     nobj = name_obj//C_NULL_CHAR
-    lng = len(nobj)
-    p1 = c_loc(nobj)
-    if(.NOT. allocated(this%sub_objects)) RETURN
+    lng = LEN(nobj)
+    p1 = C_LOC(nobj)
+    if(.NOT. ALLOCATED(this%sub_objects)) RETURN
     Do i=1,this%num_subobjects
-      if(.NOT. associated(this%sub_objects(i)%elt)) CYCLE
-      Associate(U => this%sub_objects(i)%elt)
-        select type(U)
-        class is (mlf_obj)
-          ! Object shall have a name for getting access
-          if(.NOT. allocated(U%obj_name)) CYCLE
-          p2 = c_loc(U%obj_name)
-          if(c_strncmp(p1, p2, lng)/=0) CYCLE
-          ptr => U
-          RETURN
-        end select
-      End Associate
+      ASSOCIATE(U => this%sub_objects(i), V => this%sub_objects(i)%elt)
+        if(.NOT. ASSOCIATED(V)) CYCLE
+        ! Object shall have a name for getting access
+        If(.NOT. ALLOCATED(U%obj_name)) CYCLE
+        p2 = C_LOC(U%obj_name)
+        If(c_strncmp(p1, p2, lng)/=0) CYCLE
+        SELECT TYPE(V)
+        Class is (mlf_obj)
+          ptr => V
+        End Select
+        RETURN
+      END ASSOCIATE
     End Do
   End Function obj_get_subobject
 
-  Integer Function obj_del_subobject(this, name_obj) result(info)
+  Integer Function obj_del_subobject_id(this, id) Result(info)
     class(mlf_obj), intent(inout) :: this
-    class(mlf_obj), pointer :: ptr
-    character(len=*,kind=c_char) :: name_obj
+    integer, intent(in) :: id
+    info = -1
+    Associate(U => this%sub_objects(id)%elt)
+      If(.NOT. ASSOCIATED(U)) RETURN
+      SELECT TYPE(U)
+      Class is (mlf_obj)
+        ! Object shall have a name for getting access
+        CALL U%finalize()
+        DEALLOCATE(U)
+        If(id < this%num_subobjects) Then
+          this%sub_objects(id) = this%sub_objects(this%num_subobjects)
+        Endif
+        this%num_subobjects = this%num_subobjects-1
+        info = 0
+        RETURN
+      END SELECT
+    End Associate
+  End Function obj_del_subobject_id
+
+  Integer Function obj_del_subobject(this, name_obj) Result(info)
+    class(mlf_obj), intent(inout), target :: this
+    character(len=*,kind=c_char), intent(in) :: name_obj
     character(len=:,kind=c_char), allocatable, target :: nobj
     type(c_ptr) :: p1, p2
     integer :: i
     integer(c_size_t) :: lng
     info = -1
-    ptr => NULL()
     nobj = name_obj//C_NULL_CHAR
-    lng = len(nobj)
-    p1 = c_loc(nobj)
-    if(.NOT. allocated(this%sub_objects)) RETURN
+    lng = LEN(nobj)
+    p1 = C_LOC(nobj)
+    if(.NOT. ALLOCATED(this%sub_objects)) RETURN
     Do i=1,this%num_subobjects
-      if(.NOT. associated(this%sub_objects(i)%elt)) CYCLE
-      Associate(U => this%sub_objects(i)%elt)
-        select type(U)
-        class is (mlf_obj)
-          ! Object shall have a name for getting access
-          if(.NOT. allocated(U%obj_name)) CYCLE
-          p2 = c_loc(U%obj_name)
-          if(c_strncmp(p1, p2, lng)/=0) CYCLE
-          call U%finalize()
-          DEALLOCATE(U)
-          this%sub_objects(i)%elt => this%sub_objects(this%num_subobjects)%elt
-          this%sub_objects(this%num_subobjects)%elt => NULL()
-          this%num_subobjects = this%num_subobjects-1
-          info = 0
-          RETURN
-        end select
+      Associate(U => this%sub_objects(i))
+        If(.NOT. ALLOCATED(U%obj_name)) CYCLE
+        p2 = C_LOC(U%obj_name)
+        If(c_strncmp(p1, p2, lng)/=0) CYCLE
+        CALL obj_del_suboject_id(this, i)
+        RETURN
       End Associate
     End Do
   End Function obj_del_subobject
 
-  Subroutine obj_add_subobject(this, obj)
+  Subroutine obj_add_subobject(this, name_obj, obj)
     class(mlf_obj), intent(inout) :: this
+    character(len=*,kind=c_char), intent(in) :: name_obj
     class(mlf_obj), pointer :: obj
     integer :: nobj
     type(mlf_universal), allocatable :: temp(:)
     if(.NOT. allocated(this%sub_objects)) ALLOCATE(this%sub_objects(64))
     nobj = size(this%sub_objects)
     if(this%num_subobjects == nobj) then
-      ALLOCATE(temp, source = this%sub_objects)
-      nobj = nobj*2
+      ALLOCATE(temp(nobj*2))
+      temp(:nobj) = this%sub_objects
       DEALLOCATE(this%sub_objects)
-      ALLOCATE(this%sub_objects(nobj), source = temp)
+      CALL MOVE_ALLOC(temp, this%sub_objects)
+      nobj = nobj*2
     endif
     this%num_subobjects = this%num_subobjects+1
     this%sub_objects(this%num_subobjects)%elt => obj
+    this%sub_objects(this%num_subobjects)%obj_name = name_obj//C_NULL_CHAR
   End Subroutine obj_add_subobject
 
   ! Workaround for permitting finalization of objects
   Subroutine mlf_obj_finalize(this)
     class(mlf_obj), intent(inout) :: this
     integer :: i
-    if(.NOT. allocated(this%sub_objects)) RETURN
+    If(.NOT. allocated(this%sub_objects)) RETURN
     Do i=1,this%num_subobjects
-      if(.NOT. associated(this%sub_objects(i)%elt)) CYCLE
+      If(.NOT. associated(this%sub_objects(i)%elt)) CYCLE
       Associate(U => this%sub_objects(i)%elt)
-        select type(U)
-        class is (mlf_obj)
-          call U%finalize()
-        end select
+        SELECT TYPE(U)
+        Class is (mlf_obj)
+          CALL U%finalize()
+        END SELECT
       End Associate
-      deallocate(this%sub_objects(i)%elt)
+      DEALLOCATE(this%sub_objects(i)%elt)
     End Do
   End Subroutine mlf_obj_finalize
 
@@ -247,19 +260,19 @@ Contains
     class (*), pointer :: obj
     c_dealloc = -1
     ! print *, "mlf_dealloc"
-    if(.NOT. C_ASSOCIATED(cptr)) RETURN
+    If(.NOT. C_ASSOCIATED(cptr)) RETURN
     call C_F_POINTER(cptr, this)
     obj => this%obj
-    select type(obj)
-      class is (mlf_obj)
+    SELECT TYPE(obj)
+      Class is (mlf_obj)
         ! FINAL not yet correctly implemented in GNU Fortran
-        if(this%do_deallocate .AND. ASSOCIATED(this%obj)) then
+        If(this%do_deallocate .AND. ASSOCIATED(this%obj)) Then
           CALL obj%finalize()
           DEALLOCATE(obj)
         endif
-      class default
-        if(this%do_deallocate .AND. ASSOCIATED(this%obj)) DEALLOCATE(obj)
-    end select
+      Class Default
+        If(this%do_deallocate .AND. ASSOCIATED(this%obj)) DEALLOCATE(obj)
+    END SELECT
     DEALLOCATE(this)
     c_dealloc = 0
   End Function c_dealloc
@@ -272,11 +285,11 @@ Contains
     logical, optional, intent(in) :: do_deallocate
     ALLOCATE(this)
     this%obj => obj
-    if(present(do_deallocate)) then
+    If(PRESENT(do_deallocate)) Then
       this%do_deallocate = do_deallocate
-    else
+    Else
       this%do_deallocate = .TRUE. ! Default behaviour
-    endif
+    Endif
     cptr = C_LOC(this)
   End Function c_allocate
 
@@ -285,8 +298,8 @@ Contains
     type(mlf_cintf), pointer :: this
     class (*), pointer :: obj
     obj => NULL()
-    if(.NOT. C_ASSOCIATED(cptr)) RETURN
-    call C_F_POINTER(cptr, this)
+    If(.NOT. C_ASSOCIATED(cptr)) RETURN
+    CALL C_F_POINTER(cptr, this)
     obj => this%obj
   End Function mlf_getrawfromc
 
@@ -295,15 +308,15 @@ Contains
     type(mlf_cintf), pointer :: this
     class (mlf_obj), pointer :: obj
     obj => NULL()
-    if(.NOT. C_ASSOCIATED(cptr)) RETURN
-    call C_F_POINTER(cptr, this)
-    if(.NOT. ASSOCIATED(this%obj)) RETURN
-    associate(o => this%obj)
-      select type (o)
-        class is (mlf_obj)
+    If(.NOT. C_ASSOCIATED(cptr)) RETURN
+    CALL C_F_POINTER(cptr, this)
+    If(.NOT. ASSOCIATED(this%obj)) RETURN
+    ASSOCIATE(o => this%obj)
+      SELECT type (o)
+        Class is (mlf_obj)
           obj => o
-      end select
-    end associate
+      END SELECT
+    END ASSOCIATE
   End Function mlf_getobjfromc
 
   ! Get ressource handler for most of the classes
@@ -312,8 +325,8 @@ Contains
     class (mlf_obj), pointer :: obj
     obj => mlf_getobjfromc(cptr)
     r = -1
-    if(.NOT. associated(obj)) RETURN
-    if(.NOT. allocated(obj%v)) RETURN
+    If(.NOT. associated(obj)) RETURN
+    If(.NOT. allocated(obj%v)) RETURN
     r = size(obj%v)
   End Function c_getnumrsc
 
@@ -384,7 +397,7 @@ Contains
 
   Subroutine mlf_rsc_addField(this, str)
     class(mlf_rsc), intent(inout) :: this
-    character(len=*,kind=c_char) :: str
+    character(len=*,kind=c_char), intent(in) :: str
     if(allocated(this%r_fields)) then
       this%r_fields = this%r_fields(1:len(this%r_fields)-1) // C_CHAR_";" &
         // trim(str) // C_NULL_CHAR

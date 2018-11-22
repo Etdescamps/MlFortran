@@ -46,7 +46,7 @@ Module mlf_hybrid_kmc
   Contains
     procedure(mlf_hybrid_kmc_apply_action), deferred :: applyAction
     procedure(mlf_hybrid_kmc_transition_rates), deferred :: funTransitionRates
-    procedure (mlf_kmc_evalOde), deferred :: evalOde
+    procedure(mlf_kmc_evalOde), deferred :: evalOde
     procedure :: stepF => mlf_hybrid_kmc_stepFun
   End Type mlf_hybrid_kmc_model
 

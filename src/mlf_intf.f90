@@ -281,7 +281,7 @@ Contains
   Function c_allocate(obj, do_deallocate) result(cptr)
     type(c_ptr) :: cptr
     type(mlf_cintf), pointer :: this
-    class (*), pointer :: obj
+    class(*), pointer :: obj
     logical, optional, intent(in) :: do_deallocate
     ALLOCATE(this)
     this%obj => obj

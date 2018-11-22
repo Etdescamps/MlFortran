@@ -47,7 +47,7 @@ Module mlf_hdf5
   Contains
     procedure(mlf_hdf5_getId), deferred :: getId ! Get file or group identifier
     procedure :: open_group => mlf_hdf5_openGroup
-    procedure :: get_subgroup => mlf_hdf5_getSubGroup
+    procedure :: getSubObject => mlf_hdf5_getSubGroup
     procedure :: pushState => mlf_hdf5_pushState
     procedure :: getdata_double1d => mlf_hdf5_getDouble1d
     procedure :: getdata_double2d => mlf_hdf5_getDouble2d
@@ -112,44 +112,43 @@ Contains
     logical :: do_create
     integer(HID_T) :: id
     integer :: hdferr
-    call InitOrDefault(do_create, .FALSE., create)
+    CALL InitOrDefault(do_create, .FALSE., create)
     handler => NULL()
     id = this%getId()
-    if(id<0) RETURN
-    if(present(create)) do_create = create
-    if(do_create) then
-      call H5GCreate_f(id, groupName, handler%group_id, hdferr)
-    else
-      call H5GOpen_f(id, groupName, handler%group_id, hdferr)
-    endif
-    if(hdferr<0) GOTO 10
+    If(id<0) RETURN
+    If(present(create)) do_create = create
+    If(do_create) Then
+      CALL H5GCreate_f(id, groupName, handler%group_id, hdferr)
+    Else
+      CALL H5GOpen_f(id, groupName, handler%group_id, hdferr)
+    Endif
+    If(hdferr<0) GOTO 10
     np => handler
-    call this%add_subobject(groupName, np)
+    CALL this%add_subobject(groupName, np)
     RETURN
 10  ALLOCATE(handler)
     DEALLOCATE(handler)
     handler => NULL()
   EndFunction mlf_hdf5_openGroup
   
-  Function mlf_hdf5_getSubGroup(this, groupName) result(handler)
+  Function mlf_hdf5_getSubGroup(this, obj_name) result(ptr)
     class(mlf_hdf5_handler), intent(inout), target :: this
-    class(mlf_hdf5_group), pointer :: handler
-    character(LEN=*), intent(in) :: groupName
+    class(mlf_data_handler), pointer :: ptr
+    character(LEN=*,kind=c_char), intent(in) :: obj_name
     class(mlf_obj), pointer :: np
-    handler => NULL()
-    np => this%get_subobject(groupName)
-    if(ASSOCIATED(np)) then
-      Select type(np)
-      class is (mlf_hdf5_group)
-        handler => np
-      class default
-        write (error_unit, *) 'Hdf5: subobject not from mlf_hdf5_group class', groupName
-      End Select
-    endif
-    handler => this%open_group(groupName) ! Open existing group
-    if(ASSOCIATED(handler)) RETURN
-    handler => this%open_group(groupName, create= .TRUE.) ! Create new group
-    if(ASSOCIATED(handler)) RETURN
+    ptr => NULL()
+    np => this%get_subobject(obj_name)
+    If(ASSOCIATED(np)) then
+      sELECT TYPE(np)
+      Class is (mlf_hdf5_group)
+        ptr => np
+      Class default
+        write (error_unit, *) 'Hdf5: subobject not from mlf_hdf5_group class', obj_name
+      END SELECT
+    Endif
+    ptr => this%open_group(obj_name) ! Open existing group
+    If(ASSOCIATED(ptr)) RETURN
+    ptr => this%open_group(obj_name, create= .TRUE.) ! Create new group
   End Function mlf_hdf5_getSubGroup
 
   integer Function mlf_hdf5_createFile(this, fname, access_flag) result(hdferr)
@@ -157,14 +156,14 @@ Contains
     character(LEN=*), intent(in) :: fname
     integer, intent(in), optional :: access_flag
     ! Close file if the handler as been previously used
-    call this%finalize()
-    if(present(access_flag)) then
-      call H5Fcreate_f(fname, access_flag, this%file_id, hdferr)
-    else
+    CALL this%finalize()
+    If(present(access_flag)) Then
+      CALL H5Fcreate_f(fname, access_flag, this%file_id, hdferr)
+    Else
       ! By default, delete the file
-      call H5Fcreate_f(fname, H5F_ACC_TRUNC_F, this%file_id, hdferr)
-    endif
-    if(hdferr<0) write (error_unit, *) 'Error while creating file: ', fname
+      CALL H5Fcreate_f(fname, H5F_ACC_TRUNC_F, this%file_id, hdferr)
+    Endif
+    If(hdferr<0) WRITE (error_unit, *) 'Error while creating file: ', fname
   End Function mlf_hdf5_createFile
 
   type(c_ptr) Function c_hdf5_createFile(pfname, trunk) result(cptr) bind(C, name="mlf_hdf5_createFile")
@@ -176,15 +175,15 @@ Contains
     integer :: info
     ALLOCATE(this)
     cptr = c_null_ptr
-    call mlf_stringFromC(pfname, fname)
-    if(trunk == 0) then
+    CALL mlf_stringFromC(pfname, fname)
+    If(trunk == 0) then
       info = this%createFile(fname, H5F_ACC_EXCL_F)
-    else
+    Else
       info = this%createFile(fname)
-    endif
-    if(info<0) then
-      deallocate(this); RETURN
-    endif
+    Endif
+    If(info<0) Then
+      DEALLOCATE(this); RETURN
+    Endif
     obj => this
     cptr = c_allocate(obj)
   End Function c_hdf5_createFile
@@ -194,14 +193,14 @@ Contains
     character(LEN=*), intent(in) :: fname
     integer, intent(in), optional :: access_flag
     ! Close file if the handler as been previously used
-    call this%finalize()
-    if(present(access_flag)) then
-      call H5Fopen_f(fname, access_flag, this%file_id, hdferr)
-    else
+    CALL this%finalize()
+    If(PRESENT(access_flag)) then
+      CALL H5Fopen_f(fname, access_flag, this%file_id, hdferr)
+    Else
       ! By default, open in Read/Write mode
-      call H5Fopen_f(fname, H5F_ACC_RDWR_F, this%file_id, hdferr)
-    endif
-    if(hdferr<0) write (error_unit, *) 'Error while opening file: ', fname
+      CALL H5Fopen_f(fname, H5F_ACC_RDWR_F, this%file_id, hdferr)
+    Endif
+    If(hdferr<0) WRITE (error_unit, *) 'Error while opening file: ', fname
   End Function mlf_hdf5_openFile
 
   type(c_ptr) Function c_hdf5_openFile(pfname, rw) result(cptr) bind(C, name="mlf_hdf5_openFile")
@@ -213,15 +212,15 @@ Contains
     integer :: info
     ALLOCATE(this)
     cptr = c_null_ptr
-    call mlf_stringFromC(pfname, fname)
-    if(rw == 0) then
+    CALL mlf_stringFromC(pfname, fname)
+    If(rw == 0) Then
       info = this%openFile(fname, H5F_ACC_RDONLY_F)
-    else
+    Else
       info = this%openFile(fname)
-    endif
-    if(info<0) then
-      deallocate(this); RETURN
-    endif
+    Endif
+    If(info<0) Then
+      DEALLOCATE(this); RETURN
+    Endif
     obj => this
     cptr = c_allocate(obj)
   End Function c_hdf5_openFile
@@ -229,11 +228,11 @@ Contains
   Subroutine mlf_hdf5_group_finalize(this)
     class(mlf_hdf5_group), intent(inout) :: this
     integer :: error
-    if(this%group_id>=0) then
-      call H5Gclose_f(this%group_id, error)
-      if(error<0) write (error_unit, *) 'Error closing group (id): ', this%group_id
-    endif
-    call mlf_obj_finalize(this)
+    If(this%group_id>=0) Then
+      CALL H5Gclose_f(this%group_id, error)
+      If(error<0) WRITE (error_unit, *) 'Error closing group (id): ', this%group_id
+    Endif
+    CALL mlf_obj_finalize(this)
   End Subroutine mlf_hdf5_group_finalize
 
 
@@ -241,12 +240,12 @@ Contains
     class(mlf_hdf5_file), intent(inout) :: this
     logical :: valid
     integer :: error
-    if(this%file_id>=0) then
-      call H5Iis_valid_f(this%file_id, valid, error)
-      if(valid) call H5Fclose_f(this%file_id, error)
-      if(error<0) write (error_unit, *) 'Error closing file (id): ', this%file_id
-    endif
-    call mlf_obj_finalize(this)
+    If(this%file_id>=0) Then
+      CALL H5Iis_valid_f(this%file_id, valid, error)
+      If(valid) CALL H5Fclose_f(this%file_id, error)
+      If(error<0) WRITE (error_unit, *) 'Error closing file (id): ', this%file_id
+    Endif
+    CALL mlf_obj_finalize(this)
   End Subroutine mlf_hdf5_file_finalize
 
   Integer Function mlf_hdf5_createOrWrite(file_id, dims, rname, h5_type, f_ptr, created) result(info)
@@ -258,30 +257,30 @@ Contains
     integer(HID_T) :: space_id, data_id
     space_id = -1; data_id = -1
     info = createSpaceResource(file_id, dims, rname, h5_type, space_id, data_id, created)
-    if(info >= 0) then
-      call H5Dwrite_f(data_id, h5_type, f_ptr, info)
-      if(info<0) write (error_unit, *) 'Error writing resource: '//rname
-    endif
-    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
+    If(info >= 0) Then
+      CALL H5Dwrite_f(data_id, h5_type, f_ptr, info)
+      If(info<0) WRITE (error_unit, *) 'Error writing resource: '//rname
+    Endif
+    info = MIN(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_createOrWrite 
 
   Integer Function mlf_hdf5_closeHDFIds(data_id, space_id, file_id) result(info)
     integer(HID_T), intent(in), optional :: file_id, space_id, data_id
     info = 0
-    if(present(data_id)) then
-      if(data_id>=0) call H5Sclose_f(space_id, info)
-      if(CheckF(info, "Error closing dataset")) RETURN
-    endif
-    if(present(space_id)) then
+    If(PRESENT(data_id)) Then
+      If(data_id>=0) CALL H5Sclose_f(space_id, info)
+      If(CheckF(info, "Error closing dataset")) RETURN
+    Endif
+    If(PRESENT(space_id)) Then
       info = 0
-      if(space_id>=0) call H5Dclose_f(data_id, info)
-      if(CheckF(info, "Error closing dataspace")) RETURN
-    endif
-    if(present(file_id)) then
+      If(space_id>=0) CALL H5Dclose_f(data_id, info)
+      If(CheckF(info, "Error closing dataspace")) RETURN
+    Endif
+    If(PRESENT(file_id)) Then
       info = 0
-      if(file_id>=0) call H5Fclose_f(file_id, info)
-      if(info<0) write (error_unit, *) 'Error closing file (id): ', file_id
-    endif
+      If(file_id>=0) CALL H5Fclose_f(file_id, info)
+      If(info<0) WRITE (error_unit, *) 'Error closing file (id): ', file_id
+    Endif
   End Function mlf_hdf5_closeHDFIds
 
   Integer Function createSpaceResource(file_id, dims, rname, h5_type, space_id, data_id, created) &
@@ -291,15 +290,15 @@ Contains
     integer(HSIZE_T), intent(in) :: dims(:)
     integer(HID_T), intent(inout) :: space_id, data_id
     logical, intent(in) :: created
-    call H5Screate_simple_f(size(dims), dims, space_id, info)
-    if(CheckF(info, "Error creating dataspace: ", dims)) RETURN
-    if(created) then
-      call H5Dopen_f(file_id, rname, data_id, info)
-      if(CheckF(info, "Error opening resource "//rname)) RETURN
-    else
-      call H5Dcreate_f(file_id, rname, h5_type, space_id, data_id, info)
-      if(CheckF(info, "Error creating dataset: "//rname)) RETURN
-    endif
+    CALL H5Screate_simple_f(SIZE(dims), dims, space_id, info)
+    If(CheckF(info, "Error creating dataspace: ", dims)) RETURN
+    If(created) Then
+      CALL H5Dopen_f(file_id, rname, data_id, info)
+      If(CheckF(info, "Error opening resource "//rname)) RETURN
+    Else
+      CALL H5Dcreate_f(file_id, rname, h5_type, space_id, data_id, info)
+      If(CheckF(info, "Error creating dataset: "//rname)) RETURN
+    Endif
   End Function createSpaceResource
 
   Integer Function mlf_hdf5_openSpaceResource(file_id, dims, rname, space_id, data_id, fixed_dims) result(info)
@@ -307,32 +306,32 @@ Contains
     character(len=*,kind=c_char), intent(in) :: rname
     integer(HSIZE_T), intent(inout) :: dims(:)
     logical, intent(in), optional :: fixed_dims(:)
-    integer(HSIZE_T) :: max_dims(size(dims)), orig_dims(size(dims))
+    integer(HSIZE_T) :: max_dims(SIZE(dims)), orig_dims(SIZE(dims))
     integer :: frank0, frank
     integer(HID_T), intent(inout) :: space_id, data_id
     info = 0
-    frank = size(dims)
-    call H5Dopen_f(file_id, rname, data_id, info)
-    if(CheckF(info, "Error opening resource")) RETURN
-    call H5Dget_space_f(data_id, space_id, info)
-    if(CheckF(info, "Error getting space_id")) RETURN
-    call H5Sget_simple_extent_ndims_f(space_id, frank0, info)
-    if(CheckF(info, "Error getting rank")) RETURN
-    if(frank0 /= frank) then
-      write (error_unit, *) "Error rank doesn't match:", frank, " /= ", frank0
+    frank = SIZE(dims)
+    CALL H5Dopen_f(file_id, rname, data_id, info)
+    If(CheckF(info, "Error opening resource")) RETURN
+    CALL H5Dget_space_f(data_id, space_id, info)
+    If(CheckF(info, "Error getting space_id")) RETURN
+    CALL H5Sget_simple_extent_ndims_f(space_id, frank0, info)
+    If(CheckF(info, "Error getting rank")) RETURN
+    If(frank0 /= frank) Then
+      WRITE (error_unit, *) "Error rank doesn't match:", frank, " /= ", frank0
       info = -1
       RETURN
-    endif
-    if(.NOT. present(fixed_dims)) orig_dims = dims
-    call H5Sget_simple_extent_dims_f(space_id, dims, max_dims, info)
-    if(CheckF(info, "Error getting dimensions")) RETURN
-    if(.NOT. present(fixed_dims)) RETURN
-    if(.NOT. any((orig_dims /= dims).AND.fixed_dims)) then
-      write (error_unit, *) "Dimensions don't match:", pack(orig_dims, fixed_dims), &
-        " /= ", pack(dims, fixed_dims)
+    Endif
+    If(.NOT. PRESENT(fixed_dims)) orig_dims = dims
+    CALL H5Sget_simple_extent_dims_f(space_id, dims, max_dims, info)
+    If(CheckF(info, "Error getting dimensions")) RETURN
+    If(.NOT. PRESENT(fixed_dims)) RETURN
+    If(.NOT. ANY((orig_dims /= dims).AND.fixed_dims)) Then
+      WRITE (error_unit, *) "Dimensions don't match:", PACK(orig_dims, fixed_dims), &
+        " /= ", PACK(dims, fixed_dims)
       info = -1
       RETURN
-    endif
+    Endif
   End Function mlf_hdf5_openSpaceResource
 
   Integer Function mlf_hdf5_getDouble1d(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
@@ -340,24 +339,24 @@ Contains
     real(c_double), intent(out), target, allocatable :: rsc_data(:)
     integer(c_int64_t), intent(in), optional :: dims(:)
     integer(HSIZE_T) :: dims0(1)
-    character(len=*,kind=c_char) :: rsc_name
+    character(len=*,kind=c_char), intent(in) :: rsc_name
     logical, intent(in), optional :: fixed_dims(:)
     integer(HID_T) :: space_id, data_id, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
     info = 0; space_id = -1; data_id = -1
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    if(present(dims)) dims0 = dims
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    If(PRESENT(dims)) dims0 = dims
     info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
-    if(info >= 0) then
-      allocate(rsc_data(dims0(1)))
+    If(info >= 0) Then
+      ALLOCATE(rsc_data(dims0(1)))
       f_ptr = C_LOC(rsc_data)
-      call H5Dread_f(data_id, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, info)
+      CALL H5Dread_f(data_id, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, info)
       dumb = CheckF(info, "Error reading data: "//rsc_name)
-    endif
-    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
+    Endif
+    info = MIN(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getDouble1d
 
   Integer Function mlf_hdf5_getDouble2d(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
@@ -365,24 +364,24 @@ Contains
     real(c_double), intent(out), target, allocatable :: rsc_data(:,:)
     integer(c_int64_t), intent(in), optional :: dims(:)
     integer(HSIZE_T) :: dims0(2)
-    character(len=*,kind=c_char) :: rsc_name
+    character(len=*,kind=c_char), intent(in) :: rsc_name
     logical, intent(in), optional :: fixed_dims(:)
     integer(HID_T) :: space_id, data_id, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
     info = 0; space_id = -1; data_id = -1
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    if(present(dims)) dims0 = dims
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    If(PRESENT(dims)) dims0 = dims
     info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
-    if(info >= 0) then
-      allocate(rsc_data(dims0(1), dims0(2)))
+    If(info >= 0) Then
+      ALLOCATE(rsc_data(dims0(1), dims0(2)))
       f_ptr = C_LOC(rsc_data)
-      call H5Dread_f(data_id, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, info)
+      CALL H5Dread_f(data_id, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, info)
       dumb = CheckF(info, "Error reading data: "//rsc_name)
-    endif
-    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
+    Endif
+    info = MIN(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getDouble2d
 
   Integer Function mlf_hdf5_getDouble3d(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
@@ -390,24 +389,24 @@ Contains
     real(c_double), intent(out), target, allocatable :: rsc_data(:,:,:)
     integer(c_int64_t), intent(in), optional :: dims(:)
     integer(HSIZE_T) :: dims0(3)
-    character(len=*,kind=c_char) :: rsc_name
+    character(len=*,kind=c_char), intent(in) :: rsc_name
     logical, intent(in), optional :: fixed_dims(:)
     integer(HID_T) :: space_id, data_id, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
     info = 0; space_id = -1; data_id = -1
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    if(present(dims)) dims0 = dims
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    If(PRESENT(dims)) dims0 = dims
     info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
-    if(info >= 0) then
-      allocate(rsc_data(dims0(1), dims0(2), dims0(3)))
+    If(info >= 0) Then
+      ALLOCATE(rsc_data(dims0(1), dims0(2), dims0(3)))
       f_ptr = C_LOC(rsc_data)
-      call H5Dread_f(data_id, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, info)
+      CALL H5Dread_f(data_id, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, info)
       dumb = CheckF(info, "Error reading data: "//rsc_name)
-    endif
-    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
+    Endif
+    info = MIN(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getDouble3d
 
   Integer Function mlf_hdf5_getFloat1d(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
@@ -415,24 +414,24 @@ Contains
     real(c_float), intent(out), target, allocatable :: rsc_data(:)
     integer(c_int64_t), intent(in), optional :: dims(:)
     integer(HSIZE_T) :: dims0(1)
-    character(len=*,kind=c_char) :: rsc_name
+    character(len=*,kind=c_char), intent(in) :: rsc_name
     logical, intent(in), optional :: fixed_dims(:)
     integer(HID_T) :: space_id, data_id, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
     info = 0; space_id = -1; data_id = -1
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    if(present(dims)) dims0 = dims
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    If(PRESENT(dims)) dims0 = dims
     info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
-    if(info >= 0) then
-      allocate(rsc_data(dims0(1)))
+    If(info >= 0) Then
+      ALLOCATE(rsc_data(dims0(1)))
       f_ptr = C_LOC(rsc_data)
-      call H5Dread_f(data_id, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, info)
+      CALL H5Dread_f(data_id, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, info)
       dumb = CheckF(info, "Error reading data: "//rsc_name)
-    endif
-    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
+    Endif
+    info = MIN(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getFloat1d
 
   Integer Function mlf_hdf5_getFloat2d(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
@@ -440,24 +439,24 @@ Contains
     real(c_float), intent(out), target, allocatable :: rsc_data(:,:)
     integer(c_int64_t), intent(in), optional :: dims(:)
     integer(HSIZE_T) :: dims0(2)
-    character(len=*,kind=c_char) :: rsc_name
+    character(len=*,kind=c_char), intent(in) :: rsc_name
     logical, intent(in), optional :: fixed_dims(:)
     integer(HID_T) :: space_id, data_id, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
     info = 0; space_id = -1; data_id = -1
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    if(present(dims)) dims0 = dims
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    If(PRESENT(dims)) dims0 = dims
     info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
-    if(info >= 0) then
-      allocate(rsc_data(dims0(1), dims0(2)))
+    If(info >= 0) Then
+      ALLOCATE(rsc_data(dims0(1), dims0(2)))
       f_ptr = C_LOC(rsc_data)
-      call H5Dread_f(data_id, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, info)
+      CALL H5Dread_f(data_id, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, info)
       dumb = CheckF(info, "Error reading data: "//rsc_name)
-    endif
-    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
+    Endif
+    info = MIN(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getFloat2d
 
   Integer Function mlf_hdf5_getFloat3d(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
@@ -465,24 +464,24 @@ Contains
     real(c_float), intent(out), target, allocatable :: rsc_data(:,:,:)
     integer(c_int64_t), intent(in), optional :: dims(:)
     integer(HSIZE_T) :: dims0(3)
-    character(len=*,kind=c_char) :: rsc_name
+    character(len=*,kind=c_char), intent(in) :: rsc_name
     logical, intent(in), optional :: fixed_dims(:)
     integer(HID_T) :: space_id, data_id, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
     info = 0; space_id = -1; data_id = -1
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    if(present(dims)) dims0 = dims
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    If(PRESENT(dims)) dims0 = dims
     info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
-    if(info >= 0) then
-      allocate(rsc_data(dims0(1), dims0(2), dims0(3)))
+    If(info >= 0) Then
+      ALLOCATE(rsc_data(dims0(1), dims0(2), dims0(3)))
       f_ptr = C_LOC(rsc_data)
-      call H5Dread_f(data_id, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, info)
+      CALL H5Dread_f(data_id, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, info)
       dumb = CheckF(info, "Error reading data: "//rsc_name)
-    endif
-    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
+    Endif
+    info = MIN(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getFloat3d
 
   Integer Function mlf_hdf5_getInt64(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
@@ -490,24 +489,24 @@ Contains
     integer(c_int64_t), intent(out), target, allocatable :: rsc_data(:)
     integer(c_int64_t), intent(in), optional :: dims(:)
     integer(HSIZE_T) :: dims0(1)
-    character(len=*,kind=c_char) :: rsc_name
+    character(len=*,kind=c_char), intent(in) :: rsc_name
     logical, intent(in), optional :: fixed_dims(:)
     integer(HID_T) :: space_id, data_id, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
     info = 0; space_id = -1; data_id = -1
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    if(present(dims)) dims0 = dims
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    If(PRESENT(dims)) dims0 = dims
     info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
-    if(info >= 0) then
-      allocate(rsc_data(dims0(1)))
+    If(info >= 0) Then
+      ALLOCATE(rsc_data(dims0(1)))
       f_ptr = C_LOC(rsc_data)
-      call H5Dread_f(data_id, h5kind_to_type(c_int64_t, H5_INTEGER_KIND), f_ptr, info)
+      CALL H5Dread_f(data_id, h5kind_to_type(c_int64_t, H5_INTEGER_KIND), f_ptr, info)
       dumb = CheckF(info, "Error reading data: "//rsc_name)
-    endif
-    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
+    Endif
+    info = MIN(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getInt64
     
   Integer Function mlf_hdf5_getInt32(this, rsc_data, rsc_name, dims, fixed_dims) result(info)
@@ -515,24 +514,24 @@ Contains
     integer(c_int32_t), intent(out), target, allocatable :: rsc_data(:)
     integer(c_int64_t), intent(in), optional :: dims(:)
     integer(HSIZE_T) :: dims0(1)
-    character(len=*,kind=c_char) :: rsc_name
+    character(len=*,kind=c_char), intent(in) :: rsc_name
     logical, intent(in), optional :: fixed_dims(:)
     integer(HID_T) :: space_id, data_id, gid
     type(c_ptr) :: f_ptr
     logical :: dumb
     info = 0; space_id = -1; data_id = -1
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    if(present(dims)) dims0 = dims
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    If(present(dims)) dims0 = dims
     info = mlf_hdf5_openSpaceResource(gid, dims0, rsc_name, space_id, data_id, fixed_dims)
-    if(info >= 0) then
-      allocate(rsc_data(dims0(1)))
+    If(info >= 0) Then
+      ALLOCATE(rsc_data(dims0(1)))
       f_ptr = C_LOC(rsc_data)
-      call H5Dread_f(data_id, h5kind_to_type(c_int32_t, H5_INTEGER_KIND), f_ptr, info)
+      CALL H5Dread_f(data_id, h5kind_to_type(c_int32_t, H5_INTEGER_KIND), f_ptr, info)
       dumb = CheckF(info, "Error reading data: "//rsc_name)
-    endif
-    info = min(info, mlf_hdf5_closeHDFIds(data_id, space_id))
+    Endif
+    info = MIN(info, mlf_hdf5_closeHDFIds(data_id, space_id))
   End Function mlf_hdf5_getInt32
 
   Integer(c_int) Function mlf_pushdata_double2d(this, M, rname) result(info)
@@ -543,10 +542,10 @@ Contains
     type(c_ptr) :: f_ptr
     info = 0
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    f_ptr = c_loc(M)
-    info = mlf_hdf5_createOrWrite(gid, shape(M, kind=HSIZE_T), &
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    f_ptr = C_LOC(M)
+    info = mlf_hdf5_createOrWrite(gid, SHAPE(M, kind=HSIZE_T), &
       rname, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, .FALSE.)
   End Function mlf_pushdata_double2d
 
@@ -558,10 +557,10 @@ Contains
     type(c_ptr) :: f_ptr
     info = 0
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    f_ptr = c_loc(M)
-    info = mlf_hdf5_createOrWrite(gid, shape(M, kind=HSIZE_T), &
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    f_ptr = C_LOC(M)
+    info = mlf_hdf5_createOrWrite(gid, SHAPE(M, kind=HSIZE_T), &
       rname, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, .FALSE.)
   End Function mlf_pushdata_double3d
 
@@ -573,10 +572,10 @@ Contains
     type(c_ptr) :: f_ptr
     info = 0
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    f_ptr = c_loc(M)
-    info = mlf_hdf5_createOrWrite(gid, [size(M, kind=HSIZE_T)], &
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    f_ptr = C_LOC(M)
+    info = mlf_hdf5_createOrWrite(gid, [SIZE(M, kind=HSIZE_T)], &
       rname, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, .FALSE.)
   End Function mlf_pushdata_double1d
 
@@ -588,10 +587,10 @@ Contains
     type(c_ptr) :: f_ptr
     info = 0
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    f_ptr = c_loc(M)
-    info = mlf_hdf5_createOrWrite(gid, shape(M, kind=HSIZE_T), &
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    f_ptr = C_LOC(M)
+    info = mlf_hdf5_createOrWrite(gid, SHAPE(M, kind=HSIZE_T), &
       rname, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, .FALSE.)
   End Function mlf_pushdata_float2d
 
@@ -603,10 +602,10 @@ Contains
     type(c_ptr) :: f_ptr
     info = 0
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    f_ptr = c_loc(M)
-    info = mlf_hdf5_createOrWrite(gid, shape(M, kind=HSIZE_T), &
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    f_ptr = C_LOC(M)
+    info = mlf_hdf5_createOrWrite(gid, SHAPE(M, kind=HSIZE_T), &
       rname, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, .FALSE.)
   End Function mlf_pushdata_float3d
 
@@ -618,10 +617,10 @@ Contains
     type(c_ptr) :: f_ptr
     info = 0
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    f_ptr = c_loc(M)
-    info = mlf_hdf5_createOrWrite(gid, [size(M, kind=HSIZE_T)], &
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    f_ptr = C_LOC(M)
+    info = mlf_hdf5_createOrWrite(gid, [SIZE(M, kind=HSIZE_T)], &
       rname, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, .FALSE.)
   End Function mlf_pushdata_float1d
 
@@ -633,10 +632,10 @@ Contains
     type(c_ptr) :: f_ptr
     info = 0
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    f_ptr = c_loc(M)
-    info = mlf_hdf5_createOrWrite(gid, [size(M, kind=HSIZE_T)], &
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    f_ptr = C_LOC(M)
+    info = mlf_hdf5_createOrWrite(gid, [SIZE(M, kind=HSIZE_T)], &
       rname, h5kind_to_type(c_int32_t, H5_INTEGER_KIND), f_ptr, .FALSE.)
   End Function mlf_pushdata_int32_1d
 
@@ -648,10 +647,10 @@ Contains
     type(c_ptr) :: f_ptr
     info = 0
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
-    f_ptr = c_loc(M)
-    info = mlf_hdf5_createOrWrite(gid, [size(M, kind=HSIZE_T)], &
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    f_ptr = C_LOC(M)
+    info = mlf_hdf5_createOrWrite(gid, [SIZE(M, kind=HSIZE_T)], &
       rname, h5kind_to_type(c_int64_t, H5_INTEGER_KIND), f_ptr, .FALSE.)
   End Function mlf_pushdata_int64_1d
 
@@ -665,50 +664,50 @@ Contains
     logical :: ov = .FALSE.
     info = 0
     gid = this%getId()
-    if(gid<0) info=-1
-    if(CheckF(info, "mlf_hdf5: error getting id")) RETURN
+    If(gid<0) info=-1
+    If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
     info = 0
-    if(.NOT. allocated(obj%v)) RETURN
-    if(present(override)) ov = override
-    do i=1,size(obj%v)
-      if(.NOT. allocated(obj%v(i)%r)) CYCLE
-      associate(x => obj%v(i)%r)
-        select type(x)
-        class is (mlf_rsc_int64_1d)
-          f_ptr = c_loc(x%V)
-          info = mlf_hdf5_createOrWrite(gid, [size(x%V, kind=HSIZE_T)], &
+    If(.NOT. ALLOCATED(obj%v)) RETURN
+    If(PRESENT(override)) ov = override
+    Do i=1,size(obj%v)
+      If(.NOT. ALLOCATED(obj%v(i)%r)) CYCLE
+      ASSOCIATE(x => obj%v(i)%r)
+        SELECT TYPE(x)
+        Class is (mlf_rsc_int64_1d)
+          f_ptr = C_LOC(x%V)
+          info = mlf_hdf5_createOrWrite(gid, [SIZE(x%V, KIND=HSIZE_T)], &
             obj%v(i)%r_name, h5kind_to_type(c_int64_t, H5_INTEGER_KIND), f_ptr, ov)
-        class is (mlf_rsc_int32_1d)
-          f_ptr = c_loc(x%V)
-          info = mlf_hdf5_createOrWrite(gid, [size(x%V, kind=HSIZE_T)], &
+        Class is (mlf_rsc_int32_1d)
+          f_ptr = C_LOC(x%V)
+          info = mlf_hdf5_createOrWrite(gid, [SIZE(x%V, KIND=HSIZE_T)], &
             obj%v(i)%r_name, h5kind_to_type(c_int32_t, H5_INTEGER_KIND), f_ptr, ov)
-        class is (mlf_rsc_float1d)
-          f_ptr = c_loc(x%V)
-          info = mlf_hdf5_createOrWrite(gid, [size(x%V, kind=HSIZE_T)], &
+        Class is (mlf_rsc_float1d)
+          f_ptr = C_LOC(x%V)
+          info = mlf_hdf5_createOrWrite(gid, [SIZE(x%V, KIND=HSIZE_T)], &
             obj%v(i)%r_name, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, ov)
-        class is (mlf_rsc_float2d)
-          f_ptr = c_loc(x%V)
-          info = mlf_hdf5_createOrWrite(gid, shape(x%V, kind=HSIZE_T), &
+        Class is (mlf_rsc_float2d)
+          f_ptr = C_LOC(x%V)
+          info = mlf_hdf5_createOrWrite(gid, SHAPE(x%V, KIND=HSIZE_T), &
             obj%v(i)%r_name, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, ov)
-        class is (mlf_rsc_float3d)
-          f_ptr = c_loc(x%V)
-          info = mlf_hdf5_createOrWrite(gid, shape(x%V, kind=HSIZE_T), &
+        Class is (mlf_rsc_float3d)
+          f_ptr = C_LOC(x%V)
+          info = mlf_hdf5_createOrWrite(gid, SHAPE(x%V, KIND=HSIZE_T), &
             obj%v(i)%r_name, h5kind_to_type(c_float, H5_REAL_KIND), f_ptr, ov)
-        class is (mlf_rsc_double1d)
-          f_ptr = c_loc(x%V)
-          info = mlf_hdf5_createOrWrite(gid, [size(x%V, kind=HSIZE_T)], &
+        Class is (mlf_rsc_double1d)
+          f_ptr = C_LOC(x%V)
+          info = mlf_hdf5_createOrWrite(gid, [SIZE(x%V, KIND=HSIZE_T)], &
             obj%v(i)%r_name, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, ov)
-        class is (mlf_rsc_double2d)
-          f_ptr = c_loc(x%V)
-          info = mlf_hdf5_createOrWrite(gid, shape(x%V, kind=HSIZE_T), &
+        Class is (mlf_rsc_double2d)
+          f_ptr = C_LOC(x%V)
+          info = mlf_hdf5_createOrWrite(gid, SHAPE(x%V, KIND=HSIZE_T), &
             obj%v(i)%r_name, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, ov)
-        class is (mlf_rsc_double3d)
-          f_ptr = c_loc(x%V)
-          info = mlf_hdf5_createOrWrite(gid, shape(x%V, kind=HSIZE_T), &
+        Class is (mlf_rsc_double3d)
+          f_ptr = C_LOC(x%V)
+          info = mlf_hdf5_createOrWrite(gid, SHAPE(x%V, KIND=HSIZE_T), &
             obj%v(i)%r_name, h5kind_to_type(c_double, H5_REAL_KIND), f_ptr, ov)
-        end select
-      end associate
-    end do
+        END SELECT
+      END ASSOCIATE
+    End Do
   End Function mlf_hdf5_pushState
 End Module mlf_hdf5
 

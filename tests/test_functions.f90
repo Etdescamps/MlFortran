@@ -103,7 +103,7 @@ Module test_functions
 
 Contains
   Integer Function odeTest_eval(this, t, X, F) result(info)
-    class(mlf_odeTest), intent(in), target :: this
+    class(mlf_odeTest), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:)
     real(c_double), intent(out), target :: F(:)
@@ -118,7 +118,7 @@ Contains
   End Subroutine odeTest_init
 
   Integer Function odeTestCstrIds_eval(this, t, X, F) result(info)
-    class(mlf_odeTestCstrIds), intent(in), target :: this
+    class(mlf_odeTestCstrIds), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:)
     real(c_double), intent(out), target :: F(:)
@@ -136,7 +136,7 @@ Contains
   End Subroutine odeTestCstrIds_init
 
   Integer Function odeTestCstr_eval(this, t, X, F) result(info)
-    class(mlf_odeTestCstr), intent(in), target :: this
+    class(mlf_odeTestCstr), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:)
     real(c_double), intent(out), target :: F(:)

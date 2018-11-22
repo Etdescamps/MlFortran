@@ -1,7 +1,7 @@
 
 set(MLF_UNSUPERVISED unsupervised/mlf_kmeans.f90 unsupervised/mlf_kmeans_naive.f90 unsupervised/mlf_emgmm.f90 unsupervised/mlf_gaussian.f90)
 set(MLF_CSRC cfuns/qsort.c)
-set(MLF_STOCHASTIC stochastic/mlf_kmc.f90)
+set(MLF_STOCHASTIC stochastic/mlf_kmc.f90 stochastic/mlf_hybrid_kmc.f90)
 set(MLF_CPPINTF cpp_intf/mlfcpp.cpp cpp_intf/mlf_dlopen.cpp)
 set(MLF_REDUCE reduce/mlf_funbasis.f90 reduce/mlf_gridmodel.f90)
 set(MLF_MULTI_OBJ multi_objective/mlf_pareto.f90)

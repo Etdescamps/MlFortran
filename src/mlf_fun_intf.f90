@@ -198,7 +198,7 @@ Module mlf_fun_intf
     Integer Function mlf_ode_eval(this, t, X, F)
       Use iso_c_binding
       import :: mlf_ode_fun
-      class(mlf_ode_fun), intent(in), target :: this
+      class(mlf_ode_fun), intent(inout), target :: this
       real(c_double), intent(in) :: t
       real(c_double), intent(in), target :: X(:)
       real(c_double), intent(out), target :: F(:)

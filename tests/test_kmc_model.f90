@@ -57,7 +57,7 @@ Module test_kmc_model
 
 Contains
   Integer Function kmc_ode_fun(this, t, X, F) Result(info)
-    class(kmc_ode), intent(in), target :: this
+    class(kmc_ode), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:)
     real(c_double), intent(out), target :: F(:)

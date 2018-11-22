@@ -210,7 +210,7 @@ Contains
         If(.NOT. ALLOCATED(U%obj_name)) CYCLE
         p2 = C_LOC(U%obj_name)
         If(c_strncmp(p1, p2, lng)/=0) CYCLE
-        CALL obj_del_suboject_id(this, i)
+        info = obj_del_subobject_id(this, i)
         RETURN
       End Associate
     End Do

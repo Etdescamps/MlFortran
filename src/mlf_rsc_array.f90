@@ -142,16 +142,25 @@ Module mlf_rsc_array
     procedure (mlf_data_handler_getdata_int32), deferred :: getdata_int32
     generic :: getData => getdata_double1d, getdata_double2d, getdata_double3d, &
       getdata_int64, getdata_int32, getdata_float1d, getdata_float2d, getdata_float3d
+    procedure (mlf_date_handler_getSubobject), deferred :: getSubObject
   End Type mlf_data_handler
 
   Abstract Interface
+    Function mlf_date_handler_getSubobject(this, obj_name) Result(ptr)
+      Use iso_c_binding
+      import :: mlf_data_handler
+      class(mlf_data_handler), intent(inout), target :: this
+      character(len=*,kind=c_char), intent(in) :: obj_name
+      class(mlf_data_handler), pointer :: ptr
+    End Function mlf_date_handler_getSubobject
+
     ! Get data functions
     Integer Function mlf_data_handler_getdata_double1d(this, rsc_data, rsc_name, dims, fixed_dims)
       Use iso_c_binding
       import :: mlf_data_handler
       class(mlf_data_handler), intent(inout), target :: this
       real(c_double), intent(out), target, allocatable :: rsc_data(:)
-      character(len=*,kind=c_char) :: rsc_name
+      character(len=*,kind=c_char), intent(in) :: rsc_name
       integer(c_int64_t), intent(in), optional :: dims(:)
       logical, intent(in), optional :: fixed_dims(:)
     End Function mlf_data_handler_getdata_double1d
@@ -161,7 +170,7 @@ Module mlf_rsc_array
       import :: mlf_data_handler
       class(mlf_data_handler), intent(inout), target :: this
       real(c_double), intent(out), target, allocatable :: rsc_data(:,:)
-      character(len=*,kind=c_char) :: rsc_name
+      character(len=*,kind=c_char), intent(in) :: rsc_name
       integer(c_int64_t), intent(in), optional :: dims(:)
       logical, intent(in), optional :: fixed_dims(:)
     End Function mlf_data_handler_getdata_double2d
@@ -171,7 +180,7 @@ Module mlf_rsc_array
       import :: mlf_data_handler
       class(mlf_data_handler), intent(inout), target :: this
       real(c_double), intent(out), target, allocatable :: rsc_data(:,:,:)
-      character(len=*,kind=c_char) :: rsc_name
+      character(len=*,kind=c_char), intent(in) :: rsc_name
       integer(c_int64_t), intent(in), optional :: dims(:)
       logical, intent(in), optional :: fixed_dims(:)
     End Function mlf_data_handler_getdata_double3d
@@ -181,7 +190,7 @@ Module mlf_rsc_array
       import :: mlf_data_handler
       class(mlf_data_handler), intent(inout), target :: this
       real(c_float), intent(out), target, allocatable :: rsc_data(:)
-      character(len=*,kind=c_char) :: rsc_name
+      character(len=*,kind=c_char), intent(in) :: rsc_name
       integer(c_int64_t), intent(in), optional :: dims(:)
       logical, intent(in), optional :: fixed_dims(:)
     End Function mlf_data_handler_getdata_float1d
@@ -191,7 +200,7 @@ Module mlf_rsc_array
       import :: mlf_data_handler
       class(mlf_data_handler), intent(inout), target :: this
       real(c_float), intent(out), target, allocatable :: rsc_data(:,:)
-      character(len=*,kind=c_char) :: rsc_name
+      character(len=*,kind=c_char), intent(in) :: rsc_name
       integer(c_int64_t), intent(in), optional :: dims(:)
       logical, intent(in), optional :: fixed_dims(:)
     End Function mlf_data_handler_getdata_float2d
@@ -201,7 +210,7 @@ Module mlf_rsc_array
       import :: mlf_data_handler
       class(mlf_data_handler), intent(inout), target :: this
       real(c_float), intent(out), target, allocatable :: rsc_data(:,:,:)
-      character(len=*,kind=c_char) :: rsc_name
+      character(len=*,kind=c_char), intent(in) :: rsc_name
       integer(c_int64_t), intent(in), optional :: dims(:)
       logical, intent(in), optional :: fixed_dims(:)
     End Function mlf_data_handler_getdata_float3d
@@ -211,7 +220,7 @@ Module mlf_rsc_array
       import :: mlf_data_handler
       class(mlf_data_handler), intent(inout), target :: this
       integer(c_int64_t), intent(out), target, allocatable :: rsc_data(:)
-      character(len=*,kind=c_char) :: rsc_name
+      character(len=*,kind=c_char), intent(in) :: rsc_name
       integer(c_int64_t), intent(in), optional :: dims(:)
       logical, intent(in), optional :: fixed_dims(:)
     End Function mlf_data_handler_getdata_int64
@@ -221,7 +230,7 @@ Module mlf_rsc_array
       import :: mlf_data_handler
       class(mlf_data_handler), intent(inout), target :: this
       integer(c_int32_t), intent(out), target, allocatable :: rsc_data(:)
-      character(len=*,kind=c_char) :: rsc_name
+      character(len=*,kind=c_char), intent(in) :: rsc_name
       integer(c_int64_t), intent(in), optional :: dims(:)
       logical, intent(in), optional :: fixed_dims(:)
     End Function mlf_data_handler_getdata_int32

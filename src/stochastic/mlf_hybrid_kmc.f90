@@ -40,6 +40,8 @@ Module mlf_hybrid_kmc
   IMPLICIT NONE
   PRIVATE
 
+  Public :: mlf_hybrid_kmc_init
+
   Type, Public, Abstract, Extends(mlf_step_obj) :: mlf_hybrid_kmc_model
     class(mlf_ode45_obj), pointer :: ode
     real(c_double), pointer :: Rates(:)
@@ -92,7 +94,8 @@ Module mlf_hybrid_kmc
       Use iso_c_binding
       import :: mlf_hybrid_kmc_model
       class(mlf_hybrid_kmc_model), intent(inout), target :: this
-      real(c_double), intent(in) :: X(:), F(:), t
+      real(c_double), intent(in) :: t
+      real(c_double), intent(in), target :: X(:), F(:)
       real(c_double), intent(out), target :: Rates(:)
     End Function mlf_hybrid_kmc_transition_rates
 
@@ -100,15 +103,17 @@ Module mlf_hybrid_kmc
       Use iso_c_binding
       import :: mlf_hybrid_kmc_model
       class(mlf_hybrid_kmc_model), intent(inout), target :: this
-      real(c_double), intent(in) :: X(:), F(:), t
+      real(c_double), intent(in) :: t
+      real(c_double), intent(in), target :: X(:), F(:)
       integer, intent(in) :: id
     End Function mlf_hybrid_kmc_apply_action
   End Interface
 Contains
 
-  Integer Function mlf_hybrid_kmc_init(this, fun, nActions, X0, t0, tMax, &
+  Integer Function mlf_hybrid_kmc_init(this, numFields, fun, nActions, X0, t0, tMax, &
       atoli, rtoli, fac, facMin, facMax, hMax, nStiff, data_handler) result(info)
     class(mlf_hybrid_kmc_model), intent(inout), target :: this
+    class(mlf_step_numFields), intent(inout) :: numFields
     class(mlf_kmc_odeModel), intent(inout), target, optional :: fun
     class(mlf_data_handler), intent(inout), optional :: data_handler
     real(c_double), intent(in), optional :: X0(:), t0, tMax, atoli, rtoli
@@ -118,6 +123,8 @@ Contains
     type(mlf_ode45_obj), pointer :: ode
     class(mlf_kmc_odeModel), pointer :: funSelected
     class(mlf_obj), pointer :: obj
+    info = mlf_step_obj_init(this, numFields, data_handler)
+    If(info<0) RETURN
     ALLOCATE(ode)
     If(PRESENT(fun)) Then
       funSelected => fun
@@ -126,8 +133,13 @@ Contains
       obj => funSelected
       CALL this%add_subobject(C_CHAR_"odeFun", obj)
     Endif
-    info = ode%init(funSelected, X0, t0, tMax, atoli, rtoli, fac, facMin, &
-      facMax, hMax, nStiff, data_handler%getSubObject(C_CHAR_"ode"))
+    If(PRESENT(data_handler)) Then
+      info = ode%init(funSelected, X0, t0, tMax, atoli, rtoli, fac, facMin, &
+        facMax, hMax, nStiff, data_handler%getSubObject(C_CHAR_"ode"))
+    Else
+      info = ode%init(funSelected, X0, t0, tMax, atoli, rtoli, fac, facMin, &
+        facMax, hMax, nStiff)
+    Endif
     If(info < 0) Then
       DEALLOCATE(ode)
       RETURN

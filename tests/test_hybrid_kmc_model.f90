@@ -40,21 +40,86 @@ Module test_hybrid_kmc_model
   IMPLICIT NONE
   PRIVATE
 
-  Type, Public, Extends(mlf_hybrid_kmc_model) :: test_hybrid_kmc
-    integer(c_int64_t), pointer :: NIndiv(:)
-    real(c_double), pointer :: Alpha, Beta, Volume
+  ! Reaction -> rare elements A and B (represented by discrete variables)
+  ! more common element c and d (represented by contious variables)
+  ! A -> B (alpha)
+  ! c catalyze B -> A (beta)
+  ! A catalyse c -> d (kappa)
+  ! B catalyse d -> c (zeta)
+  Type, Public, Extends(mlf_hybrid_kmc_model) :: model_hybrid_kmc
+    integer(c_int64_t), pointer :: NIndiv(:) ! [A, B]
+    real(c_double), pointer :: Alpha, Beta, Kappa, Zeta, Volume
   Contains
     procedure :: init => test_hybrid_init
     procedure :: applyAction => test_applyAction
     procedure :: funTransitionRates => test_funTransitionRates
     procedure :: evalOde => test_evalOde
-  End Type test_hybrid_kmc
+  End Type model_hybrid_kmc
 Contains
-    Integer Function test_evalOde(this, t, X, F)
-      class(test_hybrid_kmc), intent(inout), target :: this
-      real(c_double), intent(in) :: t
-      real(c_double), intent(in), target :: X(:)
-      real(c_double), intent(out), target :: F(:)
-    End Function test_evalOde
+  Integer Function test_hybrid_init(this, X0, NIndiv, Volume, &
+      Alpha, Beta, Kappa, Zeta, data_handler) Result(info)
+    class(model_hybrid_kmc), intent(inout), target :: this
+    real(c_double), intent(in), optional :: X0(:), Volume, Alpha, Beta, Kappa, Zeta
+    integer(c_int64_t), intent(in), optional :: NIndiv(:)
+    class(mlf_data_handler), intent(inout), optional :: data_handler
+    type(mlf_step_numFields) :: numFields
+    integer(c_int64_t) :: NCat
+    CALL numFields%initFields(nRPar = 5, nRsc = 1)
+    If(info < 0) RETURN
+    info = mlf_hybrid_kmc_init(this, numFields, NActions = 2, X0 = X0, &
+      atoli = 1d-6, rtoli = 1d-6, data_handler = data_handler)
+    NCat = 2
+    info = this%add_i64array(numFields, NCat, this%NIndiv, C_CHAR_"NIndiv", &
+      data_handler = data_handler)
+    If(info < 0) RETURN
+    If(PRESENT(NIndiv)) this%NIndiv = NIndiv
+    CALL this%addRPar(numFields, this%Alpha, "Alpha")
+    CALL this%addRPar(numFields, this%Beta, "Beta")
+    CALL this%addRPar(numFields, this%Kappa, "Kappa")
+    CALL this%addRPar(numFields, this%Zeta, "Zeta")
+    CALL this%addRPar(numFields, this%Volume, "Volume")
+    If(PRESENT(Alpha)) this%Alpha = Alpha
+    If(PRESENT(Beta)) this%Beta = Beta
+    If(PRESENT(Kappa)) this%Kappa = Kappa
+    If(PRESENT(Zeta)) this%Zeta = Zeta
+    If(PRESENT(Volume)) this%Volume = Volume
+  End Function test_hybrid_init
+
+  Integer Function test_funTransitionRates(this, t, X, F, Rates) Result(info)
+    class(model_hybrid_kmc), intent(inout), target :: this
+    real(c_double), intent(in) :: t
+    real(c_double), intent(in), target :: X(:), F(:)
+    real(c_double), intent(out), target :: Rates(:) ! [A->B, B->A]
+    ASSOCIATE(A => REAL(this%NIndiv(1)), B => REAL(this%NIndiv(2)), c => X(1), &
+        alpha => this%Alpha, beta => this%Beta)
+      Rates(1) = alpha*A
+      Rates(2) = beta*B*c
+    END ASSOCIATE
+  End Function test_funTransitionRates
+
+  Integer Function test_evalOde(this, t, X, F) Result(info)
+    class(model_hybrid_kmc), intent(inout), target :: this
+    real(c_double), intent(in) :: t
+    real(c_double), intent(in), target :: X(:) ! [c, d]
+    real(c_double), intent(out), target :: F(:)
+    ASSOCIATE(A => REAL(this%NIndiv(1)), B => REAL(this%NIndiv(2)), c => X(1), &
+        d => X(2), kappa => this%Kappa, zeta => this%zeta, V => this%Volume)
+      F(1) = (zeta*d*B - kappa*c*A)/V
+      F(2) = -F(1)
+    END ASSOCIATE
+  End Function test_evalOde
+
+  Integer Function test_applyAction(this, id, t, X, F) Result(info)
+    class(model_hybrid_kmc), intent(inout), target :: this
+    integer, intent(in) :: id
+    real(c_double), intent(in) :: t
+    real(c_double), intent(in), target :: X(:), F(:)
+    SELECT CASE(id)
+    Case(1)
+      this%NIndiv = this%NIndiv + [-1, +1]
+    Case(2)
+      this%NIndiv = this%NIndiv + [+1, -1]
+    END SELECT
+  End Function test_applyAction
 End Module test_hybrid_kmc_model
 

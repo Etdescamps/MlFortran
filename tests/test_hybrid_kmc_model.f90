@@ -102,10 +102,12 @@ Contains
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:) ! [c, d]
     real(c_double), intent(out), target :: F(:)
+    real(c_double) :: Val
     ASSOCIATE(A => REAL(this%NIndiv(1)), B => REAL(this%NIndiv(2)), c => X(1), &
-        d => X(2), kappa => this%Kappa, zeta => this%zeta, V => this%Volume)
-      F(1) = (zeta*d*B - kappa*c*A)/V
-      F(2) = -F(1)
+        d => X(2), kappa => this%Kappa, zeta => this%Zeta, V => this%Volume)
+      Val = (zeta*d*B - kappa*c*A)/V
+      F(1) = Val
+      F(2) = -Val
     END ASSOCIATE
   End Function test_evalOde
 

@@ -36,6 +36,7 @@ Module mlf_hybrid_kmc
   Use mlf_fun_intf
   Use mlf_utils
   Use mlf_ode45
+  Use mlf_errors
   Use iso_fortran_env
   IMPLICIT NONE
   PRIVATE
@@ -109,7 +110,6 @@ Module mlf_hybrid_kmc
     End Function mlf_hybrid_kmc_apply_action
   End Interface
 Contains
-
   Integer Function mlf_hybrid_kmc_init(this, numFields, fun, nActions, X0, t0, tMax, &
       atoli, rtoli, fac, facMin, facMax, hMax, nStiff, data_handler) result(info)
     class(mlf_hybrid_kmc_model), intent(inout), target :: this
@@ -123,6 +123,10 @@ Contains
     type(mlf_ode45_obj), pointer :: ode
     class(mlf_kmc_odeModel), pointer :: funSelected
     class(mlf_obj), pointer :: obj
+    real(c_double), allocatable :: X(:)
+    real(c_double) :: r
+    integer(8) :: N
+    CALL numFields%addFields(nRsc = 1)
     info = mlf_step_obj_init(this, numFields, data_handler)
     If(info<0) RETURN
     ALLOCATE(ode)
@@ -133,13 +137,33 @@ Contains
       obj => funSelected
       CALL this%add_subobject(C_CHAR_"odeFun", obj)
     Endif
-    If(PRESENT(data_handler)) Then
-      info = ode%init(funSelected, X0, t0, tMax, atoli, rtoli, fac, facMin, &
-        facMax, hMax, nStiff, data_handler%getSubObject(C_CHAR_"ode"))
+    If(PRESENT(X0)) Then
+      ALLOCATE(X(SIZE(X0)+1))
+      X(2:) = X0
+      CALL RANDOM_NUMBER(r)
+      X(1) = -log(1d0-r)
+      If(PRESENT(data_handler)) Then
+        info = ode%init(funSelected, X, t0, tMax, atoli, rtoli, fac, facMin, &
+          facMax, hMax, nStiff, data_handler%getSubObject(C_CHAR_"ode"))
+      Else
+        info = ode%init(funSelected, X, t0, tMax, atoli, rtoli, fac, facMin, &
+          facMax, hMax, nStiff)
+      Endif
     Else
-      info = ode%init(funSelected, X0, t0, tMax, atoli, rtoli, fac, facMin, &
-        facMax, hMax, nStiff)
+      If(PRESENT(data_handler)) Then
+        info = ode%init(funSelected, X0, t0, tMax, atoli, rtoli, fac, facMin, &
+          facMax, hMax, nStiff, data_handler%getSubObject(C_CHAR_"ode"))
+      Else
+        info = -1
+        WRITE (error_unit, *) "mlf_hybrid_kmc_init: No X0 nor handler provided"
+        RETURN
+      Endif
     Endif
+    If(PRESENT(NActions)) N = NActions
+    info = this%add_rarray(numFields, N, this%Rates, C_CHAR_"Rates", &
+      data_handler = data_handler)
+    If(info < 0) RETURN
+
     If(info < 0) Then
       DEALLOCATE(ode)
       RETURN
@@ -232,7 +256,7 @@ Contains
       If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
       info = this%eval(t, X, F)
       CALL RANDOM_NUMBER(r)
-      X(1) = -log(1d0-r)/F(1)
+      X(1) = -log(1d0-r)
     END ASSOCIATE
   End Function mlf_kmc_reach
 

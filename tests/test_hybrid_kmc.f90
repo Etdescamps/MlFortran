@@ -69,7 +69,7 @@ Contains
       points(1,i)   = model%ode%t
       points(2:3,i) = REAL(model%NIndiv, KIND=8)/Volume
       points(4:5,i) = model%ode%X
-      If(info /= 0) EXIT
+      If(info < 0 .OR. info == mlf_ODE_StopTime) EXIT
     End Do
     i = MIN(i, N)
     info = h5f%pushData(points(:,1:i), rname)

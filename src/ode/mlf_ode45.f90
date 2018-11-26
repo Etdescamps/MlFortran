@@ -391,13 +391,11 @@ Contains
     class(mlf_ode45_obj), intent(inout), target :: this
     integer(kind=8), intent(inout), optional :: niter
     integer(kind=8) :: i, niter0, nHard
-    logical :: wasStopped
     real(c_double) :: h, hMax, err, Xsti(size(this%X))
     real(c_double) :: alphaH, t
     i=1; niter0=1; info = 0; nHard = 0
     If(PRESENT(niter)) niter0 = niter
     info = mlf_ODE_FunError
-    wasStopped = .FALSE.
     If(this%t == this%tMax) Then
       info = mlf_ODE_StopTime
       niter = 0
@@ -417,7 +415,6 @@ Contains
       Do While(i <= niter0)
         this%t0 = t
         h = this%deltaFun(hMax)
-        If(info > 0) wasStopped = .TRUE. ! was stopped by a constraint from eval
         If(t+h >= this%tMax) h = this%tMax-t
         If(h<0) RETURN
         info = fun%eval(t+DOPRI5_C(2)*h, X0+h*DOPRI5_A2*K(:,1), K(:,2))
@@ -478,10 +475,6 @@ Contains
           If(info < 0) RETURN
           If(info == mlf_ODE_StopTime .OR. info == mlf_ODE_HardCstr) EXIT
         End Select
-        If(wasStopped) Then ! The evaluation constraint is reach
-          info = mlf_ODE_HardCstr
-          EXIT
-        Endif
         If(this%tMax <= t) Then
           info = mlf_ODE_StopTime
           EXIT

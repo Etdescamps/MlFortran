@@ -394,7 +394,9 @@ Contains
     integer(kind=8) :: i, niter0, nHard
     real(c_double) :: h, hMax, err, Xsti(size(this%X))
     real(c_double) :: alphaH, t
-    i=1; niter0=1; info = 0; nHard = 0
+    logical :: lastHard
+    i=0; niter0=1; info = 0; nHard = 0
+    lastHard = .FALSE.
     If(PRESENT(niter)) niter0 = niter
     info = mlf_ODE_FunError
     If(this%t == this%tMax) Then
@@ -413,7 +415,7 @@ Contains
       Class is (mlf_ode_funCstr)
         hMax = MIN(hMax, fun%getHMax(t, X, K(:,1)))
       End Select
-      Do While(i <= niter0)
+      Do While(i < niter0)
         this%t0 = t
         h = this%deltaFun(hMax)
         If(t+h >= this%tMax) h = this%tMax-t
@@ -423,6 +425,7 @@ Contains
           ! Help to find a path that does not trigger a hard constraint
           this%nFun = this%nFun + 1; nHard = nHard + 1
           hMax = this%searchHardCstr(K(:,1:2), t, DOPRI5_C(2)*h);
+          lastHard = .TRUE.
           If(hMax < 0) Then
             info = -1; RETURN
           Endif
@@ -430,7 +433,6 @@ Contains
           ! Stop the evaluation: cannot avoid hard constaint
           info = mlf_ODE_HardCstr; RETURN
         Endif
-        nHard = 0
         info = fun%eval(t+DOPRI5_C(3)*h, X0+h*MATMUL(K(:,1:2), DOPRI5_A3), K(:,3))
         If(info<0) RETURN; If(info>0) Then
           this%nFun = this%nFun + 2; hMax = DOPRI5_C(2)*h; CYCLE
@@ -444,7 +446,7 @@ Contains
           this%nFun = this%nFun + 4; hMax = DOPRI5_C(4)*h; CYCLE
         Endif
 
-        ! Ysti is used by DOPRI5 for stiffness detection
+        ! Xsti is used by DOPRI5 for stiffness detection
         Xsti = X0+h*MATMUL(K(:,1:5), DOPRI5_A6)
         info = fun%eval(t+DOPRI5_C(6)*h, Xsti, K(:,6))
         If(info<0) RETURN; If(info>0) Then
@@ -463,12 +465,15 @@ Contains
         ! Update X and t
         t = t + h
         this%t = t
+        ! If an iteration does not trigger a hard constraint -> reinit nHard counter
+        If(.NOT. lastHard) nHard = 0
         If(MOD(this%nAccept, this%nStiff) == 0 .OR. this%iStiff > 0) Then
           If(this%stiffDetect(h, X, Xsti, K(:,7), K(:,6))) Then
             info = mlf_ODE_Stiff
             EXIT
           Endif
         Endif
+        i = i+1
         hMax = MIN(this%hMax, this%tMax-this%t)
         ! Check if the constraint is present
         Select Type(fun)
@@ -482,10 +487,9 @@ Contains
           info = mlf_ODE_StopTime
           EXIT
         Endif
-        If(i == niter0) EXIT
         K(:,1) = K(:,7)
         X0 = X
-        i = i+1
+        lastHard = .FALSE.
       End Do
     END ASSOCIATE
     If(PRESENT(niter)) niter = i

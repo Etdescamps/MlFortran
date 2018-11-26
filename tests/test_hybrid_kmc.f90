@@ -62,7 +62,7 @@ Contains
     NIndiv = INT(CIndiv(1:2)*Volume, KIND=8)
     info = model%init(CIndiv(3:4), NIndiv, Volume, &
       Param(1), Param(2), Param(3), Param(4))
-    N = 1000*SUM(NIndiv)
+    N = 10000*SUM(NIndiv)
     ALLOCATE(points(5, N))
     Do i = 1,N
       info = model%step()

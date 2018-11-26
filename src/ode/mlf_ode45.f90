@@ -365,6 +365,7 @@ Contains
     this%lastTheta = hopt
   End Function mlf_ode45_deltaFun
 
+  ! Dichotomous search of the point where the hard constraints is triggered
   Real(c_double) Function mlf_ode45_searchHardCstr(this, K, t, hMax) Result(h)
     class(mlf_ode45_obj), intent(inout), target :: this
     real(c_double), intent(inout) :: K(:,:)
@@ -418,14 +419,16 @@ Contains
         If(t+h >= this%tMax) h = this%tMax-t
         If(h<0) RETURN
         info = fun%eval(t+DOPRI5_C(2)*h, X0+h*DOPRI5_A2*K(:,1), K(:,2))
-        If(info<0) RETURN; If(info>0) Then;
+        If(info<0) RETURN; If(info>0) Then
+          ! Help to find a path that does not trigger a hard constraint
           this%nFun = this%nFun + 1; nHard = nHard + 1
           hMax = this%searchHardCstr(K(:,1:2), t, DOPRI5_C(2)*h);
           If(hMax < 0) Then
             info = -1; RETURN
           Endif
           If(nHard < 5) CYCLE ! Continue the evaluation
-          info = mlf_ODE_HardCstr; RETURN ! Stop the evaluation
+          ! Stop the evaluation: cannot avoid hard constaint
+          info = mlf_ODE_HardCstr; RETURN
         Endif
         nHard = 0
         info = fun%eval(t+DOPRI5_C(3)*h, X0+h*MATMUL(K(:,1:2), DOPRI5_A3), K(:,3))

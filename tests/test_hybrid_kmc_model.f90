@@ -85,7 +85,7 @@ Contains
     If(PRESENT(Volume)) this%Volume = Volume
   End Function test_hybrid_init
 
-  Integer Function test_funTransitionRates(this, t, X, F, Rates) Result(info)
+  Integer Function test_funTransitionRates(this, t, X, F, Rates) Result(N)
     class(model_hybrid_kmc), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:), F(:)
@@ -95,6 +95,7 @@ Contains
       Rates(1) = alpha*A
       Rates(2) = beta*B*c
     END ASSOCIATE
+    N = 2
   End Function test_funTransitionRates
 
   Integer Function test_evalOde(this, t, X, F) Result(info)
@@ -109,6 +110,7 @@ Contains
       F(1) = Val
       F(2) = -Val
     END ASSOCIATE
+    info = 0
   End Function test_evalOde
 
   Integer Function test_applyAction(this, id, t, X, F) Result(info)
@@ -122,6 +124,7 @@ Contains
     Case(2)
       this%NIndiv = this%NIndiv + [+1, -1]
     END SELECT
+    info = 0
   End Function test_applyAction
 End Module test_hybrid_kmc_model
 

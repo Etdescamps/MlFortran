@@ -162,8 +162,6 @@ Contains
     If(PRESENT(NActions)) N = NActions
     info = this%add_rarray(numFields, N, this%Rates, C_CHAR_"Rates", &
       data_handler = data_handler)
-    If(info < 0) RETURN
-
     If(info < 0) Then
       DEALLOCATE(ode)
       RETURN
@@ -185,12 +183,18 @@ Contains
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:)
     real(c_double), intent(out), target :: F(:)
+    integer :: N
     ASSOCIATE(Model => this%kmc_model, Rates => this%kmc_model%Rates)
       info = Model%evalOde(t, X(2:), F(2:))
       If(info < 0) RETURN
-      info = Model%funTransitionRates(t, X(2:), F(2:), Rates)
-      If(info < 0) RETURN
-      F(1) = -SUM(Rates)
+      N = Model%funTransitionRates(t, X(2:), F(2:), Rates)
+      If(N <= 0) Then
+        info = N
+        If(info == 0) info = mlf_ODE_StopTime
+        RETURN
+      Endif
+      F(1) = -SUM(Rates(1:info))
+      info = mlf_ODE_Continue
     END ASSOCIATE
   End Function mlf_kmc_eval
 

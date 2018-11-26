@@ -228,7 +228,7 @@ Contains
     END BLOCK
     id = ids(id)
     t = this%t0 + h
-    CALL this%denseEvaluation(t,X, this%K(:,7))
+    CALL this%denseEvaluation(t, X, this%K(:,7))
     info = fun%reachCstr(t, id, X, this%K(:,7))
     If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
     If(t >= this%tMax) Then

@@ -178,6 +178,7 @@ Contains
     Endif
     obj => ode
     CALL this%add_subobject(C_CHAR_"ode", obj)
+    If(.NOT. PRESENT(data_handler)) info = this%reinit()
     this%ode => ode
     funSelected%kmc_model => this
   End Function mlf_hybrid_kmc_init

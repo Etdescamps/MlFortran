@@ -74,7 +74,6 @@ Module mlf_step_algo
     End Function mlf_step_fun
   End Interface
 Contains
-
   Subroutine mlf_step_addFields(this, nIPar, nRPar, nRsc, nIVar, nRVar)
     class(mlf_step_numFields), intent(inout) :: this
     integer, intent(in), optional :: nIPar, nRPar, nRsc, nIVar, nRVar

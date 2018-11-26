@@ -453,7 +453,7 @@ Contains
           this%nFun = this%nFun + 5; hMax = DOPRI5_C(5)*h; CYCLE
         Endif
 
-        ! Y Contains the value of X(t+h)
+        ! X <- fun(t+h)
         X = X0+h*MATMUL(K(:,1:6), DOPRI5_A7)
         info = fun%eval(t+DOPRI5_C(7)*h, X, K(:,7))
         this%nFun = this%nFun + 6

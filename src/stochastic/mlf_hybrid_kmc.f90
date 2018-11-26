@@ -57,6 +57,7 @@ Module mlf_hybrid_kmc
     class(mlf_hybrid_kmc_model), pointer :: kmc_model
     real(c_double) :: kmc_alpha
   Contains
+    procedure :: init => mlf_kmc_ode_init
     procedure :: eval => mlf_kmc_eval
     procedure :: getHMax => mlf_kmc_getHMax
     procedure :: updateCstr => mlf_kmc_update
@@ -104,14 +105,21 @@ Module mlf_hybrid_kmc
       Use iso_c_binding
       import :: mlf_hybrid_kmc_model
       class(mlf_hybrid_kmc_model), intent(inout), target :: this
-      real(c_double), intent(in) :: t
-      real(c_double), intent(in), target :: X(:), F(:)
+      real(c_double), intent(inout) :: t
+      real(c_double), intent(inout), target :: X(:), F(:)
       integer, intent(in) :: id
     End Function mlf_hybrid_kmc_apply_action
   End Interface
 Contains
+  Integer Function mlf_kmc_ode_init(this) Result(info)
+    class(mlf_kmc_odeModel), intent(inout), target :: this
+    this%NCstr = 1
+    this%kmc_alpha = 1.5
+    info = 0
+  End Function mlf_kmc_ode_init
+
   Integer Function mlf_hybrid_kmc_init(this, numFields, fun, nActions, X0, t0, tMax, &
-      atoli, rtoli, fac, facMin, facMax, hMax, nStiff, data_handler) result(info)
+      atoli, rtoli, fac, facMin, facMax, hMax, nStiff, data_handler) Result(info)
     class(mlf_hybrid_kmc_model), intent(inout), target :: this
     class(mlf_step_numFields), intent(inout) :: numFields
     class(mlf_kmc_odeModel), intent(inout), target, optional :: fun
@@ -134,6 +142,8 @@ Contains
       funSelected => fun
     Else
       ALLOCATE(mlf_kmc_odeModel :: funSelected)
+      info = funSelected%init()
+      If(info < 0) RETURN
       obj => funSelected
       CALL this%add_subobject(C_CHAR_"odeFun", obj)
     Endif
@@ -193,7 +203,7 @@ Contains
         If(info == 0) info = mlf_ODE_StopTime
         RETURN
       Endif
-      F(1) = -SUM(Rates(1:info))
+      F(1) = -SUM(Rates(1:N))
       info = mlf_ODE_Continue
     END ASSOCIATE
   End Function mlf_kmc_eval

@@ -116,8 +116,8 @@ Contains
   Integer Function test_applyAction(this, id, t, X, F) Result(info)
     class(model_hybrid_kmc), intent(inout), target :: this
     integer, intent(in) :: id
-    real(c_double), intent(in) :: t
-    real(c_double), intent(in), target :: X(:), F(:)
+    real(c_double), intent(inout) :: t
+    real(c_double), intent(inout), target :: X(:), F(:)
     SELECT CASE(id)
     Case(1)
       this%NIndiv = this%NIndiv + [-1, +1]

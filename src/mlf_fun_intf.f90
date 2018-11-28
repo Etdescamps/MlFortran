@@ -161,7 +161,8 @@ Module mlf_fun_intf
       Use iso_c_binding
       import :: mlf_ode_funCstr
       class(mlf_ode_funCstr), intent(inout), target :: this
-      real(c_double), intent(inout), target :: t, X(:), F(:)
+      real(c_double), intent(inout) :: t
+      real(c_double), intent(inout), target :: X(:), F(:)
       integer, intent(in) :: id
     End Function mlf_ode_funCstr_reach
 
@@ -171,7 +172,7 @@ Module mlf_fun_intf
       class(mlf_ode_funCstr), intent(inout), target :: this
       real(c_double), intent(in), target :: K(:,:), X0(:), X(:)
       real(c_double), intent(out), target :: C0(:), C(:), Q(:,:)
-      integer, intent(inout), target :: ids(:)
+      integer, intent(in), target :: ids(:)
     End Subroutine mlf_ode_funCstr_getDerivatives
 
     Integer Function mlf_ode_funCstr_update(this, t, X0, X, F0, F, ids, hMax) Result(N)
@@ -335,7 +336,8 @@ Contains
   ! The root should be near the value t (< tol)
   Integer Function mlf_ode_reachCstr(this, t, id, X, F) result(info)
     class(mlf_ode_funCstrVect), intent(inout), target :: this
-    real(c_double), intent(inout), target :: t, X(:), F(:)
+    real(c_double), intent(inout) :: t
+    real(c_double), intent(inout), target :: X(:), F(:)
     integer, intent(in) :: id
     real(c_double) :: h, Uid
     If(this%cstrId == id .AND. t > this%cstrT) Then
@@ -362,7 +364,8 @@ Contains
   
   Integer Function mlf_ode_reachCstrIds(this, t, id, X, F) result(info)
     class(mlf_ode_funCstrIds), intent(inout), target :: this
-    real(c_double), intent(inout), target :: t, X(:), F(:)
+    real(c_double), intent(inout) :: t
+    real(c_double), intent(inout), target :: X(:), F(:)
     integer, intent(in) :: id
     real(c_double) :: h, Uid
     integer :: k
@@ -407,7 +410,7 @@ Contains
     class(mlf_ode_funCstrVect), intent(inout), target :: this
     real(c_double), intent(in), target :: K(:,:), X0(:), X(:)
     real(c_double), intent(out), target :: C0(:), C(:), Q(:,:)
-    integer, intent(inout), target :: ids(:)
+    integer, intent(in), target :: ids(:)
     integer :: N, i
     N = size(ids)
     C0(1:N) = this%cstrLastVal(ids)
@@ -422,7 +425,7 @@ Contains
     class(mlf_ode_funCstrIds), intent(inout), target :: this
     real(c_double), intent(in), target :: K(:,:), X0(:), X(:)
     real(c_double), intent(out), target :: C0(:), C(:), Q(:,:)
-    integer, intent(inout), target :: ids(:)
+    integer, intent(in), target :: ids(:)
     integer :: N
     N = size(ids)
     C0(1:N) = X0(ids)

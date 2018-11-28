@@ -361,7 +361,7 @@ Contains
       C0(1) = X0(1)
       C(1) = X(1)
       Q(1,:) = K(1,:)
-      CALL this%kmc_model%m_getDerivatives(ids(2:)-1, X0(2:), X(2:), &
+      If(SIZE(ids) > 1) CALL this%kmc_model%m_getDerivatives(ids(2:)-1, X0(2:), X(2:), &
         K(2:,:), C0(2:), C(2:), Q(2:,:))
     Else
       CALL this%kmc_model%m_getDerivatives(ids-1, X0(2:), X(2:), K(2:,:), &

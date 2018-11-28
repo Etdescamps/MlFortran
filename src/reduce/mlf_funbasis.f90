@@ -64,10 +64,7 @@ Module mlf_funbasis
     procedure :: getValueBasis => mlf_model_FunBasisValue
     procedure :: getValueBounds => mlf_model_FunBasisBounds
   End Type mlf_model_funbasis
-
-
 Contains
-
   Subroutine mlf_model_FunBasisBounds(this, xMin, xMax)
     class(mlf_model_funbasis), intent(in) :: this
     real(c_double), intent(out), optional :: xMin, xMax
@@ -117,7 +114,7 @@ Contains
   End Function c_funbasis_init
 
   ! Init function for the step object
-  integer Function mlf_funbasis_init(this, f, alpha, x0, xEnd, P, sizeBase, nX, nXA, WP, data_handler) result(info)
+  integer Function mlf_funbasis_init(this, f, alpha, x0, xEnd, P, sizeBase, nX, nXA, WP, data_handler) Result(info)
     class(mlf_algo_funbasis), intent(inout) :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
     class(mlf_basis_fun), intent(inout), optional, target :: f
@@ -191,7 +188,7 @@ Contains
 
   ! First subroutine: compute for one particular X all possibles
   ! local dot product
-  integer Function ComputeCoeff(fun, x, P, Y, Y0, fact, M) result(info)
+  integer Function ComputeCoeff(fun, x, P, Y, Y0, fact, M) Result(info)
     class(mlf_basis_fun), intent(inout), target :: fun
     real(c_double), intent(in) :: P(:,:), x, fact
     real(c_double), intent(out) :: Y(:,:)
@@ -201,6 +198,7 @@ Contains
     if(info<0) RETURN
     call ComputeProduct(Y(1,:), Y0, fact, M)    
   End Function ComputeCoeff
+
   ! First subroutine: compute for one particular X all possibles
   ! local dot products
   Subroutine ComputeProduct(Y, Y0, fact, M)
@@ -216,9 +214,10 @@ Contains
       end do
     end do
   End Subroutine ComputeProduct
+
   ! Second subroutine: compute dot product between the value of a set of function
   ! with a orthonormal function vector of the function basis
-  real(c_double) Function ComputeDotProduct(Y, Y0, xEnd) result(F)
+  Real(c_double) Function ComputeDotProduct(Y, Y0, xEnd) Result(F)
     real(c_double), intent(in) :: Y(:), Y0(:), xEnd
     integer :: i, N, l
     F =  0
@@ -247,8 +246,8 @@ Contains
     integer :: i, j, k, M, P, info
     M = size(C,1)
     P = M*(M+1)/2
-    allocate(Y(1,M), Y0(P))
-    if(this%alpha == 0) then
+    ALLOCATE(Y(1,M), Y0(P))
+    If(this%alpha == 0) Then
       eA0 = this%x0
       eAEnd = this%xEnd
       eDiff = (eAEnd-eA0)/real(N-1, kind=8)
@@ -258,48 +257,48 @@ Contains
       info = ComputeCoeff(this%fun, this%xEnd, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
       info = ComputeCoeff(this%fun, eAEnd-eDiff, this%P, Y, Y0, fb_icoeff(2)*difFact, M)
       info = ComputeCoeff(this%fun, eAEnd-2*eDiff, this%P, Y, Y0, fb_icoeff(3)*difFact, M)
-      do i=3,N-4
+      Do i=3,N-4
         info = ComputeCoeff(this%fun, eAEnd-i*eDiff, this%P, Y, Y0, difFact, M)
-      end do
+      End Do
       info = ComputeCoeff(this%fun, eA0+2*eDiff, this%P, Y, Y0, fb_icoeff(3)*difFact, M)
       info = ComputeCoeff(this%fun, eA0+eDiff, this%P, Y, Y0, fb_icoeff(2)*difFact, M)
       info = ComputeCoeff(this%fun, this%x0, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
-    else
+    Else
       eA0 = exp(-this%alpha*this%x0)
       invAlpha = 1/this%alpha
-      if(ieee_is_finite(this%xEnd)) then
+      If(ieee_is_finite(this%xEnd)) Then
         eAEnd = exp(-this%alpha*this%xEnd)
-      else
+      Else
         eAEnd = 0
-      endif
+      Endif
       eDiff = (eA0-eAEnd)/real(N-1, kind=8)
       difFact = eDiff*invAlpha
       Y0 = 0
       ! We made the sum backward for avoiding catastrophic cancellation
-      if(eAEnd > 0) then
+      If(eAEnd > 0) Then
         info = ComputeCoeff(this%fun, this%xEnd, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
-      else
+      Else
         Y0 = 0
-      endif
+      Endif
       info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+eDiff), this%P, Y, Y0, fb_icoeff(2)*difFact, M)
       info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+2*eDiff), this%P, Y, Y0, fb_icoeff(3)*difFact, M)
-      do i=3,N-4
+      Do i=3,N-4
         info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+i*eDiff), this%P, Y, Y0, difFact, M)
-      end do
+      End Do
       info = ComputeCoeff(this%fun, -invAlpha*log(eA0-2*eDiff), this%P, Y, Y0, fb_icoeff(3)*difFact, M)
       info = ComputeCoeff(this%fun, -invAlpha*log(eA0-eDiff), this%P, Y, Y0, fb_icoeff(2)*difFact, M)
       info = ComputeCoeff(this%fun, this%x0, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
-    endif
+    Endif
     k = 1
-    do i=1,M
-      do j=i,M
+    Do i=1,M
+      Do j=i,M
         C(i,j) = Y0(k)
         k = k+1
-      end do
-    end do
-    do i=2,M
+      End Do
+    End Do
+    Do i=2,M
       forall(j=1:(i-1)) C(i,j) = C(j,i)
-    end do
+    End Do
   End Subroutine ComputeFunMatrix
 
     integer Function mlf_FunBasisGetProjectionSingle(this, Y, W, Aerror) result(info)
@@ -385,40 +384,41 @@ Contains
     real(c_double), intent(in) :: x
     real(c_double), intent(out) :: Y(:)
     real(c_double) :: t, dX, X0(4)
-    integer :: i
-    info = 0
+    integer :: i, sX
+    info = -1
+    sX = SIZE(this%X)
     ! The X are dreasingly ordered
-    if(this%alpha == 0) then
+    If(this%alpha == 0) Then
       i = CEILING((x-this%x0)/this%eDiff)
-      if(i < -1 .OR. i > size(this%X)+2) then
-        info = 1 ! Interpolation too far to be accurate
-        RETURN
-      endif
-      i = max(2,min(i,size(this%X)-2))
+      If(i < -1) RETURN
+      If(i > sX+2) Then
+        info = 1 ! Indicate that the function evaluation is inacurate
+        Y = this%Vals(:,sX)*exp(this%xEnd-x)
+      Endif
+      i = MAX(2,MIN(i,sX-2))
       X0 = (x-this%X(i-1:i+2))/this%eDiff
       ASSOCIATE(Y1 => this%Vals(:,i-1), Y2 => this%Vals(:,i), Y3 => this%Vals(:,i+1), &
           Y4 => this%Vals(:,i+2))
         Y = 1d0/6d0*X0(2)*X0(3)*(X0(1)*Y4-X0(4)*Y1)+0.5d0*X0(1)*X0(4)*(X0(3)*Y2-X0(2)*Y3)
       END ASSOCIATE
-    else
-      if(x < this%x0) then
-        info = 1
-        RETURN
-      endif
-      if(x>=this%X(1)) then
+    Else
+      If(x < this%x0) RETURN
+      If(x>=this%X(1)) Then
         Y = this%Vals(:,1) &
-          * exp(log(this%Vals(:,1)/this%Vals(:,2))/(this%X(1)-this%X(2))*(x-this%X(1)))
+          * EXP(LOG(this%Vals(:,1)/this%Vals(:,2))/(this%X(1)-this%X(2))*(x-this%X(1)))
+        info = 0
         RETURN
-      endif
-      i = 1+INT((exp(-this%alpha*x)-this%eAEnd)/this%eDiff)
-      if(i >= size(this%X, 1)) i = size(this%X, 1)-1
+      Endif
+      i = 1+INT((EXP(-this%alpha*x)-this%eAEnd)/this%eDiff)
+      If(i >= sX) i = sX-1
       dX = this%X(i)-this%X(i+1)
       ! We define t as (x-X(i+1))/dX
-      !  so when t=0 -> x=X(i+1) and t=1 -> x=X(i)
+      !   so when t=0 -> x=X(i+1) and t=1 -> x=X(i)
       t = (x-this%X(i+1))/dX
       ! We get values Y1=F_W(X(i+1)) and Y2=F_W(X(i))
       Y =  (1d0-t)*this%Vals(:,i+1)+t*this%Vals(:,i)
-    endif
+    Endif
+    info = 0
   End Function mlf_FunBasisValue
 
   ! Compute the vectors X and V from the structure
@@ -428,42 +428,42 @@ Contains
     integer :: M, i, info
     real(c_double) :: eA0, eAEnd, eDiff, invAlpha, coeff, Z
     real(c_double), allocatable :: Y(:,:)
-    M = size(this%P,2)
+    M = SIZE(this%P,2)
     ALLOCATE(Y(1,M))
     if(this%alpha == 0) then
-      this%eDiff = (this%xEnd-this%x0)/real(N-1, kind=8)
-      forall(i=1:N) this%X(i) = real(i-1, kind=8)*this%eDiff+this%x0
+      this%eDiff = (this%xEnd-this%x0)/REAL(N-1, KIND=8)
+      forall(i=1:N) this%X(i) = REAL(i-1, KIND=8)*this%eDiff+this%x0
       coeff = this%eDiff
     else
-      eA0 = exp(-this%alpha*this%x0)
+      eA0 = EXP(-this%alpha*this%x0)
       invAlpha = 1d0/this%alpha
       if(ieee_is_finite(this%xEnd)) then
-        eAEnd = exp(-this%alpha*this%xEnd)
-        eDiff = (eA0-eAEnd)/real(N-1, kind=8)
+        eAEnd = EXP(-this%alpha*this%xEnd)
+        eDiff = (eA0-eAEnd)/REAL(N-1, KIND=8)
         this%X(1) = this%xEnd
       else
-        eDiff = eA0/real(N, kind=8)
+        eDiff = eA0/REAL(N, KIND=8)
         eAEnd = eDiff
-        this%X(1) = -invAlpha*log(eDiff)
+        this%X(1) = -invAlpha*LOG(eDiff)
       endif
       this%eA0 = eA0
       this%eAEnd = eAEnd
       this%eDiff = eDiff
       this%X(N) = this%x0
       do i = 2,N-1
-        this%X(i) = -invAlpha*log(eAEnd+(i-1)*eDiff)
+        this%X(i) = -invAlpha*LOG(eAEnd+(i-1)*eDiff)
       end do
       coeff = this%eDiff*this%alpha
     endif
     Do i = 1,N
       info = this%fun%eval(this%X(i:i), this%P, Y)
-      this%Vals(:,i) = matmul(Y(1,:),this%W)
+      this%Vals(:,i) = MATMUL(Y(1,:),this%W)
     End Do
     ! Fix the values Vals to ensure that each vector has norm 1
     ! The value of the norm is close to 1 but sufficiently different to add an error
-    Do i = 1,size(this%Vals,1)
+    Do i = 1,SIZE(this%Vals,1)
       Z = coeff*ComputeDotProduct(this%Vals(i,:), this%Vals(i,:), this%xEnd)
-      this%Vals(i,:) = this%Vals(i,:)/sqrt(Z)
+      this%Vals(i,:) = this%Vals(i,:)/SQRT(Z)
     End Do
   End Subroutine ComputeBasisValue
 End Module mlf_funbasis

@@ -91,8 +91,8 @@ Contains
     real(c_double), intent(in), target :: X(:), F(:)
     real(c_double), intent(out), target :: Rates(:) ! [A->B, B->A]
     ASSOCIATE(A => REAL(this%NIndiv(1)), B => REAL(this%NIndiv(2)), c => X(1), &
-        alpha => this%Alpha, beta => this%Beta)
-      Rates(1) = alpha*A
+        d => X(2), alpha => this%Alpha, beta => this%Beta)
+      Rates(1) = alpha*A*d
       Rates(2) = beta*B*c
     END ASSOCIATE
     N = 2

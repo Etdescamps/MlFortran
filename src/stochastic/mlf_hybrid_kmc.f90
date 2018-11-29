@@ -51,6 +51,7 @@ Module mlf_hybrid_kmc
   Type, Public, Abstract, Extends(mlf_step_obj) :: mlf_hybrid_kmc_model
     class(mlf_ode45_obj), pointer :: ode
     real(c_double), pointer :: Rates(:)
+    real(c_double) :: kmc_alpha, lastTNext
   Contains
     procedure(mlf_hybrid_kmc_apply_action), deferred :: applyAction
     procedure(mlf_hybrid_kmc_transition_rates), deferred :: funTransitionRates
@@ -68,7 +69,6 @@ Module mlf_hybrid_kmc
 
   Type, Public, Extends(mlf_hybrid_odeFun) :: mlf_kmc_odeModel
     class(mlf_hybrid_kmc_model), pointer :: kmc_model
-    real(c_double) :: kmc_alpha
   Contains
     procedure :: setModel => mlf_kmc_ode_setModel
     procedure :: eval => mlf_kmc_eval
@@ -80,7 +80,6 @@ Module mlf_hybrid_kmc
 
   Type, Public, Extends(mlf_hybrid_odeFun) :: mlf_kmc_constrModel
     class(mlf_hybrid_kmc_cstrModel), pointer :: kmc_model
-    real(c_double) :: kmc_alpha
   Contains
     procedure :: setModel => mlf_kmc_h_ode_setModel
     procedure :: eval => mlf_kmc_h_eval
@@ -174,7 +173,6 @@ Contains
     class(mlf_kmc_odeModel), intent(inout), target :: this
     class(mlf_hybrid_kmc_model), intent(in), target :: kmc_model
     this%NCstr = 1
-    this%kmc_alpha = 1.5
     this%kmc_model => kmc_model
     info = 0
   End Function mlf_kmc_ode_setModel
@@ -182,7 +180,6 @@ Contains
   Integer Function mlf_kmc_h_ode_setModel(this, kmc_model) Result(info)
     class(mlf_kmc_constrModel), intent(inout), target :: this
     class(mlf_hybrid_kmc_model), intent(in), target :: kmc_model
-    this%kmc_alpha = 1.5
     Select Type(kmc_model)
     Class is (mlf_hybrid_kmc_cstrModel)
       this%kmc_model => kmc_model
@@ -192,9 +189,9 @@ Contains
     End Select
   End Function mlf_kmc_h_ode_setModel
 
-  Integer Function mlf_hybrid_kmc_h_init(this, numFields, fun, numCstr, nActions, X0, t0, tMax, &
-      atoli, rtoli, fac, facMin, facMax, hMax, nStiff, data_handler) Result(info)
-    class(mlf_hybrid_kmc_model), intent(inout), target :: this
+  Integer Function mlf_hybrid_kmc_h_init(this, numFields, fun, numCstr, nActions, X0, &
+      t0, tMax, atoli, rtoli, fac, facMin, facMax, hMax, nStiff, data_handler) Result(info)
+    class(mlf_hybrid_kmc_cstrModel), intent(inout), target :: this
     class(mlf_step_numFields), intent(inout) :: numFields
     class(mlf_kmc_constrModel), intent(inout), target, optional :: fun
     class(mlf_data_handler), intent(inout), optional :: data_handler
@@ -212,8 +209,8 @@ Contains
       funSelected%NCstr = 1 + numCstr
       CALL this%add_subobject(C_CHAR_"odeFun", obj)
     Endif
-    info = mlf_hybrid_kmc_init(this, numFields, funSelected, nActions, X0, t0, tMax, &
-      atoli, rtoli, fac, facMin, facMax, hMax, nStiff, data_handler)
+    info = mlf_hybrid_kmc_init(this, numFields, funSelected, nActions, X0, &
+      t0, tMax, atoli, rtoli, fac, facMin, facMax, hMax, nStiff, data_handler)
   End Function mlf_hybrid_kmc_h_init
 
   Integer Function mlf_hybrid_kmc_init(this, numFields, fun, nActions, X0, t0, tMax, &
@@ -280,6 +277,8 @@ Contains
     Endif
     info = funSelected%setModel(this)
     If(info < 0) GOTO 10
+    this%kmc_alpha = 1.5
+    this%lastTNext = ieee_value(this%lastTNext, ieee_quiet_nan)
     RETURN
     ! Error handling: finalize object
  10 call this%finalize()
@@ -327,19 +326,37 @@ Contains
     info = EvalOdeModel(this%kmc_model, t, X, F)
   End Function mlf_kmc_h_eval
 
+  Real(c_double) Function ModelGetHMax(this, t, X, F) Result(hMax)
+    class(mlf_hybrid_kmc_model), intent(inout), target :: this
+    real(c_double), intent(in) :: t
+    real(c_double), intent(in), target :: X(:), F(:)
+    real(c_double) :: Z
+    If(.NOT. ieee_is_nan(this%lastTNext)) Then
+      If(this%lastTNext == t) this%kmc_alpha = this%kmc_alpha * 1.5
+    Endif
+    Z = -this%kmc_alpha*X(1)/F(1)
+    If(Z <= 0) Then
+      hMax = HUGE(hMax)
+      this%lastTNext = ieee_value(this%lastTNext, ieee_quiet_nan)
+    Else
+      hMax = Z
+      this%lastTNext = t + Z
+    Endif
+  End Function ModelGetHMax
+
   Real(c_double) Function mlf_kmc_getHMax(this, t, X, F) Result(hMax)
     class(mlf_kmc_odeModel), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:), F(:)
-    hMax = -this%kmc_alpha*X(1)/F(1)
+    hMax = ModelGetHMax(this%kmc_model, t, X, F)
   End Function mlf_kmc_getHMax
 
   Real(c_double) Function mlf_kmc_h_getHMax(this, t, X, F) Result(hMax)
     class(mlf_kmc_constrModel), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:), F(:)
-    hMax = this%kmc_model%m_getHMax(t, X, F)
-    hMax = MIN(hMax, -this%kmc_alpha*X(1)/F(1))
+    hMax = ModelGetHMax(this%kmc_model, t, X, F)
+    hMax = MIN(this%kmc_model%m_getHMax(t, X, F), hMax)
   End Function mlf_kmc_h_getHMax
 
   Subroutine mlf_kmc_getDerivatives(this, ids, X0, X, K, C0, C, Q)
@@ -361,8 +378,8 @@ Contains
       C0(1) = X0(1)
       C(1) = X(1)
       Q(1,:) = K(1,:)
-      If(SIZE(ids) > 1) CALL this%kmc_model%m_getDerivatives(ids(2:)-1, X0(2:), X(2:), &
-        K(2:,:), C0(2:), C(2:), Q(2:,:))
+      If(SIZE(ids) > 1) CALL this%kmc_model%m_getDerivatives(ids(2:)-1, &
+        X0(2:), X(2:), K(2:,:), C0(2:), C(2:), Q(2:,:))
     Else
       CALL this%kmc_model%m_getDerivatives(ids-1, X0(2:), X(2:), K(2:,:), &
         C0, C, Q)
@@ -389,7 +406,7 @@ Contains
     real(c_double), intent(inout) :: hMax
     integer :: k
     N = KmcUpdate(X(1), ids)
-    hMax = MIN(hMax, -this%kmc_alpha*X(1)/F(1))
+    hMax = MIN(hMax, ModelGetHMax(this%kmc_model, t, X, F))
   End Function  mlf_kmc_update
 
   Integer Function mlf_kmc_h_update(this, t, X0, X, F0, F, ids, hMax) &
@@ -402,7 +419,7 @@ Contains
     integer :: k
     N = KmcUpdate(X(1), ids)
     N = N+this%kmc_model%m_updateCstr(t, X0(2:), X(2:), F0(2:), F(2:), ids(N+1:), hMax)
-    hMax = MIN(hMax, -this%kmc_alpha*X(1)/F(1))
+    hMax = MIN(hMax, ModelGetHMax(this%kmc_model, t, X, F))
   End Function  mlf_kmc_h_update
 
   Integer Function KMCReachAction(model, t, X, F, Rates) Result(info)
@@ -412,12 +429,9 @@ Contains
     real(c_double), intent(out), target :: Rates(:)
     integer :: idAction, N
     real(c_double) :: r
+    info = -1
     N = Model%funTransitionRates(t, X(2:), F(2:), Rates)
-    If(N <= 0) Then
-      info = N
-      If(N == 0) info = mlf_ODE_StopTime
-      RETURN
-    Endif
+    If(N <= 0) RETURN ! Shall not happen
     CALL RANDOM_NUMBER(r)
     r = r*SUM(Rates(1:N))
     Do idAction = 1,N-1
@@ -439,7 +453,9 @@ Contains
     real(c_double), intent(inout) :: t
     real(c_double), intent(inout), target :: X(:), F(:)
     integer, intent(in) :: id
+    info = -1
     ! id should be equal to 1
+    If(id /= 1) RETURN
     info = KMCReachAction(this%kmc_model, t, X, F, this%kmc_model%Rates)
   End Function mlf_kmc_reach
 

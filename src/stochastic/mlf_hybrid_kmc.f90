@@ -331,7 +331,7 @@ Contains
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:), F(:)
     real(c_double) :: Z
-    If(.NOT. ieee_is_nan(this%lastTNext)) Then
+    If(.NOT. ieee_is_nan(this%lastTNext) .AND. X(1) > 0) Then
       If(this%lastTNext == t) this%kmc_alpha = this%kmc_alpha * 1.5
     Endif
     Z = -this%kmc_alpha*X(1)/F(1)
@@ -430,6 +430,7 @@ Contains
     integer :: idAction, N
     real(c_double) :: r
     info = -1
+    model%lastTNext = ieee_value(model%lastTNext, ieee_quiet_nan)
     N = Model%funTransitionRates(t, X(2:), F(2:), Rates)
     If(N <= 0) RETURN ! Shall not happen
     CALL RANDOM_NUMBER(r)

@@ -416,9 +416,10 @@ Contains
     real(c_double), intent(in), target :: X0(:), X(:), F0(:), F(:)
     integer, intent(out), target :: ids(:)
     real(c_double), intent(inout) :: hMax
-    integer :: k
-    N = KmcUpdate(X(1), ids)
-    N = N+this%kmc_model%m_updateCstr(t, X0(2:), X(2:), F0(2:), F(2:), ids(N+1:), hMax)
+    integer :: K
+    K = KmcUpdate(X(1), ids)
+    N = K+this%kmc_model%m_updateCstr(t, X0(2:), X(2:), F0(2:), F(2:), ids(K+1:), hMax)
+    If(N>K) ids(K+1:N) = ids(K+1:N)+1
     hMax = MIN(hMax, ModelGetHMax(this%kmc_model, t, X, F))
   End Function  mlf_kmc_h_update
 
@@ -471,6 +472,5 @@ Contains
       info = this%kmc_model%m_reachCstr(t, id-1, X, F)
     Endif
   End Function mlf_kmc_h_reach
-
 End Module mlf_hybrid_kmc
 

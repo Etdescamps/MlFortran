@@ -331,12 +331,13 @@ Contains
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:), F(:)
     real(c_double) :: Z
+    hMax = HUGE(hMax)
+    If(F(1) >= 0) RETURN
     If(.NOT. ieee_is_nan(this%lastTNext) .AND. X(1) > 0) Then
       If(this%lastTNext == t) this%kmc_alpha = this%kmc_alpha * 1.5
     Endif
     Z = -this%kmc_alpha*X(1)/F(1)
     If(Z <= 0) Then
-      hMax = HUGE(hMax)
       this%lastTNext = ieee_value(this%lastTNext, ieee_quiet_nan)
     Else
       hMax = Z

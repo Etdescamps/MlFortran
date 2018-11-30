@@ -249,7 +249,7 @@ Contains
       ALLOCATE(X(SIZE(X0)+1))
       X(2:) = X0
       CALL RANDOM_NUMBER(r)
-      X(1) = -log(1d0-r)
+      X(1) = -LOG(1d0-r)
       If(PRESENT(data_handler)) Then
         info = ode%init(funSelected, X, t0, tMax, atoli, rtoli, fac, facMin, &
           facMax, hMax, nStiff, data_handler%getSubObject(C_CHAR_"ode"))
@@ -447,9 +447,9 @@ Contains
     End Do
     If(r > 0) info = Model%applyAction(N, t, X(2:), F(2:), Rates(N))
     If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
-    info = EvalOdeModel(model, t, X, F)
     CALL RANDOM_NUMBER(r)
     X(1) = -LOG(1d0-r)
+    info = EvalOdeModel(model, t, X, F)
   End Function KMCReachAction
 
   Integer Function mlf_kmc_reach(this, t, id, X, F) Result(info)

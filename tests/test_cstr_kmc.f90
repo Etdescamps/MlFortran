@@ -43,10 +43,10 @@ Program test_cstr_kmc
   CIndiv = [0d0, 0d0, 10d0, 0d0, 1d0]
   info = mlf_init()
   info = h5f%createFile("kmc_cstr.h5")
-  info = eval(h5f, "r200000", P, 200000d0, CIndiv)
-  info = eval(h5f, "r20000", P, 20000d0, CIndiv)
-  info = eval(h5f, "r5000", P, 5000d0, CIndiv)
   info = eval(h5f, "r1000", P, 1000d0, CIndiv)
+  info = eval(h5f, "r5000", P, 5000d0, CIndiv)
+  info = eval(h5f, "r20000", P, 20000d0, CIndiv)
+  info = eval(h5f, "r200000", P, 200000d0, CIndiv)
   CALL h5f%finalize()
   info = mlf_quit()
 Contains

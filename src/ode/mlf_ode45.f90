@@ -222,10 +222,14 @@ Contains
     dt = this%t - this%t0
     BLOCK
       real(c_double) :: C0(N), C(N), Q(N,7)
-      CALL fun%getDerivatives(ids, this%X0, X, this%K, C0, C, Q)
+      CALL fun%getDerivatives(ids(1:N), this%X0, X, this%K, C0, C, Q)
       Q = dt * Q
       h = dt * ODE45FindRoot(this%rtoli, this%atoli, Q, C0, C, id)
     END BLOCK
+    If(id < 0) Then
+      info = -1
+      RETURN
+    Endif
     id = ids(id)
     t = this%t0 + h
     CALL this%denseEvaluation(t, X, this%K(:,7))
@@ -240,22 +244,39 @@ Contains
     hMax = MIN(hMax0, fun%getHMax(t, X, this%K(:,7)))
   End Function mlf_ode45_findRoot
 
+  Real(c_double) Function FindNewtonRalphson(t0, A0, A1, A2, A3, A4, V) Result(th)
+    real(c_double), intent(in) :: t0, A0, A1, A2, A3, A4, V
+    real(c_double) :: th1, W, F, Y, A5, A6
+    integer :: i
+    th = t0
+    A5 = -4d0*A4-2d0*A3
+    A6 = A4+A3-A2
+    Do i=1,10
+      th1 = 1d0-th
+      W = A1+th1*(A2+th*(A3+th1*A4))
+      F = W+th*(th*(3d0*A4*th+A5)+A6)
+      Y = A0+th*W
+      th = th-Y/F
+      If(abs(Y)<V) RETURN
+    End Do
+  End Function FindNewtonRalphson
+
   ! Find root of the constraints using dense output
   ! CORNER CASE: the case where C0=C(t0)=0 and dC/dt(t0)=Q(:,1)=0 shall be avoided
-  real(c_double) Function ODE45FindRoot(rtol, atol, Q, C0, C, id) result(th)
+  Real(c_double) Function ODE45FindRoot(rtol, atol, Q, C0, C, id) Result(th)
     real(c_double), intent(in) :: Q(:, :), C0(:), C(:), rtol, atol
     integer, intent(out) :: id
     integer :: i
-    real(c_double) :: A(size(C),4), C12(size(C)), thI
-    real(c_double) :: th1, Y, F, V, W, A5, A6
+    real(c_double) :: A(SIZE(C),4), C12(SIZE(C)), thI, V, Y, th1
+    id = -1
     A(:,1) = C-C0; A(:,2) = Q(:,1)-A(:,1)
     A(:,3) = -Q(:,7)+A(:,1)-A(:,2)
-    A(:,4) = matmul(Q,DOPRI5_DC)
+    A(:,4) = MATMUL(Q,DOPRI5_DC)
     ! Do a bissection step and then a secant step
     ! Evaluate Y(0.5)
     C12 = C0+0.5d0*(A(:,1)+0.5d0*(A(:,2)+0.5d0*(A(:,3)+0.5d0*A(:,4))))
     th = 2d0
-    Do i=1,size(C)
+    Do i = 1,SIZE(C)
       If(C12(i)*C0(i) >= 0) Then
         If(th <= 0.5d0) CYCLE
         If(C(i) == 0) Then
@@ -271,20 +292,25 @@ Contains
         id = i
       Endif
     End Do
+    If(id < 0) RETURN
     ! Use Newton-Ralphson to polish the root th
     V = atol+rtol*ABS(C0(id)+C(id))
-    ASSOCIATE(A0 => C0(id), A1 => A(id,1), A2 => A(id,2), A3 => A(id,3), A4 => A(id,4))
-      A5 = -4d0*A4-2d0*A3
-      A6 = A4+A3-A2
-      Do i=1,10
+    th = FindNewtonRalphson(th, C0(id), A(id,1), A(id,2), A(id,3), A(id,4), V)
+    If(SIZE(C) > 1) Then
+      Do i = 1,SIZE(C)
         th1 = 1d0-th
-        W = A1+th1*(A2+th*(A3+th1*A4))
-        F = W+th*(th*(3d0*A4*th+A5)+A6)
-        Y = A0+th*W
-        th = th-Y/F
-        If(abs(Y)<V) EXIT
+        If(i == id) CYCLE
+        Y = C0(i)+th*(A(i,1)+th1*(A(i,2)+th*(A(i,3)+th1*A(i,4))))
+        If(C0(i)*Y >= 0) CYCLE
+        th = th*C0(i)/(C0(i)-Y)
+        V = atol+rtol*ABS(C0(i)+C(i))
+        th = FindNewtonRalphson(th, C0(i), A(i,1), A(i,2), A(i,3), A(i,4), V)
+        id = i
       End Do
-    END ASSOCIATE
+    Endif
+    If(th > 1 .OR. th < 0) Then
+      id = -1
+    Endif
   End Function ODE45FindRoot
 
   Subroutine mlf_ode45_updateDense(this)

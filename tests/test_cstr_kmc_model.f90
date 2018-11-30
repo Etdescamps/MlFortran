@@ -118,9 +118,10 @@ Contains
     info = 0
   End Function test_evalOde
 
-  Integer Function test_applyAction(this, id, t, X, F) Result(info)
+  Integer Function test_applyAction(this, id, t, X, F, Rate) Result(info)
     class(model_cstr_kmc), intent(inout), target :: this
     integer, intent(in) :: id
+    real(c_double), intent(in) :: Rate
     real(c_double), intent(inout) :: t
     real(c_double), intent(inout), target :: X(:), F(:)
     this%NIndiv = this%NIndiv + [-1, +1]
@@ -131,7 +132,8 @@ Contains
     class(model_cstr_kmc), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:), F(:)
-    hMax = -this%kmc_alpha*X(3)/F(3)
+    hMax = HUGE(hMax)
+    If(X(3) > 0 .AND. F(3) > 0) hMax = -this%kmc_alpha*X(3)/F(3)
   End Function test_getHMax
 
   Integer Function test_reachCstr(this, t, id, X, F) Result(info)

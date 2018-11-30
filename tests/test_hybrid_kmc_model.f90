@@ -113,10 +113,11 @@ Contains
     info = 0
   End Function test_evalOde
 
-  Integer Function test_applyAction(this, id, t, X, F) Result(info)
+  Integer Function test_applyAction(this, id, t, X, F, Rate) Result(info)
     class(model_hybrid_kmc), intent(inout), target :: this
     integer, intent(in) :: id
     real(c_double), intent(inout) :: t
+    real(c_double), intent(in) :: Rate
     real(c_double), intent(inout), target :: X(:), F(:)
     SELECT CASE(id)
     Case(1)

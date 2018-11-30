@@ -108,11 +108,12 @@ Module mlf_hybrid_kmc
       real(c_double), intent(out), target :: Rates(:)
     End Function mlf_hybrid_kmc_transition_rates
 
-    Integer Function mlf_hybrid_kmc_apply_action(this, id, t, X, F)
+    Integer Function mlf_hybrid_kmc_apply_action(this, id, t, X, F, Rate)
       Use iso_c_binding
       import :: mlf_hybrid_kmc_model
       class(mlf_hybrid_kmc_model), intent(inout), target :: this
       real(c_double), intent(inout) :: t
+      real(c_double), intent(in) :: Rate
       real(c_double), intent(inout), target :: X(:), F(:)
       integer, intent(in) :: id
     End Function mlf_hybrid_kmc_apply_action
@@ -357,7 +358,7 @@ Contains
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:), F(:)
     hMax = ModelGetHMax(this%kmc_model, t, X, F)
-    hMax = MIN(this%kmc_model%m_getHMax(t, X, F), hMax)
+    hMax = MIN(this%kmc_model%m_getHMax(t, X(2:), F(2:)), hMax)
   End Function mlf_kmc_h_getHMax
 
   Subroutine mlf_kmc_getDerivatives(this, ids, X0, X, K, C0, C, Q)
@@ -440,11 +441,11 @@ Contains
     Do idAction = 1,N-1
       r = r - Rates(idAction)
       If(r <= 0) Then
-        info = Model%applyAction(idAction, t, X, F)
+        info = Model%applyAction(idAction, t, X(2:), F(2:), Rates(idAction))
         EXIT
       Endif
     End Do
-    If(r > 0) info = Model%applyAction(N, t, X, F)
+    If(r > 0) info = Model%applyAction(N, t, X(2:), F(2:), Rates(N))
     If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
     info = EvalOdeModel(model, t, X, F)
     CALL RANDOM_NUMBER(r)
@@ -470,7 +471,7 @@ Contains
     If(id == 1) Then
       info = KMCReachAction(this%kmc_model, t, X, F, this%kmc_model%Rates)
     Else
-      info = this%kmc_model%m_reachCstr(t, id-1, X, F)
+      info = this%kmc_model%m_reachCstr(t, id-1, X(2:), F(2:))
     Endif
   End Function mlf_kmc_h_reach
 End Module mlf_hybrid_kmc

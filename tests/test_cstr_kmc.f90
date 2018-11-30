@@ -39,7 +39,7 @@ Program test_cstr_kmc
   integer :: info
   type(mlf_hdf5_file) :: h5f
   real(c_double) :: P(5), CIndiv(5)
-  P = [1d0, 1d0, 5d0, 100d0, 100d0]
+  P = [1d0, 10d0, 5d0, 1d0, 1d0]
   CIndiv = [0d0, 0d0, 10d0, 0d0, 1d0]
   info = mlf_init()
   info = h5f%createFile("kmc_cstr.h5")

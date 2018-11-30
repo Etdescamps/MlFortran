@@ -46,7 +46,7 @@ Module test_cstr_kmc_model
   ! c catalyse A -> B (alpha)
   ! reaction c -> d (kappa) decrease T (-delta)
   ! A catalyse d -> c (zeta) increase T (delta)
-  Type, Public, Extends(mlf_hybrid_kmc_model) :: model_cstr_kmc
+  Type, Public, Extends(mlf_hybrid_kmc_cstrModel) :: model_cstr_kmc
     integer(c_int64_t), pointer :: NIndiv(:) ! [A, B]
     real(c_double), pointer :: Alpha, Beta, Delta, Kappa, Zeta, Volume
   Contains
@@ -70,7 +70,7 @@ Contains
     integer(c_int64_t) :: NCat
     CALL numFields%initFields(nRPar = 6, nRsc = 1)
     If(info < 0) RETURN
-    info = mlf_hybrid_kmc_init(this, numFields, NActions = 2, X0 = X0, &
+    info = mlf_hybrid_kmc_h_init(this, numFields, numCstr = 1, NActions = 2, X0 = X0, &
       atoli = 1d-6, rtoli = 1d-6, data_handler = data_handler)
     NCat = 2
     info = this%add_i64array(numFields, NCat, this%NIndiv, C_CHAR_"NIndiv", &
@@ -167,7 +167,5 @@ Contains
     C(1) = X(3)
     Q(1,:) = K(3,:)
   End Subroutine test_getDerivatives
-
-
 End Module test_cstr_kmc_model
 

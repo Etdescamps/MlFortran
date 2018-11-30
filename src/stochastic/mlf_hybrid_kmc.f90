@@ -41,7 +41,7 @@ Module mlf_hybrid_kmc
   IMPLICIT NONE
   PRIVATE
 
-  Public :: mlf_hybrid_kmc_init
+  Public :: mlf_hybrid_kmc_init, mlf_hybrid_kmc_h_init
 
   Type, Public, Abstract, Extends(mlf_ode_funCstr) :: mlf_hybrid_odeFun
   Contains
@@ -127,7 +127,7 @@ Module mlf_hybrid_kmc
     Function mlf_hybrid_kmc_getHMax(this, t, X, F)
       Use iso_c_binding
       import :: mlf_hybrid_kmc_cstrModel
-      class(mlf_hybrid_kmc_cstrModel), intent(in), target :: this
+      class(mlf_hybrid_kmc_cstrModel), intent(inout), target :: this
       real(c_double), intent(in) :: t
       real(c_double), intent(in), target :: X(:), F(:)
       real(c_double) :: mlf_hybrid_kmc_getHMax
@@ -136,7 +136,7 @@ Module mlf_hybrid_kmc
     Integer Function mlf_hybrid_kmc_reachCstr(this, t, id, X, F)
       Use iso_c_binding
       import :: mlf_hybrid_kmc_cstrModel
-      class(mlf_hybrid_kmc_cstrModel), intent(in), target :: this
+      class(mlf_hybrid_kmc_cstrModel), intent(inout), target :: this
       real(c_double), intent(inout) :: t
       integer, intent(in) :: id
       real(c_double), intent(inout), target :: X(:), F(:)
@@ -145,7 +145,7 @@ Module mlf_hybrid_kmc
     Integer Function mlf_hybrid_kmc_updateCstr(this, t, X0, X, F0, F, ids, hMax)
       Use iso_c_binding
       import :: mlf_hybrid_kmc_cstrModel
-      class(mlf_hybrid_kmc_cstrModel), intent(in), target :: this
+      class(mlf_hybrid_kmc_cstrModel), intent(inout), target :: this
       real(c_double), intent(in) :: t
       real(c_double), intent(in), target :: X0(:), X(:), F0(:), F(:)
       integer, intent(out), target :: ids(:)
@@ -155,7 +155,7 @@ Module mlf_hybrid_kmc
     Subroutine mlf_hybrid_kmc_getDerivatives(this, ids, X0, X, K, C0, C, Q)
       Use iso_c_binding
       import :: mlf_hybrid_kmc_cstrModel
-      class(mlf_hybrid_kmc_cstrModel), intent(in), target :: this
+      class(mlf_hybrid_kmc_cstrModel), intent(inout), target :: this
       real(c_double), intent(in), target :: K(:,:), X0(:), X(:)
       real(c_double), intent(out), target :: C0(:), C(:), Q(:,:)
       integer, intent(in), target :: ids(:)
@@ -448,7 +448,7 @@ Contains
     If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
     info = EvalOdeModel(model, t, X, F)
     CALL RANDOM_NUMBER(r)
-    X(1) = -log(1d0-r)
+    X(1) = -LOG(1d0-r)
   End Function KMCReachAction
 
   Integer Function mlf_kmc_reach(this, t, id, X, F) Result(info)

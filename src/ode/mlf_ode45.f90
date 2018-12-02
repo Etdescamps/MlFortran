@@ -247,17 +247,16 @@ Contains
       " ids:", ids(1:N), " id:", id
   End Function mlf_ode45_findRoot
 
-  Real(c_double) Function FindNewtonRalphson(t0, A0, A1, A2, A3, A4, V) Result(th)
-    real(c_double), intent(in) :: t0, A0, A1, A2, A3, A4, V
-    real(c_double) :: th1, W, F, Y, A5, A6
+  Real(c_double) Function FindNewtonRalphson(t0, A0, A, V) &
+      Result(th)
+    real(c_double), intent(in) :: t0, A0, A(6), V
+    real(c_double) :: th1, W, F, Y
     integer :: i
     th = t0
-    A5 = -4d0*A4-2d0*A3
-    A6 = A4+A3-A2
-    Do i=1,10
+    Do i=1,16
       th1 = 1d0-th
-      W = A1+th1*(A2+th*(A3+th1*A4))
-      F = W+th*(th*(3d0*A4*th+A5)+A6)
+      W = A(1)+th1*(A(2)+th*(A(3)+th1*A(4)))
+      F = W+th*(th*(3d0*A(4)*th+A(5))+A(6))
       Y = A0+th*W
       th = th-Y/F
       If(abs(Y)<V) RETURN
@@ -270,44 +269,73 @@ Contains
     real(c_double), intent(in) :: Q(:, :), C0(:), C(:), rtol, atol
     integer, intent(out) :: id
     integer :: i
-    real(c_double) :: A(SIZE(C),4), C12(SIZE(C)), thI, V, Y, th1
+    real(c_double) :: A(SIZE(C),6), Y(SIZE(C)), F(SIZE(C)), thI(SIZE(C)), W(SIZE(C))
+    real(c_double) :: V, th1, thMin, thMax
     id = -1
-    Do i=1,SIZE(C)
+    Do i = 1, SIZE(C0)
       If(C0(i)==0) Then
         th = 0
         id = i
         RETURN
       Endif
     End Do
-    A(:,1) = C-C0; A(:,2) = Q(:,1)-A(:,1)
+    A(:,1) = C-C0
+    A(:,2) = Q(:,1)-A(:,1)
     A(:,3) = -Q(:,7)+A(:,1)-A(:,2)
     A(:,4) = MATMUL(Q,DOPRI5_DC)
+    A(:,5) = -4d0*A(:,4)-2d0*A(:,3)
+    A(:,6) = A(:,4)+A(:,3)-A(:,2)
     ! Do a bissection step and then a secant step
     ! Evaluate Y(0.5)
-    C12 = C0+0.5d0*(A(:,1)+0.5d0*(A(:,2)+0.5d0*(A(:,3)+0.5d0*A(:,4))))
-    th = HUGE(th)
-    Where(C12*C0 > 0)
-      C12 = 0.5d0+0.5d0*C12/(C12-C)
+    Y = C0+0.5d0*(A(:,1)+0.5d0*(A(:,2)+0.5d0*(A(:,3)+0.5d0*A(:,4))))
+    Where(Y*C0 > 0)
+      thI = 0.5d0+0.5d0*Y/(Y-C)
     ElseWhere
-      C12 = 0.5d0*C0/(C0-C12)
+      thI = 0.5d0*C0/(C0-Y)
     EndWhere
-    id = MINLOC(C12, DIM = 1)
-    th = MINVAL(C12)
-    ! Use Newton-Ralphson to polish the root th
-    V = 1d-2*MIN(atol, rtol*ABS(C0(id)-C(id)), ABS(C0(id)))
-    th = FindNewtonRalphson(th, C0(id), A(id,1), A(id,2), A(id,3), A(id,4), V)
-    If(SIZE(C) > 1) Then
-      Do i = 1,SIZE(C)
-        If(i == id) CYCLE
-        th1 = 1d0-th
-        Y = C0(i)+th*(A(i,1)+th1*(A(i,2)+th*(A(i,3)+th1*A(i,4))))
-        If(C0(i)*Y >= 0) CYCLE
-        th = th*C0(i)/(C0(i)-Y)
-        V = 1d-2*MIN(atol, rtol*ABS(C0(i)-C(i)), ABS(C0(i)))
-        th = FindNewtonRalphson(th, C0(i), A(i,1), A(i,2), A(i,3), A(i,4), V)
-        id = i
-      End Do
+    If(SIZE(C) == 1) Then ! Most common case
+      ! Use Newton-Ralphson to polish the root th
+      id = 1
+      V = 1d-3*MIN(atol, rtol*ABS(C0(1)-C(1)), ABS(C0(1)))
+      th = FindNewtonRalphson(thI(1), C0(1), A(1,:), V)
+      RETURN
     Endif
+    ! Use more intensively the Newton-Ralphson in order to get one unique root
+    Do i = 1, 4
+      W = A(:,1)+(1d0-thI)*(A(:,2)+thI*(A(:,3)+(1d0-thI)*A(:,4)))
+      F = W+thI*(thI*(3d0*A(:,4)*thI+A(:,5))+A(:,6))
+      Y = C0+thI*W
+      thI = thI-Y/F
+    End Do
+    thMin = 0; thMax = 1
+    id = MINLOC(thI, DIM = 1)
+    th = thI(id)
+ 10 th1 = 1d0-th
+    W = A(:,1)+th1*(A(:,2)+th*(A(:,3)+th1*A(:,4)))
+    F = W+th*(th*(3d0*A(:,4)*th+A(:,5))+A(:,6))
+    Y = C0+th*W
+    thI = -Y/F
+    id = MINLOC(thI, DIM = 1)
+    If(thMin == thMax) Then
+      id = MINLOC(F, DIM = 1)
+      RETURN
+    Endif
+    Select Case(COUNT(thI <= 0))
+    Case(0)
+      thMin = th
+      th = MIN(th + 2*thI(id), thMax)
+      GOTO 10
+    Case(2:)
+      thMax = th
+      th = 0.5d0*(thMin+thMax)
+      GOTO 10
+    Case(1)
+      thMax = th
+      V = 1d-3*MIN(atol, rtol*ABS(C0(id)-C(id)), ABS(C0(id)))
+      th = MAX(MIN(th-Y(id)/F(id), thMax), thMin)
+      th = FindNewtonRalphson(th, C0(id), A(id,:), V)
+      th = MIN(th, thMax)
+    End Select
   End Function ODE45FindRoot
 
   Subroutine mlf_ode45_updateDense(this)

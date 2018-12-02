@@ -157,11 +157,12 @@ Module mlf_fun_intf
 
   Abstract Interface
 
-    Integer Function mlf_ode_funCstr_reach(this, t, id, X, F)
+    Integer Function mlf_ode_funCstr_reach(this, t, tMin, tMax, id, X, F)
       Use iso_c_binding
       import :: mlf_ode_funCstr
       class(mlf_ode_funCstr), intent(inout), target :: this
       real(c_double), intent(inout) :: t
+      real(c_double), intent(in) :: tMin, tMax
       real(c_double), intent(inout), target :: X(:), F(:)
       integer, intent(in) :: id
     End Function mlf_ode_funCstr_reach
@@ -334,9 +335,10 @@ Contains
   ! Default function that update the alpha if t is reached after cstrT
   ! Reevaluate dF/dt and move slightly t and X for reaching the condition
   ! The root should be near the value t (< tol)
-  Integer Function mlf_ode_reachCstr(this, t, id, X, F) result(info)
+  Integer Function mlf_ode_reachCstr(this, t, tMin, tMax, id, X, F) result(info)
     class(mlf_ode_funCstrVect), intent(inout), target :: this
     real(c_double), intent(inout) :: t
+    real(c_double), intent(in) :: tMin, tMax
     real(c_double), intent(inout), target :: X(:), F(:)
     integer, intent(in) :: id
     real(c_double) :: h, Uid
@@ -354,6 +356,7 @@ Contains
     h = -Uid/DOT_PRODUCT(F, this%cstrVect(:,id))
     ! Add epsilon, so t will be slightly after collision
     h = h + abs(h)*this%epsilonT
+    h = MIN(MAX(h, tMin-t), tMax-t)
     t = t + h
     X = X + h*F
     info = this%funStop(t, id, X, F)
@@ -362,9 +365,10 @@ Contains
     info = this%eval(t, X, F)
   End Function mlf_ode_reachCstr
   
-  Integer Function mlf_ode_reachCstrIds(this, t, id, X, F) result(info)
+  Integer Function mlf_ode_reachCstrIds(this, t, tMin, tMax, id, X, F) result(info)
     class(mlf_ode_funCstrIds), intent(inout), target :: this
     real(c_double), intent(inout) :: t
+    real(c_double), intent(in) :: tMin, tMax
     real(c_double), intent(inout), target :: X(:), F(:)
     integer, intent(in) :: id
     real(c_double) :: h, Uid
@@ -376,7 +380,7 @@ Contains
     this%cstrId = id
     ! Compute the value of the constraints
     Uid = X(k)-this%cstrValRef(id)
-    h = -Uid/F(k)
+    h = MIN(MAX(-Uid/F(k), tMin-t), tMax-t)
     t = t + h
     X = X + h*F
     X(k) = 0

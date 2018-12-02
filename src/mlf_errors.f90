@@ -54,16 +54,16 @@ Contains
     logical, intent(in) :: test
     character(len=*), intent(in) :: msg
     x = .NOT. test 
-    if(.NOT. x) RETURN
-    write (error_unit, *) msg
+    If(.NOT. x) RETURN
+    WRITE (error_unit, *) msg
   End Function mlf_assert
 
   Logical Function mlf_assert_optional_int(i, msg) Result(x)
     integer, intent(in), optional :: i
     character(len=*), intent(in) :: msg
     x = .NOT. PRESENT(i)
-    if(.NOT. x) RETURN
-    write (error_unit, *) msg
+    If(.NOT. x) RETURN
+    WRITE (error_unit, *) msg
   End Function mlf_assert_optional_int
 
 
@@ -71,9 +71,9 @@ Contains
     integer, intent(inout) :: info
     character(len=*), intent(in) :: msg
     x = .FALSE.
-    if(info == 0) RETURN
+    If(info == 0) RETURN
     info = -1
-    write (error_unit, *) msg
+    WRITE (error_unit, *) msg
     x = .TRUE.
   End Function mlf_checkNZ
 
@@ -81,8 +81,8 @@ Contains
     integer, intent(in) :: info
     character(len=*), intent(in) :: msg
     x = .FALSE.
-    if(info >= 0) RETURN
-    write (error_unit, *) msg
+    If(info >= 0) RETURN
+    WRITE (error_unit, *) msg
     x = .TRUE.
   End Function mlf_checkF
 
@@ -91,8 +91,8 @@ Contains
     character(len=*), intent(in) :: msg
     integer(kind=8), intent(in) :: dims(:)
     x = .FALSE.
-    if(info >= 0) RETURN
-    write (error_unit, *) msg, dims
+    If(info >= 0) RETURN
+    WRITE (error_unit, *) msg, dims
     x = .TRUE.
   End Function mlf_checkF_dims
 
@@ -101,9 +101,9 @@ Contains
     character(len=*), intent(in) :: msg
     integer(kind=8), intent(in) :: dims(:)
     x = .FALSE.
-    if(info == 0) RETURN
+    If(info == 0) RETURN
     info = -1
-    write (error_unit, *) msg, dims
+    WRITE (error_unit, *) msg, dims
     x = .TRUE.
   End Function mlf_checkNZ_dims
 End Module mlf_errors

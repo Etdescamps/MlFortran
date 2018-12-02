@@ -134,11 +134,12 @@ Module mlf_hybrid_kmc
       real(c_double) :: mlf_hybrid_kmc_getHMax
     End Function mlf_hybrid_kmc_getHMax
 
-    Integer Function mlf_hybrid_kmc_reachCstr(this, t, id, X, F)
+    Integer Function mlf_hybrid_kmc_reachCstr(this, t, tMin, tMax, id, X, F)
       Use iso_c_binding
       import :: mlf_hybrid_kmc_cstrModel
       class(mlf_hybrid_kmc_cstrModel), intent(inout), target :: this
       real(c_double), intent(inout) :: t
+      real(c_double), intent(in) :: tMin, tMax
       integer, intent(in) :: id
       real(c_double), intent(inout), target :: X(:), F(:)
     End Function mlf_hybrid_kmc_reachCstr
@@ -421,18 +422,23 @@ Contains
     integer :: K
     K = KmcUpdate(X(1), ids)
     N = K+this%kmc_model%m_updateCstr(t, X0(2:), X(2:), F0(2:), F(2:), ids(K+1:), hMax)
-    If(N>K) ids(K+1:N) = ids(K+1:N)+1
-    hMax = MIN(hMax, ModelGetHMax(this%kmc_model, t, X, F))
+    If(N > K) ids(K+1:N) = ids(K+1:N)+1
+    If(N == 0) hMax = MIN(hMax, ModelGetHMax(this%kmc_model, t, X, F))
   End Function  mlf_kmc_h_update
 
-  Integer Function KMCReachAction(model, t, X, F, Rates) Result(info)
+  Integer Function KMCReachAction(model, t, tMin, tMax, X, F, Rates) Result(info)
     class(mlf_hybrid_kmc_model), intent(inout), target :: model
     real(c_double), intent(inout) :: t
+    real(c_double), intent(in) :: tMin, tMax
     real(c_double), intent(inout), target :: X(:), F(:)
     real(c_double), intent(out), target :: Rates(:)
     integer :: idAction, N
-    real(c_double) :: r
+    real(c_double) :: r, dt
     info = -1
+    dt = -X(1)/F(1)
+    dt = MIN(MAX(dt, tMin-t), tMax-t)
+    t = t + dt
+    X = X + dt*F
     model%lastTNext = ieee_value(model%lastTNext, ieee_quiet_nan)
     N = Model%funTransitionRates(t, X(2:), F(2:), Rates)
     If(N <= 0) RETURN ! Shall not happen
@@ -452,26 +458,31 @@ Contains
     info = EvalOdeModel(model, t, X, F)
   End Function KMCReachAction
 
-  Integer Function mlf_kmc_reach(this, t, id, X, F) Result(info)
+  Integer Function mlf_kmc_reach(this, t, tMin, tMax, id, X, F) Result(info)
     class(mlf_kmc_odeModel), intent(inout), target :: this
     real(c_double), intent(inout) :: t
+    real(c_double), intent(in) :: tMin, tMax
     real(c_double), intent(inout), target :: X(:), F(:)
     integer, intent(in) :: id
     info = -1
     ! id should be equal to 1
     If(id /= 1) RETURN
-    info = KMCReachAction(this%kmc_model, t, X, F, this%kmc_model%Rates)
+    info = KMCReachAction(this%kmc_model, t, tMin, tMax, X, F, this%kmc_model%Rates)
   End Function mlf_kmc_reach
 
-  Integer Function mlf_kmc_h_reach(this, t, id, X, F) Result(info)
+  Integer Function mlf_kmc_h_reach(this, t, tMin, tMax, id, X, F) Result(info)
     class(mlf_kmc_constrModel), intent(inout), target :: this
     real(c_double), intent(inout) :: t
+    real(c_double), intent(in) :: tMin, tMax
     real(c_double), intent(inout), target :: X(:), F(:)
     integer, intent(in) :: id
+    real(c_double) :: t0
     If(id == 1) Then
-      info = KMCReachAction(this%kmc_model, t, X, F, this%kmc_model%Rates)
+      info = KMCReachAction(this%kmc_model, t, tMin, tMax, X, F, this%kmc_model%Rates)
     Else
-      info = this%kmc_model%m_reachCstr(t, id-1, X(2:), F(2:))
+      t0 = t
+      info = this%kmc_model%m_reachCstr(t, tMin, tMax, id-1, X(2:), F(2:))
+      If(t0 /= t) X(1) = X(1) + (t0-t)*F(1)
     Endif
   End Function mlf_kmc_h_reach
 End Module mlf_hybrid_kmc

@@ -63,12 +63,12 @@ Contains
     info = model%init(CIndiv(3:5), NIndiv, Volume, &
       Param(1), Param(2), Param(3), Param(4), Param(5))
     N = 10*INT(Volume)
-    ALLOCATE(points(6, N))
+    ALLOCATE(points(7, N))
     Do i = 1,N
       info = model%step()
       points(1,i)   = model%ode%t
       points(2:3,i) = REAL(model%NIndiv, KIND=8)/Volume
-      points(4:6,i) = model%ode%X(2:4)
+      points(4:7,i) = model%ode%X(1:4)
       If(info < 0 .OR. info == mlf_ODE_StopTime) EXIT
     End Do
     i = MIN(i, N)

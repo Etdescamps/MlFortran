@@ -29,6 +29,7 @@
 Module mlf_ode45
   Use ieee_arithmetic
   Use iso_c_binding
+  Use iso_fortran_env
   Use mlf_intf
   Use mlf_rsc_array
   Use mlf_models
@@ -226,22 +227,24 @@ Contains
       Q = dt * Q
       h = dt * ODE45FindRoot(this%rtoli, this%atoli, Q, C0, C, id)
     END BLOCK
-    If(id < 0) Then
-      info = -1
-      RETURN
-    Endif
+    If(id < 0) GOTO 10
     id = ids(id)
     t = this%t0 + h
     CALL this%denseEvaluation(t, X, this%K(:,7))
-    info = fun%reachCstr(t, id, X, this%K(:,7))
+    info = fun%reachCstr(t, this%t0, this%t, id, X, this%K(:,7))
     If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
     If(t >= this%tMax) Then
       info = mlf_ODE_StopTime
       RETURN
     Endif
+    If(t < this%t0 .OR. t > this%t) GOTO 10
     ! reachCstr makes a supplementary evaluation of the function
     this%nFun = this%nFun + 1
     hMax = MIN(hMax0, fun%getHMax(t, X, this%K(:,7)))
+    RETURN
+ 10 info = -1
+    WRITE (error_unit, *) "ODE45 findRoot error: h/dt=", (t-this%t0)/dt, " t0=", this%t0, &
+      " ids:", ids(1:N), " id:", id
   End Function mlf_ode45_findRoot
 
   Real(c_double) Function FindNewtonRalphson(t0, A0, A1, A2, A3, A4, V) Result(th)
@@ -269,47 +272,41 @@ Contains
     integer :: i
     real(c_double) :: A(SIZE(C),4), C12(SIZE(C)), thI, V, Y, th1
     id = -1
+    Do i=1,SIZE(C)
+      If(C0(i)==0) Then
+        th = 0
+        id = i
+        RETURN
+      Endif
+    End Do
     A(:,1) = C-C0; A(:,2) = Q(:,1)-A(:,1)
     A(:,3) = -Q(:,7)+A(:,1)-A(:,2)
     A(:,4) = MATMUL(Q,DOPRI5_DC)
     ! Do a bissection step and then a secant step
     ! Evaluate Y(0.5)
     C12 = C0+0.5d0*(A(:,1)+0.5d0*(A(:,2)+0.5d0*(A(:,3)+0.5d0*A(:,4))))
-    th = 2d0
-    Do i = 1,SIZE(C)
-      If(C12(i)*C0(i) >= 0) Then
-        If(th <= 0.5d0) CYCLE
-        If(C(i) == 0) Then
-          thI = 1d0
-        Else
-          thI = 1d0/(C(i)*(1d0/C(i)-1d0/C12(i)))
-        Endif
-      Else
-        thI = 1d0/(C12(i)*(1d0/C12(i)-1d0/C0(i)))
-      Endif
-      If(thI < th) Then
-        th = thI
-        id = i
-      Endif
-    End Do
-    If(id < 0) RETURN
+    th = HUGE(th)
+    Where(C12*C0 > 0)
+      C12 = 0.5d0+0.5d0*C12/(C12-C)
+    ElseWhere
+      C12 = 0.5d0*C0/(C0-C12)
+    EndWhere
+    id = MINLOC(C12, DIM = 1)
+    th = MINVAL(C12)
     ! Use Newton-Ralphson to polish the root th
-    V = atol+rtol*ABS(C0(id)+C(id))
+    V = 1d-2*MIN(atol, rtol*ABS(C0(id)-C(id)), ABS(C0(id)))
     th = FindNewtonRalphson(th, C0(id), A(id,1), A(id,2), A(id,3), A(id,4), V)
     If(SIZE(C) > 1) Then
       Do i = 1,SIZE(C)
-        th1 = 1d0-th
         If(i == id) CYCLE
+        th1 = 1d0-th
         Y = C0(i)+th*(A(i,1)+th1*(A(i,2)+th*(A(i,3)+th1*A(i,4))))
         If(C0(i)*Y >= 0) CYCLE
         th = th*C0(i)/(C0(i)-Y)
-        V = atol+rtol*ABS(C0(i)+C(i))
+        V = 1d-2*MIN(atol, rtol*ABS(C0(i)-C(i)), ABS(C0(i)))
         th = FindNewtonRalphson(th, C0(i), A(i,1), A(i,2), A(i,3), A(i,4), V)
         id = i
       End Do
-    Endif
-    If(th > 1 .OR. th < 0) Then
-      id = -1
     Endif
   End Function ODE45FindRoot
 
@@ -505,8 +502,8 @@ Contains
         Select Type(fun)
         Class is (mlf_ode_funCstr)
           info = this%findRoot(fun, t, X, hMax)
-          this%t = t
           If(info < 0) RETURN
+          this%t = t
           If(info == mlf_ODE_StopTime .OR. info == mlf_ODE_HardCstr) EXIT
         End Select
         If(this%tMax <= t) Then

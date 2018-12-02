@@ -71,7 +71,7 @@ Contains
     CALL numFields%initFields(nRPar = 6, nRsc = 1)
     If(info < 0) RETURN
     info = mlf_hybrid_kmc_h_init(this, numFields, numCstr = 1, NActions = 2, X0 = X0, &
-      atoli = 1d-6, rtoli = 1d-6, data_handler = data_handler)
+      atoli = 1d-9, rtoli = 1d-7, data_handler = data_handler)
     NCat = 2
     info = this%add_i64array(numFields, NCat, this%NIndiv, C_CHAR_"NIndiv", &
       data_handler = data_handler)
@@ -136,12 +136,18 @@ Contains
     If(X(3) > 0 .AND. F(3) > 0) hMax = -this%kmc_alpha*X(3)/F(3)
   End Function test_getHMax
 
-  Integer Function test_reachCstr(this, t, id, X, F) Result(info)
+  Integer Function test_reachCstr(this, t, tMin, tMax, id, X, F) Result(info)
     class(model_cstr_kmc), intent(inout), target :: this
     real(c_double), intent(inout) :: t
+    real(c_double), intent(in) :: tMin, tMax
     integer, intent(in) :: id
     real(c_double), intent(inout), target :: X(:), F(:)
-    X(3) = X(3) + this%Beta/this%Volume
+    real(c_double) :: dt
+    dt = -X(3)/F(3)
+    dt = MIN(MAX(dt, tMin-t), tMax-t)
+    t = t + dt
+    X = X + dt*F
+    X(3) = this%Beta/this%Volume
     this%NIndiv(1) = this%NIndiv(1)+1
     info = 0
   End Function test_reachCstr

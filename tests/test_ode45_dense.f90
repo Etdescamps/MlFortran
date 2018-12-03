@@ -26,37 +26,36 @@ Contains
     real(c_double) :: t
     ALLOCATE(trajectory(4, Npoints), steps(4, N))
     info = h5f%createFile("arenstorf.h5")
-    call fun%init(FArenstorf, RESHAPE([1d0,0d0,0d0,0d0], [4,1]))
+    CALL fun%init(FArenstorf, RESHAPE([1d0,0d0,0d0,0d0], [4,1]))
     !call fun%init(FArenstorf, [1])
     info = ode%init(fun, X0Arenstorf, tMax = TEndArenstorf, atoli = 1d-6, rtoli = 1d-6)
-    if(info < 0) RETURN
+    If(info < 0) RETURN
     j = 1
-    print *, ode%t0, ode%X0
+    PRINT *, ode%t0, ode%X0
     Do i=1,N
       info = ode%step()
-      if(info == mlf_ODE_SoftCstr) then
-        print *, ode%t, ode%X
+      If(info == mlf_ODE_SoftCstr) Then
+        PRINT *, ode%t, ode%X
         !ode%X(1) = 0
-      endif
+      Endif
       Do k = j,Npoints
         t = real(k-1,8)/real(Npoints-1,8)*ode%tMax
-        if(t>ode%t) EXIT
+        If(t>ode%t) EXIT
         call ode%denseEvaluation(t, trajectory(:,k))
       End Do
       steps(:,i) = ode%X
       j = k
-      if(info == mlf_ODE_StopTime) EXIT
+      If(info == mlf_ODE_StopTime) EXIT
     End Do
-    print *, ode%t, ode%X
+    PRINT *, ode%t, ode%X
     Do k = j,Npoints
       t = real(k-1,8)/real(Npoints-1,8)*ode%tMax
       call ode%denseEvaluation(t, trajectory(:,k))
     End Do
-    print *, "NSTEPS = ", i
+    PRINT *, "NSTEPS = ", i
     info = h5f%pushData(trajectory, 'trajectory')
     info = h5f%pushData(steps(:, 1:i), 'steps')
     call h5f%finalize()
-    
   End Subroutine test
 
 End

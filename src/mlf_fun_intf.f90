@@ -31,6 +31,7 @@ Module mlf_fun_intf
   Use iso_c_binding
   Use mlf_intf
   Use mlf_errors
+  Use mlf_rand
   IMPLICIT NONE
   PRIVATE
  
@@ -157,14 +158,14 @@ Module mlf_fun_intf
 
   Abstract Interface
 
-    Integer Function mlf_ode_funCstr_reach(this, t, tMin, tMax, id, X, F)
+    Integer Function mlf_ode_funCstr_reach(this, t, tMin, tMax, ids, X, F)
       Use iso_c_binding
       import :: mlf_ode_funCstr
       class(mlf_ode_funCstr), intent(inout), target :: this
       real(c_double), intent(inout) :: t
       real(c_double), intent(in) :: tMin, tMax
       real(c_double), intent(inout), target :: X(:), F(:)
-      integer, intent(in) :: id
+      integer, intent(in) :: ids(:)
     End Function mlf_ode_funCstr_reach
 
     Subroutine mlf_ode_funCstr_getDerivatives(this, ids, X0, X, K, C0, C, Q)
@@ -325,26 +326,28 @@ Contains
   End Function GetHMaxFromCU
 
   ! Dummy function for function event
-  Integer Function mlf_ode_dummy_funStop(this, t, id, X, F) result(info)
+  Integer Function mlf_ode_dummy_funStop(this, t, ids, X, F) result(info)
     class(mlf_ode_funStop), intent(inout), target :: this
     real(c_double), intent(inout), target :: t, X(:), F(:)
-    integer, intent(in) :: id
+    integer, intent(in) :: ids(:)
     info = mlf_ODE_SoftCstr
   End Function mlf_ode_dummy_funStop
 
   ! Default function that update the alpha if t is reached after cstrT
   ! Reevaluate dF/dt and move slightly t and X for reaching the condition
   ! The root should be near the value t (< tol)
-  Integer Function mlf_ode_reachCstr(this, t, tMin, tMax, id, X, F) result(info)
+  Integer Function mlf_ode_reachCstr(this, t, tMin, tMax, ids, X, F) result(info)
     class(mlf_ode_funCstrVect), intent(inout), target :: this
     real(c_double), intent(inout) :: t
     real(c_double), intent(in) :: tMin, tMax
     real(c_double), intent(inout), target :: X(:), F(:)
-    integer, intent(in) :: id
+    integer, intent(in) :: ids(:)
     real(c_double) :: h, Uid
-    If(this%cstrId == id .AND. t > this%cstrT) Then
-      this%cstrAlpha(id) = 1.5d0*this%cstrAlpha(id)
+    integer :: id
+    If(ANY(this%cstrId == ids) .AND. t > this%cstrT) Then
+      this%cstrAlpha(this%cstrId) = 1.5d0*this%cstrAlpha(this%cstrId)
     Endif
+    id = RandFromIArr(ids)
     this%cstrId = id
     ! Compute the value of the constraints
     Uid = DOT_PRODUCT(X, this%cstrVect(:,id))-this%cstrValRef(id)
@@ -359,23 +362,24 @@ Contains
     h = MIN(MAX(h, tMin-t), tMax-t)
     t = t + h
     X = X + h*F
-    info = this%funStop(t, id, X, F)
+    info = this%funStop(t, ids, X, F)
     ! Check if there is an error or a hard constraints
     If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
     info = this%eval(t, X, F)
   End Function mlf_ode_reachCstr
   
-  Integer Function mlf_ode_reachCstrIds(this, t, tMin, tMax, id, X, F) result(info)
+  Integer Function mlf_ode_reachCstrIds(this, t, tMin, tMax, ids, X, F) result(info)
     class(mlf_ode_funCstrIds), intent(inout), target :: this
     real(c_double), intent(inout) :: t
     real(c_double), intent(in) :: tMin, tMax
     real(c_double), intent(inout), target :: X(:), F(:)
-    integer, intent(in) :: id
+    integer, intent(in) :: ids(:)
     real(c_double) :: h, Uid
-    integer :: k
-    If(this%cstrId == id .AND. t > this%cstrT) Then
-      this%cstrAlpha(id) = 1.5d0*this%cstrAlpha(id)
+    integer :: k, id
+    If(ANY(this%cstrId == ids) .AND. t > this%cstrT) Then
+      this%cstrAlpha(this%cstrId) = 1.5d0*this%cstrAlpha(this%cstrId)
     Endif
+    id = RandFromIArr(ids)
     k = this%cstrSelIds(id)
     this%cstrId = id
     ! Compute the value of the constraints
@@ -383,8 +387,8 @@ Contains
     h = MIN(MAX(-Uid/F(k), tMin-t), tMax-t)
     t = t + h
     X = X + h*F
-    X(k) = 0
-    info = this%funStop(t, id, X, F)
+    X(ids) = 0
+    info = this%funStop(t, ids, X, F)
     ! Check if there is an error or a hard constraints
     If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
     info = this%eval(t, X, F)

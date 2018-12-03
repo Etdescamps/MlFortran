@@ -136,11 +136,11 @@ Contains
     If(X(3) > 0 .AND. F(3) > 0) hMax = -this%kmc_alpha*X(3)/F(3)
   End Function test_getHMax
 
-  Integer Function test_reachCstr(this, t, tMin, tMax, id, X, F) Result(info)
+  Integer Function test_reachCstr(this, t, tMin, tMax, ids, X, F) Result(info)
     class(model_cstr_kmc), intent(inout), target :: this
     real(c_double), intent(inout) :: t
     real(c_double), intent(in) :: tMin, tMax
-    integer, intent(in) :: id
+    integer, intent(in) :: ids(:)
     real(c_double), intent(inout), target :: X(:), F(:)
     real(c_double) :: dt
     dt = -X(3)/F(3)

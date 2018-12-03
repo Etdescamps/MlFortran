@@ -215,23 +215,28 @@ Contains
     class(mlf_ode_funCstr), intent(inout) :: fun
     real(c_double), intent(inout) :: hMax, t, X(:)
     real(c_double) :: dt, h, hMax0
-    integer :: id, N, ids(fun%NCstr)
+    integer :: i, N, ids(fun%NCstr), K
     hMax0 = hMax
     info = mlf_ODE_Continue
     N = fun%updateCstr(t, this%X0, X, this%K(:,1), this%K(:,7), ids, hMax)
     If(N == 0) RETURN ! No constraints reached
+    If(this%lastT < this%t) CALL this%updateDense()
     dt = this%t - this%t0
     BLOCK
       real(c_double) :: C0(N), C(N), Q(N,7)
+      integer :: nIds(N)
       CALL fun%getDerivatives(ids(1:N), this%X0, X, this%K, C0, C, Q)
       Q = dt * Q
-      h = dt * ODE45FindRoot(this%rtoli, this%atoli, Q, C0, C, id)
+      K = ODE45FindRoot(this%rtoli, this%atoli, Q, C0, C, nIds, h)
+      h = dt * h
+      ids(1:K) = ids(nIds(1:K))
     END BLOCK
-    If(id < 0) GOTO 10
-    id = ids(id)
+    If(K < 0) GOTO 10
     t = this%t0 + h
     CALL this%denseEvaluation(t, X, this%K(:,7))
-    info = fun%reachCstr(t, this%t0, this%t, id, X, this%K(:,7))
+    Do i = 1, K
+      info = fun%reachCstr(t, this%t0, this%t, ids(1:K), X, this%K(:,7))
+    End Do
     If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
     If(t >= this%tMax) Then
       info = mlf_ODE_StopTime
@@ -244,7 +249,7 @@ Contains
     RETURN
  10 info = -1
     WRITE (error_unit, *) "ODE45 findRoot error: h/dt=", (t-this%t0)/dt, " t0=", this%t0, &
-      " ids:", ids(1:N), " id:", id
+      " ids:", ids(1:N), " nIds:", ids(1:K)
   End Function mlf_ode45_findRoot
 
   Real(c_double) Function FindNewtonRalphson(t0, A0, A, V) &
@@ -265,20 +270,14 @@ Contains
 
   ! Find root of the constraints using dense output
   ! CORNER CASE: the case where C0=C(t0)=0 and dC/dt(t0)=Q(:,1)=0 shall be avoided
-  Real(c_double) Function ODE45FindRoot(rtol, atol, Q, C0, C, id) Result(th)
+  Integer Function ODE45FindRoot(rtol, atol, Q, C0, C, ids, th) Result(N)
     real(c_double), intent(in) :: Q(:, :), C0(:), C(:), rtol, atol
-    integer, intent(out) :: id
-    integer :: i
+    real(c_double), intent(inout) :: th
+    integer, intent(out) :: ids(:)
+    integer :: i, id
     real(c_double) :: A(SIZE(C),6), Y(SIZE(C)), F(SIZE(C)), thI(SIZE(C)), W(SIZE(C))
     real(c_double) :: V, th1, thMin, thMax
     id = -1
-    Do i = 1, SIZE(C0)
-      If(C0(i)==0) Then
-        th = 0
-        id = i
-        RETURN
-      Endif
-    End Do
     A(:,1) = C-C0
     A(:,2) = Q(:,1)-A(:,1)
     A(:,3) = -Q(:,7)+A(:,1)-A(:,2)
@@ -288,16 +287,21 @@ Contains
     ! Do a bissection step and then a secant step
     ! Evaluate Y(0.5)
     Y = C0+0.5d0*(A(:,1)+0.5d0*(A(:,2)+0.5d0*(A(:,3)+0.5d0*A(:,4))))
-    Where(Y*C0 > 0)
+    ! Determine if the crossing is negative or positive using C(t0) or dC/dt(t0)
+    ! THE CASE C0 == 0 IS NOT CONSIDERED AS A CROSSING!!!
+    F = Q(:,1)
+    Where(C0 /= 0) F = C0
+    Where(Y*F > 0)
       thI = 0.5d0+0.5d0*Y/(Y-C)
     ElseWhere
       thI = 0.5d0*C0/(C0-Y)
     EndWhere
     If(SIZE(C) == 1) Then ! Most common case
       ! Use Newton-Ralphson to polish the root th
-      id = 1
-      V = 1d-3*MIN(atol, rtol*ABS(C0(1)-C(1)), ABS(C0(1)))
+      ids(1) = 1
+      V = 1d-3*(atol + rtol*ABS(C0(1)-C(1)))
       th = FindNewtonRalphson(thI(1), C0(1), A(1,:), V)
+      N = 1
       RETURN
     Endif
     ! Use more intensively the Newton-Ralphson in order to get one unique root
@@ -310,32 +314,43 @@ Contains
     thMin = 0; thMax = 1
     id = MINLOC(thI, DIM = 1)
     th = thI(id)
- 10 th1 = 1d0-th
-    W = A(:,1)+th1*(A(:,2)+th*(A(:,3)+th1*A(:,4)))
-    F = W+th*(th*(3d0*A(:,4)*th+A(:,5))+A(:,6))
-    Y = C0+th*W
-    thI = -Y/F
-    id = MINLOC(thI, DIM = 1)
-    If(thMin == thMax) Then
-      id = MINLOC(F, DIM = 1)
-      RETURN
-    Endif
-    Select Case(COUNT(thI <= 0))
-    Case(0)
-      thMin = th
-      th = MIN(th + 2*thI(id), thMax)
-      GOTO 10
-    Case(2:)
-      thMax = th
-      th = 0.5d0*(thMin+thMax)
-      GOTO 10
-    Case(1)
-      thMax = th
-      V = 1d-3*MIN(atol, rtol*ABS(C0(id)-C(id)), ABS(C0(id)))
-      th = MAX(MIN(th-Y(id)/F(id), thMax), thMin)
-      th = FindNewtonRalphson(th, C0(id), A(id,:), V)
-      th = MIN(th, thMax)
-    End Select
+    Do
+      th1 = 1d0-th
+      W = A(:,1)+th1*(A(:,2)+th*(A(:,3)+th1*A(:,4)))
+      F = W+th*(th*(3d0*A(:,4)*th+A(:,5))+A(:,6))
+      Y = C0+th*W
+      thI = -Y/F
+      id = MINLOC(thI, DIM = 1)
+      N = COUNT(thI <= 0)
+      If(thMax - thMin < 1d-2*(atol+rtol)) Then
+        ! When multiple event occurs within a short time span, put multiple event in the list
+        ! As the dichotomous search is expensive, this case has to be rare
+        N = 0
+        Do i = 1, SIZE(C)
+          If(thI(i) <= 0) Then
+            N = N + 1
+            ids(N) = i
+          Endif
+        End Do
+        RETURN
+      Endif
+      Select Case(N)
+      Case(0)
+        thMin = th
+        th = MIN(th + 2*thI(id), thMax)
+      Case(2:)
+        thMax = th
+        th = 0.5d0*(thMin+thMax)
+      Case(1)
+        thMax = th
+        V = 1d-3*MIN(atol, rtol*ABS(C0(id)-C(id)), ABS(C0(id)))
+        th = MAX(MIN(th-Y(id)/F(id), thMax), thMin)
+        th = FindNewtonRalphson(th, C0(id), A(id,:), V)
+        th = MIN(th, thMax)
+        ids(1) = id
+        RETURN
+      End Select
+    End Do
   End Function ODE45FindRoot
 
   Subroutine mlf_ode45_updateDense(this)
@@ -456,6 +471,7 @@ Contains
       RETURN
     Endif
     t = this%t
+    this%lastT = -HUGE(this%lastT)
     ASSOCIATE(K => this%K, X0 =>this%X0, X => this%X, fun => this%fun)
       hMax = MIN(this%hMax, this%tMax-this%t); alphaH = HUGE(alphaH)
       X0 = X
@@ -536,6 +552,10 @@ Contains
         End Select
         If(this%tMax <= t) Then
           info = mlf_ODE_StopTime
+          EXIT
+        Endif
+        If(i == niter0) Then
+          info = mlf_ODE_Continue
           EXIT
         Endif
         K(:,1) = K(:,7)

@@ -34,9 +34,9 @@ Module mlf_rand
   PRIVATE
 
   Public :: RandSign, RandN, RandD, mlf_rand_class, randPerm, randInt, mlf_randNArrayC
-  Public :: Rand3DSurf
+  Public :: Rand3DSurf, RandFromIArr
 
-  Interface RandSign
+  Interface RandSign  
     module procedure mlf_RandSignV
     module procedure mlf_RandSignM
   End Interface RandSign
@@ -91,7 +91,7 @@ Contains
     integer(c_int), intent(in) :: N
     real(c_double) :: r
     call RANDOM_NUMBER(r)
-    randInt = floor(r*N, kind=c_int)
+    randInt = MIN(floor(r*N, kind=c_int), N-1)
   End Function randInt
 
   ! Random point on surface using Marsaglia's method
@@ -100,12 +100,10 @@ Contains
     real(c_double), intent(in), optional :: X0(3)
     real(c_double), intent(out) :: X(3)
     real(c_double) :: U(2), W
-    Do
-      call RANDOM_NUMBER(U)
-      U = 2d0*U-1d0
-      W = dot_product(U,U)
-      if(W <= 1d0) EXIT
-    End Do
+ 10 CALL RANDOM_NUMBER(U)
+    U = 2.0*U-1.0
+    W = DOT_PRODUCT(U,U)
+    If(W > 1.0d0) GOTO 10
     if(PRESENT(X0)) then
       X(1:2) = X0(1:2) + 2d0*r*U*sqrt(1d0-W)
       X(3) = X0(3) + r*(1d0-2d0*W)
@@ -121,12 +119,10 @@ Contains
     real(c_float), intent(in), optional :: X0(3)
     real(c_float), intent(out) :: X(3)
     real(c_float) :: U(2), W
-    Do
-      call RANDOM_NUMBER(U)
-      U = 2.0*U-1.0
-      W = dot_product(U,U)
-      if(W <= 1.0) EXIT
-    End Do
+ 10 CALL RANDOM_NUMBER(U)
+    U = 2.0*U-1.0
+    W = DOT_PRODUCT(U,U)
+    If(W > 1.0d0) GOTO 10
     if(PRESENT(X0)) then
       X(1:2) = X0(1:2) + 2.0*r*U*sqrt(1.0-W)
       X(3) = X0(3) + r*(1.0-2.0*W)
@@ -135,6 +131,17 @@ Contains
       X(3) = r*(1.0-2.0*W)
     endif
   End Subroutine Rand3DSurf_float
+
+  integer(c_int) Function RandFromIArr(X) Result(N)
+    integer(c_int) :: X(:)
+    integer :: i
+    If(SIZE(X) == 1) Then
+      N = X(LBOUND(X,1))
+      RETURN
+    Endif
+    i = randInt(SIZE(X))+LBOUND(X,1)
+    N = X(i)
+  End Function RandFromIArr
 
 
   ! Generate random class from a vector proportional to the cumulative probabilies
@@ -166,15 +173,13 @@ Contains
   Subroutine mlf_randN2(R)
     real(c_double), intent(out) :: R(2)
     real(c_double) :: rsq
-    Do
-      ! GFORTRAN uses the xorshift 1024 method as RNG.
-      ! This method is thread-safe with recent versions of GFORTRAN.
-      ! This shall be sufficient for this kind of problems.
-      call RANDOM_NUMBER(R)
-      R=2.0*R-1.0
-      rsq = dot_product(R,R)
-      if(rsq > 0.0 .AND. rsq <= 1.0) EXIT ! Outside the circle (probability=pi/4)
-    End Do
+    ! GFORTRAN uses the xorshift 1024 method as RNG.
+    ! This method is thread-safe with recent versions of GFORTRAN.
+    ! This shall be sufficient for this kind of problems.
+ 10 CALL RANDOM_NUMBER(R)
+    R = 2.0*R-1.0
+    rsq = DOT_PRODUCT(R,R)
+    If(rsq > 1.0d0 .OR. rsq == 0d0) GOTO 10 ! Outside the circle (probability=pi/4)
     R = R*sqrt(-2.0*log(rsq)/rsq)
   end subroutine mlf_randN2
 

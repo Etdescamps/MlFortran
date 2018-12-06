@@ -62,10 +62,10 @@ Contains
     real(c_double), intent(in), target :: X(:)
     real(c_double), intent(out), target :: F(:)
     ASSOCIATE(alpha => this%Alpha, beta => this%Beta, &
-        cS => X(1), cI => X(2), cR => X(3))
-      F(1) = -alpha*cS*cI
-      F(3) = beta*cI
-      F(2) = -F(1) - F(3)
+        cS => X(1), cI => X(2), cR => X(3), dS => F(1), dI => F(2), dR => F(3))
+      dS = -alpha*cS*cI
+      dR = beta*cI
+      dI = -dR-dS
       info = mlf_ODE_Continue
       If(cI == 0) info = mlf_ODE_StopTime
     END ASSOCIATE

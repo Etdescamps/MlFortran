@@ -205,12 +205,13 @@ Contains
     real(c_double), parameter :: mu = 0.012277471d0
     real(c_double) :: D1, D2, mu1
     mu1 = 1d0-mu
-    ASSOCIATE(y1 => X(1), y1d => X(2), y2 => X(3), y2d => X(4))
-      F(1) = y1d; F(3) = y2d
+    ASSOCIATE(y1 => X(1), y1d => X(2), y2 => X(3), y2d => X(4), &
+        dy1 => F(1), dy1d => F(2), dy2 => F(3), dy2d => F(4))
+      dy1 = y1d; dy2 = y2d
       D1 = ((y1+mu)**2+y2**2)**(3d0/2d0)
       D2 = ((y1-mu1)**2+y2**2)**(3d0/2d0)
-      F(2) = y1+2d0*y2d-mu1*(y1+mu)/D1-mu*(y1-mu1)/D2
-      F(4) = y2-2d0*y1d-mu1*y2/D1-mu*y2/D2
+      dy1d = y1+2d0*y2d-mu1*(y1+mu)/D1-mu*(y1-mu1)/D2
+      dy2d = y2-2d0*y1d-mu1*y2/D1-mu*y2/D2
     END ASSOCIATE
   End Subroutine FArenstorf
 

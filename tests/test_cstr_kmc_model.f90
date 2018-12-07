@@ -149,7 +149,7 @@ Contains
     X = X + dt*F
     X(3) = this%Beta/this%Volume
     this%NIndiv(1) = this%NIndiv(1)+1
-    info = 0
+    info = mlf_ODE_Continue
   End Function test_reachCstr
 
   Integer Function test_updateCstr(this, t, X0, X, F0, F, ids, hMax) Result(N)

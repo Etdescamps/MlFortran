@@ -155,6 +155,7 @@ Module mlf_fun_intf
 
   Integer, Parameter, Public :: mlf_ODE_Continue = 0, mlf_ODE_SoftCstr = 1
   Integer, Parameter, Public :: mlf_ODE_StopTime = 2, mlf_ODE_HardCstr = 3
+  Integer, Parameter, Public :: mlf_ODE_ReevaluateDer = 4
 
   Abstract Interface
 

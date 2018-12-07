@@ -270,6 +270,7 @@ Contains
 
   ! Find root of the constraints using dense output
   ! CORNER CASE: the case where C0=C(t0)=0 and dC/dt(t0)=Q(:,1)=0 shall be avoided
+  ! TODO: handle case when C0 and C have the same sign
   Integer Function ODE45FindRoot(rtol, atol, Q, C0, C, ids, th) Result(N)
     real(c_double), intent(in) :: Q(:, :), C0(:), C(:), rtol, atol
     real(c_double), intent(inout) :: th

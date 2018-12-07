@@ -474,19 +474,34 @@ Contains
     real(c_double), intent(in) :: tMin, tMax
     real(c_double), intent(inout), target :: X(:), F(:)
     integer, intent(in) :: ids(:)
-    real(c_double) :: t0
+    real(c_double) :: t0, U0, r
     If(ids(1) == 1) Then
       ! The global events of the system are applied before applying random actions.
       If(SIZE(ids) > 1) Then
         t0 = t
+        U0 = F(1)
         info = this%kmc_model%m_reachCstr(t, tMin, tMax, ids(2:)-1, X(2:), F(2:))
-        If(t0 /= t) X(1) = X(1) + (t0-t)*F(1)
+        If(info == mlf_ODE_Continue .OR. info == mlf_ODE_SoftCstr) Then
+          If(t0 /= t) X(1) = X(1) + (t0-t)*F(1)
+        Else If(info == mlf_ODE_ReevaluateDer) Then
+          info = EvalOdeModel(this%kmc_model, t, X, F)
+          If(F(1) < U0) Then
+            CALL RANDOM_NUMBER(r)
+            If(r*U0 > F(1)) RETURN
+          Endif
+        Else
+          RETURN
+        Endif
       Endif
       info = KMCReachAction(this%kmc_model, t, tMin, tMax, X, F, this%kmc_model%Rates)
     Else
       t0 = t
       info = this%kmc_model%m_reachCstr(t, tMin, tMax, ids-1, X(2:), F(2:))
-      If(t0 /= t) X(1) = X(1) + (t0-t)*F(1)
+      If(info == mlf_ODE_Continue .OR. info == mlf_ODE_SoftCstr) Then
+        If(t0 /= t) X(1) = X(1) + (t0-t)*F(1)
+      Else If(info == mlf_ODE_ReevaluateDer) Then
+        info = EvalOdeModel(this%kmc_model, t, X, F)
+      Endif
     Endif
   End Function mlf_kmc_h_reach
 End Module mlf_hybrid_kmc

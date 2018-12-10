@@ -63,15 +63,16 @@ Contains
   Integer Function test_hybrid_init(this, X0, NIndiv, Volume, &
       Alpha, Beta, Delta, Kappa, Zeta, data_handler) Result(info)
     class(model_cstr_kmc), intent(inout), target :: this
-    real(c_double), intent(in), optional :: X0(:), Volume, Alpha, Beta, Delta, Kappa, Zeta
+    real(c_double), intent(in), optional :: X0(:), Volume, Alpha, Beta, &
+      Delta, Kappa, Zeta
     integer(c_int64_t), intent(in), optional :: NIndiv(:)
     class(mlf_data_handler), intent(inout), optional :: data_handler
     type(mlf_step_numFields) :: numFields
     integer(c_int64_t) :: NCat
     CALL numFields%initFields(nRPar = 6, nRsc = 1)
+    info = mlf_hybrid_kmc_h_init(this, numFields, numCstr = 1, NActions = 2, &
+      X0 = X0, atoli = 1d-9, rtoli = 1d-7, data_handler = data_handler)
     If(info < 0) RETURN
-    info = mlf_hybrid_kmc_h_init(this, numFields, numCstr = 1, NActions = 2, X0 = X0, &
-      atoli = 1d-9, rtoli = 1d-7, data_handler = data_handler)
     NCat = 2
     info = this%add_i64array(numFields, NCat, this%NIndiv, C_CHAR_"NIndiv", &
       data_handler = data_handler)

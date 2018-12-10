@@ -35,6 +35,20 @@ Module mlf_rand
 
   Public :: RandSign, RandN, RandD, mlf_rand_class, randPerm, randInt, mlf_randNArrayC
   Public :: Rand3DSurf, RandFromIArr
+  
+  Type, Public, Abstract :: mlf_1DRealSampler
+  Contains
+    procedure(mlf_1DRealSampler_fun), deferred :: sample
+  End Type mlf_1DRealSampler
+
+  Abstract Interface
+    Subroutine mlf_1DRealSampler_fun(this, X)
+      use iso_c_binding
+      import :: mlf_1DRealSampler
+      class(mlf_1DRealSampler), intent(inout) :: this
+      real(c_double), intent(out) :: X(:)
+    End Subroutine mlf_1DRealSampler_fun
+  End Interface
 
   Interface RandSign  
     module procedure mlf_RandSignV
@@ -52,6 +66,7 @@ Module mlf_rand
     module procedure Rand3DSurf_float
     module procedure Rand3DSurf_double
   End Interface Rand3DSurf
+
 Contains
   Subroutine mlf_RandSignV(V)
     real(c_double), intent(out) :: V(:)

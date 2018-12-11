@@ -36,6 +36,7 @@ Module mlf_ode45
   Use mlf_step_algo
   Use mlf_fun_intf
   Use mlf_utils
+  Use mlf_ode_model
   IMPLICIT NONE
   PRIVATE
 
@@ -62,29 +63,18 @@ Module mlf_ode45
     701980252875d0/199316789632d0, -1453857185d0/822651844d0, &
     69997945d0/29380423d0]
 
-  Type, Public, extends(mlf_step_obj) :: mlf_ode45_obj
-    real(c_double), pointer :: atoli, rtoli, facMin, facMax, hMax
-    real(c_double), pointer :: lastErr, lastTheta, fac, alpha
-    real(c_double), pointer :: K(:,:), X0(:), X(:), t0, t, tMax
-    real(c_double), allocatable :: Cont(:,:)
-    real(c_double) :: lastT
-    integer(c_int64_t), pointer :: nFun, nStiff
+  Type, Public, Extends(mlf_ode_algo) :: mlf_ode45_obj
+    real(c_double), pointer :: atoli, rtoli, facMin, facMax
+    real(c_double), pointer :: lastErr, lastTheta, fac
+    integer(c_int64_t), pointer :: nStiff
     integer(c_int64_t) :: nAccept, nReject
     integer :: nonStiff, iStiff
-    class(mlf_ode_fun), pointer :: fun
   Contains
     procedure :: reinitT => mlf_ode45_reinitT
-    procedure :: cancelStep => mlf_ode45_cancelStep
     procedure :: reinit => mlf_ode45_reinit
     procedure :: denseEvaluation => mlf_ode45_denseEvaluation
-    procedure :: updateDense => mlf_ode45_updateDense
-    procedure :: errorFun => mlf_ode45_errorFun
-    procedure :: deltaFun => mlf_ode45_deltaFun
     procedure :: stepF => mlf_ode45_stepFun
-    procedure :: findRoot => mlf_ode45_findRoot
     procedure :: init => mlf_ode45_init
-    procedure :: stiffDetect => mlf_ode45_stiffDetect
-    procedure :: searchHardCstr => mlf_ode45_searchHardCstr
   End Type mlf_ode45_obj
 
   Integer, Parameter, Public :: mlf_ODE_FunError = -1, mlf_ODE_Stiff = -2 
@@ -92,39 +82,27 @@ Module mlf_ode45
 Contains
   Integer Function mlf_ode45_reinit(this) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
-    info = mlf_step_obj_reinit(this)
-    this%nAccept = 0; this%nReject = 0; this%nFun = 0
-    this%Cont = 0; this%lastT = -HUGE(this%lastT)
+    info = mlf_ode_model_reinit(this)
+    this%nAccept = 0; this%nReject = 0
     this%lastErr = -1d0; this%lastTheta = -1d0
     this%facMin = 0.2d0; this%facMax = 10d0
-    this%hMax = HUGE(this%hMax); this%fac = 0.9
-    this%X0 = 0; this%X = 0; this%t0 = 0; this%t = 0
-    this%tMax = HUGE(this%tMax); this%alpha = 1.5d0
+    this%fac = 0.9
     this%nStiff = 1000_8; this%nonStiff = 0; this%iStiff = 0
   End Function mlf_ode45_reinit
 
   Integer Function mlf_ode45_reinitT(this, X0, t0, tMax, atoli, rtoli, fac, &
-      facMin, facMax, hMax, nStiff) result(info)
+      facMin, facMax, hMax, nStiff) Result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
     real(c_double), intent(in), optional :: X0(:), t0, atoli, rtoli, fac, &
       facMin, facMax, hMax, tMax
     integer(c_int64_t), intent(in), optional :: nStiff
     info = this%reinit()
-    If(PRESENT(X0)) Then
-      this%X0 = X0
-      this%X = X0
-    Endif
-    If(PRESENT(t0)) Then
-      this%t0 = t0
-      this%t = t0
-    Endif
+    info = mlf_ode_model_reinitT(this, X0, t0, tMax, hMax)
     If(PRESENT(atoli)) this%atoli = atoli
     If(PRESENT(rtoli)) this%rtoli = rtoli
     If(PRESENT(fac)) this%fac = fac
     If(PRESENT(facMin)) this%facMin = facMin
     If(PRESENT(facMax)) this%facMax = facMax
-    If(PRESENT(hMax)) this%hMax = hMax
-    If(PRESENT(tMax)) this%tMax = tMax
     If(PRESENT(nStiff)) this%nStiff = nStiff
   End Function mlf_ode45_reinitT
 
@@ -137,47 +115,28 @@ Contains
     real(c_double), intent(in), optional :: fac, facMin, facMax, hMax
     integer(c_int64_t), intent(in), optional :: nStiff
     type(mlf_step_numFields) :: numFields
-    integer(c_int64_t) :: N, nK(2)
-    this%fun => fun; N = -1
-    CALL numFields%initFields(nIPar = 1, nRPar = 7, nRsc = 3, nIVar = 3, nRVar = 5)
-    info = mlf_step_obj_init(this, numFields, data_handler)
-    If(PRESENT(X0)) N = size(X0)
-    info = this%add_rarray(numFields, N, this%X0, C_CHAR_"X0", data_handler = data_handler)
-    info = this%add_rarray(numFields, N, this%X, C_CHAR_"X", data_handler = data_handler)
-    nK = [N, 7_8]
-    info = this%add_rmatrix(numFields, nK, this%K, C_CHAR_"K", data_handler = data_handler)
+    CALL numFields%initFields(nIPar = 1, nRPar = 5, nRVar = 2)
+    info = mlf_ode_model_init(this, numFields, 7, fun, X0, data_handler)
+    If(info < 0) RETURN
     ! Integer parameters
     CALL this%addIPar(numFields, this%nStiff, "nStiff")
-    ! Integer variables
-    CALL this%addIVar(numFields, this%nFun, "nFun")
+
     ! Real parameters
     CALL this%addRPar(numFields, this%atoli, "atoli")
     CALL this%addRPar(numFields, this%rtoli, "rtoli")
     CALL this%addRPar(numFields, this%fac, "fac")
     CALL this%addRPar(numFields, this%facMin, "facMin")
     CALL this%addRPar(numFields, this%facMax, "facMax")
-    CALL this%addRPar(numFields, this%hMax, "hMax")
-    CALL this%addRPar(numFields, this%tMax, "tMax")
     ! Real variables
-    CALL this%addRVar(numFields, this%t, "t")
-    CALL this%addRVar(numFields, this%t0, "t0")
     CALL this%addRVar(numFields, this%lastErr, "lastErr")
     CALL this%addRVar(numFields, this%lastTheta, "lastTheta")
-    CALL this%addRVar(numFields, this%alpha, "alpha")
-    If(.NOT. ALLOCATED(this%Cont)) ALLOCATE(this%Cont(N,4))
     If(.NOT. PRESENT(data_handler)) Then
       info = this%reinitT(X0, t0, tMax, atoli, rtoli, fac, facMin, facMax, hMax, nStiff)
     Endif
   End Function mlf_ode45_init
 
-  Subroutine mlf_ode45_cancelStep(this)
-    class(mlf_ode45_obj), intent(inout) :: this
-    this%X = this%X0
-    this%t = this%t0
-  End Subroutine mlf_ode45_cancelStep
-
   ! Stiff detection algorithm used by DOPRI5 
-  Logical Function mlf_ode45_stiffDetect(this, h, X, Xsti, K7, K6) result(is_stiff)
+  Logical Function ODE45StiffDetect(this, h, X, Xsti, K7, K6) result(is_stiff)
     class(mlf_ode45_obj), intent(inout) :: this
     real(c_double), intent(in) :: X(:), Xsti(:), K7(:), K6(:), h
     real(c_double) :: Xdist
@@ -191,9 +150,9 @@ Contains
       this%nonStiff = this%nonStiff + 1
       if(this%nonStiff == 6) this%iStiff = 0
     Endif
-  End Function mlf_ode45_stiffDetect
+  End Function ODE45StiffDetect
 
-  real(c_double) Function mlf_ode45_errorFun(this, E, X0, X, theta) result(err)
+  real(c_double) Function ODE45ErrorFun(this, E, X0, X, theta) result(err)
     class(mlf_ode45_obj), intent(inout) :: this
     real(c_double), intent(in) :: E(:), X0(:), X(:), theta
     real(c_double) :: U(size(E))
@@ -208,9 +167,9 @@ Contains
     Else
       this%nReject = this%nReject + 1
     Endif
-  End Function mlf_ode45_errorFun
+  End Function ODE45ErrorFun
 
-  Integer Function mlf_ode45_findRoot(this, fun, t, X, hMax) result(info)
+  Integer Function ODE45FindRoot(this, fun, t, X, hMax) result(info)
     class(mlf_ode45_obj), intent(inout) :: this
     class(mlf_ode_funCstr), intent(inout) :: fun
     real(c_double), intent(inout) :: hMax, t, X(:)
@@ -220,14 +179,14 @@ Contains
     info = mlf_ODE_Continue
     N = fun%updateCstr(t, this%X0, X, this%K(:,1), this%K(:,7), ids, hMax)
     If(N == 0) RETURN ! No constraints reached
-    If(this%lastT < this%t) CALL this%updateDense()
+    If(this%lastT < this%t) CALL ODE45UpdateDense(this)
     dt = this%t - this%t0
     BLOCK
       real(c_double) :: C0(N), C(N), Q(N,7)
       integer :: nIds(N)
       CALL fun%getDerivatives(ids(1:N), this%X0, X, this%K, C0, C, Q)
       Q = dt * Q
-      K = ODE45FindRoot(this%rtoli, this%atoli, Q, C0, C, nIds, h)
+      K = ODE45FindCstrRoot(this%rtoli, this%atoli, Q, C0, C, nIds, h)
       h = dt * h
       ids(1:K) = ids(nIds(1:K))
     END BLOCK
@@ -250,7 +209,7 @@ Contains
  10 info = -1
     WRITE (error_unit, *) "ODE45 findRoot error: h/dt=", (t-this%t0)/dt, " t0=", this%t0, &
       " ids:", ids(1:N), " nIds:", ids(1:K)
-  End Function mlf_ode45_findRoot
+  End Function ODE45FindRoot
 
   Real(c_double) Function FindNewtonRalphson(t0, A0, A, V) &
       Result(th)
@@ -271,7 +230,7 @@ Contains
   ! Find root of the constraints using dense output
   ! CORNER CASE: the case where C0=C(t0)=0 and dC/dt(t0)=Q(:,1)=0 shall be avoided
   ! TODO: handle case when C0 and C have the same sign
-  Integer Function ODE45FindRoot(rtol, atol, Q, C0, C, ids, th) Result(N)
+  Integer Function ODE45FindCstrRoot(rtol, atol, Q, C0, C, ids, th) Result(N)
     real(c_double), intent(in) :: Q(:, :), C0(:), C(:), rtol, atol
     real(c_double), intent(inout) :: th
     integer, intent(out) :: ids(:)
@@ -352,11 +311,12 @@ Contains
         RETURN
       End Select
     End Do
-  End Function ODE45FindRoot
+  End Function ODE45FindCstrRoot
 
-  Subroutine mlf_ode45_updateDense(this)
+  Subroutine ODE45UpdateDense(this)
     class(mlf_ode45_obj), intent(inout) :: this
     real(c_double) :: dt
+    If(.NOT. ALLOCATED(this%Cont)) ALLOCATE(this%Cont(SIZE(this%X),4))
     dt = this%t-this%t0
     ASSOCIATE(A => this%Cont, K => this%K)
       A(:,1) = this%X-this%X0
@@ -365,15 +325,15 @@ Contains
       A(:,4) = dt*matmul(K,DOPRI5_DC)
     END ASSOCIATE
     this%lastT = this%t
-  End Subroutine mlf_ode45_updateDense
+  End Subroutine ODE45UpdateDense
 
   Subroutine mlf_ode45_denseEvaluation(this, t, Y, K)
-    class(mlf_ode45_obj), intent(inout) :: this
+    class(mlf_ode45_obj), intent(inout), target :: this
     real(c_double), intent(in) :: t
-    real(c_double), intent(out) :: Y(:)
-    real(c_double), intent(out), optional :: K(:)
+    real(c_double), intent(out), target :: Y(:)
+    real(c_double), intent(out), optional, target :: K(:)
     real(c_double) :: th, th1
-    If(this%lastT < this%t) CALL this%updateDense()
+    If(this%lastT < this%t) CALL ODE45UpdateDense(this)
     th = (t-this%t0)/(this%lastT-this%t0)
     th1 = (1d0 - th)*th
     ASSOCIATE(X0 => this%X0, A => this%Cont)
@@ -385,7 +345,7 @@ Contains
     END ASSOCIATE
   End Subroutine mlf_ode45_denseEvaluation
 
-  real(c_double) Function mlf_ode45_deltaFun(this, hMax) result(hopt)
+  real(c_double) Function ODE45DeltaFun(this, hMax) result(hopt)
     class(mlf_ode45_obj), intent(inout) :: this
     real(c_double), intent(in) :: hMax
     real(c_double) :: d0, d1, d2, dM, h0, h1, hCstr
@@ -430,10 +390,10 @@ Contains
     Endif
     hopt = min(hopt, hCstr)
     this%lastTheta = hopt
-  End Function mlf_ode45_deltaFun
+  End Function ODE45DeltaFun
 
   ! Dichotomous search of the point where the hard constraints is triggered
-  Real(c_double) Function mlf_ode45_searchHardCstr(this, K, t, hMax) Result(h)
+  Real(c_double) Function ODE45SearchHardCstr(this, K, t, hMax) Result(h)
     class(mlf_ode45_obj), intent(inout), target :: this
     real(c_double), intent(inout) :: K(:,:)
     real(c_double), intent(in) :: t, hMax
@@ -453,14 +413,14 @@ Contains
       Endif
       this%nFun = this%nFun + 1
     End Do
-  End Function mlf_ode45_searchHardCstr
+  End Function ODE45SearchHardCstr
 
   Integer Function mlf_ode45_stepFun(this, niter) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
     integer(kind=8), intent(inout), optional :: niter
     integer(kind=8) :: i, niter0, nHard
     real(c_double) :: h, hMax, err, Xsti(size(this%X))
-    real(c_double) :: alphaH, t
+    real(c_double) :: t
     logical :: lastHard
     i=0; niter0=1; info = 0; nHard = 0
     lastHard = .FALSE.
@@ -474,7 +434,7 @@ Contains
     t = this%t
     this%lastT = -HUGE(this%lastT)
     ASSOCIATE(K => this%K, X0 =>this%X0, X => this%X, fun => this%fun)
-      hMax = MIN(this%hMax, this%tMax-this%t); alphaH = HUGE(alphaH)
+      hMax = MIN(this%hMax, this%tMax-this%t)
       X0 = X
       info = fun%eval(t, X, K(:,1))
       If(info /=0) RETURN
@@ -485,14 +445,14 @@ Contains
       End Select
       Do While(i < niter0)
         this%t0 = t
-        h = this%deltaFun(hMax)
+        h = ODE45DeltaFun(this, hMax)
         If(t+h >= this%tMax) h = this%tMax-t
         If(h<0) RETURN
         info = fun%eval(t+DOPRI5_C(2)*h, X0+h*DOPRI5_A2*K(:,1), K(:,2))
         If(info<0) RETURN; If(info>0) Then
           ! Help to find a path that does not trigger a hard constraint
           this%nFun = this%nFun + 1; nHard = nHard + 1
-          hMax = this%searchHardCstr(K(:,1:2), t, DOPRI5_C(2)*h);
+          hMax = ODE45SearchHardCstr(this, K(:,1:2), t, DOPRI5_C(2)*h);
           lastHard = .TRUE.
           If(hMax < 0) Then
             info = -1; RETURN
@@ -528,7 +488,7 @@ Contains
         If(info<0) RETURN; If(info>0) Then;
           hMax = 0.5*SUM(DOPRI5_C(5:6))*h; CYCLE
         Endif
-        err = this%errorFun(MATMUL(K,DOPRI5_EC), X0, X, h)
+        err = ODE45ErrorFun(this, MATMUL(K,DOPRI5_EC), X0, X, h)
         If(err > 1d0) CYCLE
         ! Update X and t
         t = t + h
@@ -536,7 +496,7 @@ Contains
         ! If an iteration does not trigger a hard constraint -> reinit nHard counter
         If(.NOT. lastHard) nHard = 0
         If(MOD(this%nAccept, this%nStiff) == 0 .OR. this%iStiff > 0) Then
-          If(this%stiffDetect(h, X, Xsti, K(:,7), K(:,6))) Then
+          If(ODE45StiffDetect(this, h, X, Xsti, K(:,7), K(:,6))) Then
             info = mlf_ODE_Stiff
             EXIT
           Endif
@@ -546,7 +506,7 @@ Contains
         ! Check if the constraint is present
         Select Type(fun)
         Class is (mlf_ode_funCstr)
-          info = this%findRoot(fun, t, X, hMax)
+          info = ODE45FindRoot(this, fun, t, X, hMax)
           If(info < 0) RETURN
           this%t = t
           If(info == mlf_ODE_StopTime .OR. info == mlf_ODE_HardCstr) EXIT

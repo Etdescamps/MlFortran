@@ -35,6 +35,7 @@ Module mlf_kmc
   Use mlf_step_algo
   Use mlf_fun_intf
   Use mlf_utils
+  Use mlf_supervised_model
   Use iso_fortran_env
   IMPLICIT NONE
   PRIVATE
@@ -44,7 +45,7 @@ Module mlf_kmc
   
   ! Simple Kinetic Monte-Carlo class, used for comparison with hybrid methods.
   ! It is not the most efficient way to simulate this kind of models.
-  Type, Public, Abstract, Extends(mlf_step_obj) :: mlf_kmc_model
+  Type, Public, Abstract, Extends(mlf_experience_model) :: mlf_kmc_model
     real(c_double), pointer :: t, Rates(:)
   Contains
     procedure (mlf_kmc_apply_action), deferred :: applyAction
@@ -54,7 +55,6 @@ Module mlf_kmc
   End Type mlf_kmc_model
 
   Abstract Interface
-
     Integer Function mlf_kmc_transition_rates(this, Rates)
       Use iso_c_binding
       import :: mlf_kmc_model
@@ -69,7 +69,6 @@ Module mlf_kmc
       real(c_double), intent(in) :: Rate
       integer, intent(in) :: id
     End Function mlf_kmc_apply_action
-
   End Interface
 
 Contains

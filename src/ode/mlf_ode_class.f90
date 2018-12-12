@@ -26,7 +26,7 @@
 ! NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 ! EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Module mlf_ode_model
+Module mlf_ode_class
   Use ieee_arithmetic
   Use iso_c_binding
   Use iso_fortran_env
@@ -36,10 +36,11 @@ Module mlf_ode_model
   Use mlf_step_algo
   Use mlf_fun_intf
   Use mlf_utils
+  Use mlf_supervised_model
   IMPLICIT NONE
   PRIVATE
 
-  Public :: mlf_ode_model_reinitT, mlf_ode_model_init, mlf_ode_model_reinit
+  Public :: mlf_ode_algo_init, mlf_ode_algo_reinit, mlf_init_ode_model
   Type, Public, Abstract, Extends(mlf_step_obj) :: mlf_ode_algo
     real(c_double), pointer :: X0(:), X(:), K(:,:)
     real(c_double), pointer :: t0, t, tMax, hMax
@@ -49,14 +50,54 @@ Module mlf_ode_model
     class(mlf_ode_fun), pointer :: fun
     integer :: nK
   Contains
-    procedure :: reinit => mlf_ode_model_reinit
-    procedure :: denseEvaluation => mlf_ode_model_denseEvaluation
+    procedure :: setFun => mlf_ode_algo_setFun
+    procedure :: reinit => mlf_ode_algo_reinit
+    procedure :: initODE => mlf_ode_algo_initODE
+    procedure :: denseEvaluation => mlf_ode_algo_denseEvaluation
+    procedure(mlf_ode_algo_initHandler), deferred :: initHandler
   End Type mlf_ode_algo
 
+  Type, Public, Abstract, Extends(mlf_experience_model) :: mlf_ode_model
+    class(mlf_ode_algo), pointer :: ode
+  End Type mlf_ode_model
+
+  Abstract Interface
+    Integer Function mlf_ode_algo_initHandler(this, data_handler)
+      import :: mlf_ode_algo, mlf_data_handler
+      class(mlf_ode_algo), intent(inout), target :: this
+      class(mlf_data_handler), intent(inout) :: data_handler
+    End Function mlf_ode_algo_initHandler
+  End Interface
+
 Contains
+  Integer Function mlf_ode_algo_initODE(this, X0, t0, tMax, hMax) Result(info)
+    class(mlf_ode_algo), intent(inout), target :: this
+    real(c_double), intent(in), optional, target :: X0(:)
+    real(c_double), intent(in), optional :: t0, tMax, hMax
+    this%lastT = -HUGE(this%lastT)
+    If(PRESENT(X0)) this%X0 = X0
+    this%X = this%X0
+    If(PRESENT(t0)) Then
+      this%t0 = t0
+    Else
+      this%t0 = 0d0
+    Endif
+    this%t = this%t0
+    If(PRESENT(tMax)) Then
+      this%tMax = tMax
+    Else
+      this%tMax = HUGE(this%tMax)
+    Endif
+    If(PRESENT(hMax)) Then
+      this%hMax = hMax
+    Else
+      this%hMax = HUGE(this%hMax)
+    Endif
+    info = 0
+  End Function mlf_ode_algo_initODE
+
   ! Generic function for dense evaluation that use only X, X0 and their derivatives
   ! More advanced methods (such as ODE45) may rewrite this function more appropriatly
-
   Subroutine DefaultUpdateDense(this)
     class(mlf_ode_algo), intent(inout), target :: this
     real(c_double) :: dt
@@ -70,7 +111,7 @@ Contains
     this%lastT = this%t
   End Subroutine DefaultUpdateDense
 
-  Subroutine mlf_ode_model_denseEvaluation(this, t, Y, K)
+  Subroutine mlf_ode_algo_denseEvaluation(this, t, Y, K)
     class(mlf_ode_algo), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(out), target :: Y(:)
@@ -85,47 +126,36 @@ Contains
         K = A(:,1)+(1-2*th)*A(:,2)+th*(2-3*th)*A(:,3)
       Endif
     END ASSOCIATE
-  End Subroutine mlf_ode_model_denseEvaluation
+  End Subroutine mlf_ode_algo_denseEvaluation
 
-  Integer Function mlf_ode_model_reinit(this) result(info)
+  Integer Function mlf_ode_algo_reinit(this) result(info)
     class(mlf_ode_algo), intent(inout), target :: this
     info = mlf_step_obj_reinit(this)
     this%nFun = 0
     this%hMax = HUGE(this%hMax); this%tMax = HUGE(this%tMax)
     this%X0 = 0; this%X = 0; this%t0 = 0; this%t = 0
     this%lastT = -HUGE(this%lastT)
-  End Function mlf_ode_model_reinit
+  End Function mlf_ode_algo_reinit
 
-  Integer Function mlf_ode_model_reinitT(this, X0, t0, tMax, hMax) Result(info)
+  Subroutine mlf_ode_algo_setFun(this, fun)
     class(mlf_ode_algo), intent(inout), target :: this
-    real(c_double), intent(in), optional :: X0(:), t0, hMax, tMax
-    If(PRESENT(X0)) Then
-      this%X0 = X0
-      this%X = X0
-    Endif
-    If(PRESENT(t0)) Then
-      this%t0 = t0
-      this%t = t0
-    Endif
-    If(PRESENT(hMax)) this%hMax = hMax
-    If(PRESENT(tMax)) this%tMax = tMax
-    info = 0
-  End Function mlf_ode_model_reinitT
+    class(mlf_ode_fun), intent(inout), target :: fun
+    this%fun => fun
+  End Subroutine mlf_ode_algo_setFun
 
-  Integer Function mlf_ode_model_init(this, numFields, nK, fun, X0, data_handler) &
+  Integer Function mlf_ode_algo_init(this, numFields, nK, nX, data_handler) &
       Result(info)
     class(mlf_ode_algo), intent(inout), target :: this
     class(mlf_step_numFields), intent(inout) :: numFields
-    class(mlf_ode_fun), intent(inout), target :: fun
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    real(c_double), intent(in), optional :: X0(:)
     integer, intent(in), optional :: nK
+    integer(c_int64_t), intent(in), optional :: nX
     integer(c_int64_t) :: N, nK2(2)
     CALL numFields%addFields(nRPar = 2, nRsc = 3, nIVar = 1, nRVar = 2)
     info = mlf_step_obj_init(this, numFields, data_handler)
     If(info < 0) RETURN
-    this%fun => fun; N = -1; nK2 = -1
-    If(PRESENT(X0)) N = size(X0)
+    N = -1; nK2 = -1
+    If(PRESENT(nX)) N = nX
     info = this%add_rarray(numFields, N, this%X0, C_CHAR_"X0", data_handler = data_handler)
     If(info < 0) RETURN
     info = this%add_rarray(numFields, N, this%X, C_CHAR_"X", data_handler = data_handler)
@@ -142,8 +172,27 @@ Contains
     ! Real variables
     CALL this%addRVar(numFields, this%t, "t")
     CALL this%addRVar(numFields, this%t0, "t0")
-  End Function mlf_ode_model_init
+  End Function mlf_ode_algo_init
 
+  Integer Function mlf_init_ode_model(this, numFields, ode, data_handler) Result(info)
+    class(mlf_ode_model), intent(inout), target :: this
+    class(mlf_step_numFields), intent(inout) :: numFields
+    class(mlf_ode_algo), pointer, intent(inout) :: ode
+    class(mlf_data_handler), intent(inout), optional :: data_handler
+    class(mlf_obj), pointer :: obj
+    info = -1
+    If(.NOT. ASSOCIATED(ode)) RETURN
+    info = mlf_step_obj_init(this, numFields, data_handler)
+    If(info<0) RETURN
+    obj => ode
+    If(PRESENT(data_handler)) Then
+      info = ode%initHandler(data_handler%getSubObject(C_CHAR_"ode"))
+      If(info < 0) RETURN
+    Endif
+    CALL this%add_subobject(C_CHAR_"ode", obj)
+    this%ode => ode
+    ode => NULL()
+  End Function mlf_init_ode_model
 
-End Module mlf_ode_model
+End Module mlf_ode_class
 

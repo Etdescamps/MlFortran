@@ -32,6 +32,7 @@ Program test_kmc
   Use test_kmc_model
   Use mlf_hdf5
   Use mlf_ode45
+  Use mlf_ode_class
   Use mlf_step_algo
   Use mlf_fun_intf
   Use mlf_intf
@@ -58,7 +59,9 @@ Contains
     integer, parameter :: NStepMax = 100000
     integer :: i
     fun%Alpha = Alpha; fun%Beta = Beta
-    info = ode%init(fun, CIndiv, atoli = 1d-6, rtoli = 1d-6)
+    info = ode%init(nX = 3_8, atoli = 1d-6, rtoli = 1d-6)
+    CALL ode%setFun(fun)
+    info = ode%initODE(X0 = CIndiv)
     ALLOCATE(points(4, NStepMax))
     Do i = 1,NStepMax
       info = ode%step()
@@ -76,12 +79,23 @@ Contains
     real(c_double), intent(in) :: Alpha, Beta, Volume
     real(c_double), intent(in) :: CIndiv(3)
     integer(c_int64_t) :: NIndiv(3)
+    type(test_kmc_parameters) :: p
+    type(test_kmc_experiment) :: modelExp
     type(kmc_model) :: model
     integer(8) :: i, N
     real(c_double), allocatable :: points(:,:)
-    NIndiv = INT(CIndiv*Volume, KIND=8)
-    info = model%init(Alpha, Beta, Volume, NIndiv)
-    N = SUM(NIndiv)*2
+    info = model%init()
+    If(info < 0) RETURN
+    p%Volume = Volume
+    info = p%set([Alpha, Beta])
+    info = model%setParameters(p)
+    If(info < 0) RETURN
+    modelExp%cS = CIndiv(1)
+    modelExp%cI = CIndiv(2)
+    modelExp%cR = CIndiv(3)
+    info = model%setExperiment(modelExp)
+    If(info < 0) RETURN
+    N = Int(Volume*10, KIND = 8)
     ALLOCATE(points(6, N))
     Do i = 1,N
       info = model%step()

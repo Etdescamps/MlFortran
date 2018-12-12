@@ -36,7 +36,7 @@ Module mlf_ode45
   Use mlf_step_algo
   Use mlf_fun_intf
   Use mlf_utils
-  Use mlf_ode_model
+  Use mlf_ode_class
   IMPLICIT NONE
   PRIVATE
 
@@ -75,6 +75,7 @@ Module mlf_ode45
     procedure :: denseEvaluation => mlf_ode45_denseEvaluation
     procedure :: stepF => mlf_ode45_stepFun
     procedure :: init => mlf_ode45_init
+    procedure :: initHandler => mlf_ode45_initHandler
   End Type mlf_ode45_obj
 
   Integer, Parameter, Public :: mlf_ODE_FunError = -1, mlf_ODE_Stiff = -2 
@@ -82,7 +83,7 @@ Module mlf_ode45
 Contains
   Integer Function mlf_ode45_reinit(this) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
-    info = mlf_ode_model_reinit(this)
+    info = mlf_ode_algo_reinit(this)
     this%nAccept = 0; this%nReject = 0
     this%lastErr = -1d0; this%lastTheta = -1d0
     this%facMin = 0.2d0; this%facMax = 10d0
@@ -90,14 +91,12 @@ Contains
     this%nStiff = 1000_8; this%nonStiff = 0; this%iStiff = 0
   End Function mlf_ode45_reinit
 
-  Integer Function mlf_ode45_reinitT(this, X0, t0, tMax, atoli, rtoli, fac, &
-      facMin, facMax, hMax, nStiff) Result(info)
+  Integer Function mlf_ode45_reinitT(this, atoli, rtoli, fac, facMin, facMax, &
+      nStiff) Result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
-    real(c_double), intent(in), optional :: X0(:), t0, atoli, rtoli, fac, &
-      facMin, facMax, hMax, tMax
+    real(c_double), intent(in), optional :: atoli, rtoli, fac, facMin, facMax
     integer(c_int64_t), intent(in), optional :: nStiff
     info = this%reinit()
-    info = mlf_ode_model_reinitT(this, X0, t0, tMax, hMax)
     If(PRESENT(atoli)) this%atoli = atoli
     If(PRESENT(rtoli)) this%rtoli = rtoli
     If(PRESENT(fac)) this%fac = fac
@@ -106,17 +105,21 @@ Contains
     If(PRESENT(nStiff)) this%nStiff = nStiff
   End Function mlf_ode45_reinitT
 
-  Integer Function mlf_ode45_init(this, fun, X0, t0, tMax, atoli, rtoli, fac, &
-      facMin, facMax, hMax, nStiff, data_handler) result(info)
+  Integer Function mlf_ode45_initHandler(this, data_handler) result(info)
     class(mlf_ode45_obj), intent(inout), target :: this
-    class(mlf_ode_fun), intent(inout), target :: fun
+    class(mlf_data_handler), intent(inout) :: data_handler
+    info = mlf_ode45_init(this, data_handler = data_handler)
+  End Function mlf_ode45_initHandler
+ 
+  Integer Function mlf_ode45_init(this, nX, atoli, rtoli, fac, &
+      facMin, facMax, nStiff, data_handler) result(info)
+    class(mlf_ode45_obj), intent(inout), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    real(c_double), intent(in), optional :: X0(:), t0, tMax, atoli, rtoli
-    real(c_double), intent(in), optional :: fac, facMin, facMax, hMax
-    integer(c_int64_t), intent(in), optional :: nStiff
+    real(c_double), intent(in), optional :: atoli, rtoli, fac, facMin, facMax
+    integer(c_int64_t), intent(in), optional :: nX, nStiff
     type(mlf_step_numFields) :: numFields
     CALL numFields%initFields(nIPar = 1, nRPar = 5, nRVar = 2)
-    info = mlf_ode_model_init(this, numFields, 7, fun, X0, data_handler)
+    info = mlf_ode_algo_init(this, numFields, 7, nX, data_handler)
     If(info < 0) RETURN
     ! Integer parameters
     CALL this%addIPar(numFields, this%nStiff, "nStiff")
@@ -127,11 +130,12 @@ Contains
     CALL this%addRPar(numFields, this%fac, "fac")
     CALL this%addRPar(numFields, this%facMin, "facMin")
     CALL this%addRPar(numFields, this%facMax, "facMax")
+
     ! Real variables
     CALL this%addRVar(numFields, this%lastErr, "lastErr")
     CALL this%addRVar(numFields, this%lastTheta, "lastTheta")
     If(.NOT. PRESENT(data_handler)) Then
-      info = this%reinitT(X0, t0, tMax, atoli, rtoli, fac, facMin, facMax, hMax, nStiff)
+      info = this%reinitT(atoli, rtoli, fac, facMin, facMax, nStiff)
     Endif
   End Function mlf_ode45_init
 

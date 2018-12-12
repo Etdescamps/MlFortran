@@ -38,31 +38,35 @@ Program test_cstr_kmc
   Use mlf_intf
   integer :: info
   type(mlf_hdf5_file) :: h5f
-  real(c_double) :: P(5), CIndiv(5)
+  real(c_double) :: P(5)
+  type(test_cstr_kmc_experiment) :: modelExp
   P = [1d0, 10d0, 5d0, 1d0, 1d0]
-  CIndiv = [0d0, 0d0, 10d0, 0d0, 1d0]
+  modelExp = test_cstr_kmc_experiment(0d0, 0d0, 10d0, 0d0, 1d0)
   info = mlf_init()
   info = h5f%createFile("kmc_cstr.h5")
-  info = eval(h5f, "r1000", P, 1000d0, CIndiv)
-  info = eval(h5f, "r5000", P, 5000d0, CIndiv)
-  info = eval(h5f, "r20000", P, 20000d0, CIndiv)
-  info = eval(h5f, "r200000", P, 200000d0, CIndiv)
+  info = eval(h5f, "r1000", P, 1000d0, modelExp)
+  info = eval(h5f, "r5000", P, 5000d0, modelExp)
+  info = eval(h5f, "r20000", P, 20000d0, modelExp)
+  info = eval(h5f, "r200000", P, 200000d0, modelExp)
   CALL h5f%finalize()
   info = mlf_quit()
 Contains
-  Integer Function eval(h5f, rname, Param, Volume, CIndiv) Result(info)
+  Integer Function eval(h5f, rname, Param, Volume, modelExp) Result(info)
     class(mlf_hdf5_file), intent(inout) :: h5f
     character(len=*), intent(in) :: rname
     real(c_double), intent(in) :: Param(5), Volume
-    real(c_double), intent(in) :: CIndiv(5)
+    type(test_cstr_kmc_experiment), intent(in) :: modelExp
     integer(c_int64_t) :: NIndiv(2)
     type(model_cstr_kmc) :: model
+    type(test_cstr_kmc_parameters) :: p
     integer(8) :: i, N
     real(c_double), allocatable :: points(:,:)
-    NIndiv = INT(CIndiv(1:2)*Volume, KIND=8)
-    info = model%init(CIndiv(3:5), NIndiv, Volume, &
-      Param(1), Param(2), Param(3), Param(4), Param(5))
-    N = 10*INT(Volume)
+    p%Volume = Volume
+    info = p%set(Param)
+    info = model%init()
+    info = model%setParameters(p)
+    info = model%setExperiment(modelExp)
+    N = INT(10*Volume, KIND = 8)
     ALLOCATE(points(7, N))
     Do i = 1,N
       info = model%step()

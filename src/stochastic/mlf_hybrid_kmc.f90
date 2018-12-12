@@ -35,8 +35,9 @@ Module mlf_hybrid_kmc
   Use mlf_step_algo
   Use mlf_fun_intf
   Use mlf_utils
-  Use mlf_ode45
   Use mlf_errors
+  Use mlf_supervised_model
+  Use mlf_ode_class
   Use iso_fortran_env
   IMPLICIT NONE
   PRIVATE
@@ -48,8 +49,7 @@ Module mlf_hybrid_kmc
     procedure(mlf_hybrid_odeFun_setModel), deferred :: setModel 
   End Type mlf_hybrid_odeFun
 
-  Type, Public, Abstract, Extends(mlf_step_obj) :: mlf_hybrid_kmc_model
-    class(mlf_ode45_obj), pointer :: ode
+  Type, Public, Abstract, Extends(mlf_ode_model) :: mlf_hybrid_kmc_model
     real(c_double), pointer :: Rates(:)
     real(c_double) :: kmc_alpha, lastTNext
   Contains
@@ -57,6 +57,7 @@ Module mlf_hybrid_kmc
     procedure(mlf_hybrid_kmc_transition_rates), deferred :: funTransitionRates
     procedure(mlf_kmc_evalOde), deferred :: evalOde
     procedure :: stepF => mlf_hybrid_kmc_stepFun
+    procedure :: initModel => mlf_hybrid_kmc_initModel
   End Type mlf_hybrid_kmc_model
 
   Type, Public, Abstract, Extends(mlf_hybrid_kmc_model) :: mlf_hybrid_kmc_cstrModel
@@ -191,16 +192,14 @@ Contains
     End Select
   End Function mlf_kmc_h_ode_setModel
 
-  Integer Function mlf_hybrid_kmc_h_init(this, numFields, fun, numCstr, nActions, X0, &
-      t0, tMax, atoli, rtoli, fac, facMin, facMax, hMax, nStiff, data_handler) Result(info)
+  Integer Function mlf_hybrid_kmc_h_init(this, numFields, ode, fun, numCstr, &
+      nActions, data_handler) Result(info)
     class(mlf_hybrid_kmc_cstrModel), intent(inout), target :: this
     class(mlf_step_numFields), intent(inout) :: numFields
+    class(mlf_ode_algo), pointer, intent(inout) :: ode
     class(mlf_kmc_constrModel), intent(inout), target, optional :: fun
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    real(c_double), intent(in), optional :: X0(:), t0, tMax, atoli, rtoli
-    real(c_double), intent(in), optional :: fac, facMin, facMax, hMax
-    integer(c_int64_t), intent(in), optional :: nStiff
-    integer, intent(in), optional :: NActions, numCstr
+    integer, intent(in), optional :: nActions, numCstr
     class(mlf_kmc_constrModel), pointer :: funSelected
     class(mlf_obj), pointer :: obj
     If(PRESENT(fun)) Then
@@ -211,34 +210,36 @@ Contains
       funSelected%NCstr = 1 + numCstr
       CALL this%add_subobject(C_CHAR_"odeFun", obj)
     Endif
-    info = mlf_hybrid_kmc_init(this, numFields, funSelected, nActions, X0, &
-      t0, tMax, atoli, rtoli, fac, facMin, facMax, hMax, nStiff, data_handler)
+    info = mlf_hybrid_kmc_init(this, numFields, ode, funSelected, nActions, &
+      data_handler)
   End Function mlf_hybrid_kmc_h_init
 
-  Integer Function mlf_hybrid_kmc_init(this, numFields, fun, nActions, X0, t0, tMax, &
-      atoli, rtoli, fac, facMin, facMax, hMax, nStiff, data_handler) Result(info)
+  Integer Function mlf_hybrid_kmc_initModel(this, X0, t0, tMax, hMax) Result(info)
+    class(mlf_hybrid_kmc_model), intent(inout), target :: this
+    real(c_double), intent(in), target :: X0(:)
+    real(c_double), intent(in), optional :: t0, tMax, hMax
+    real(c_double) :: r
+ 20 CALL RANDOM_NUMBER(r)
+    If(r == 0) GOTO 20
+    this%ode%X0(1) = -LOG(r)
+    this%ode%X0(2:) = X0
+    info = this%ode%initODE(t0 = t0, tMax = tMax, hMax = hMax)
+  End Function mlf_hybrid_kmc_initModel
+
+  Integer Function mlf_hybrid_kmc_init(this, numFields, ode, fun, nActions, &
+      data_handler) Result(info)
     class(mlf_hybrid_kmc_model), intent(inout), target :: this
     class(mlf_step_numFields), intent(inout) :: numFields
+    class(mlf_ode_algo), pointer, intent(inout) :: ode
     class(mlf_hybrid_odeFun), intent(inout), target, optional :: fun
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    real(c_double), intent(in), optional :: X0(:), t0, tMax, atoli, rtoli
-    real(c_double), intent(in), optional :: fac, facMin, facMax, hMax
-    integer(c_int64_t), intent(in), optional :: nStiff
-    integer, intent(in), optional :: NActions
-    type(mlf_ode45_obj), pointer :: ode
+    integer, intent(in), optional :: nActions
     class(mlf_hybrid_odeFun), pointer :: funSelected
     class(mlf_obj), pointer :: obj
-    real(c_double), allocatable :: X(:)
-    real(c_double) :: r
     integer(8) :: N
     CALL numFields%addFields(nRsc = 1)
-    info = mlf_step_obj_init(this, numFields, data_handler)
+    info = mlf_init_ode_model(this, numFields, ode, data_handler)
     If(info<0) RETURN
-    ! Allocate the ODE solver and link it to the object
-    ALLOCATE(ode)
-    obj => ode
-    CALL this%add_subobject(C_CHAR_"ode", obj)
-    this%ode => ode
     If(PRESENT(fun)) Then
       funSelected => fun
     Else
@@ -246,30 +247,7 @@ Contains
       obj => funSelected
       CALL this%add_subobject(C_CHAR_"odeFun", obj)
     Endif
-    If(PRESENT(X0)) Then
-      ALLOCATE(X(SIZE(X0)+1))
-      X(2:) = X0
-  20  CALL RANDOM_NUMBER(r)
-      If(r == 0) GOTO 20
-      X(1) = -LOG(r)
-      If(PRESENT(data_handler)) Then
-        info = ode%init(funSelected, X, t0, tMax, atoli, rtoli, fac, facMin, &
-          facMax, hMax, nStiff, data_handler%getSubObject(C_CHAR_"ode"))
-      Else
-        info = ode%init(funSelected, X, t0, tMax, atoli, rtoli, fac, facMin, &
-          facMax, hMax, nStiff)
-      Endif
-    Else
-      If(PRESENT(data_handler)) Then
-        info = ode%init(funSelected, X0, t0, tMax, atoli, rtoli, fac, facMin, &
-          facMax, hMax, nStiff, data_handler%getSubObject(C_CHAR_"ode"))
-      Else
-        info = -1
-        WRITE (error_unit, *) "mlf_hybrid_kmc_init: No X0 nor handler provided"
-        RETURN
-      Endif
-    Endif
-    If(info < 0) GOTO 10
+    CALL this%ode%setFun(funSelected)
     If(PRESENT(NActions)) N = NActions
     info = this%add_rarray(numFields, N, this%Rates, C_CHAR_"Rates", &
       data_handler = data_handler)
@@ -278,7 +256,12 @@ Contains
       info = this%reinit()
       If(info < 0) GOTO 10
     Endif
-    info = funSelected%setModel(this)
+    Select Type(funSelected)
+    Class is (mlf_hybrid_odeFun)
+      info = funSelected%setModel(this)
+    Class Default
+      info = -1
+    End Select
     If(info < 0) GOTO 10
     this%kmc_alpha = 1.5
     this%lastTNext = ieee_value(this%lastTNext, ieee_quiet_nan)

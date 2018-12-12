@@ -36,9 +36,25 @@ Module test_cstr_kmc_model
   Use mlf_fun_intf
   Use mlf_utils
   Use mlf_hybrid_kmc
+  Use mlf_supervised_model
+  Use mlf_ode45
+  Use mlf_ode_class
   Use iso_fortran_env
   IMPLICIT NONE
   PRIVATE
+
+  Type, Public, Extends(mlf_model_real_parameters) :: test_cstr_kmc_parameters
+    real(c_double) :: Alpha, Beta, Delta, Kappa, Zeta, Volume
+  Contains
+    procedure :: set => test_cstr_kmc_parameters_set
+    procedure :: getNParameters => test_cstr_kmc_parameters_getNParameters
+  End Type test_cstr_kmc_parameters
+
+  Type, Public, Extends(mlf_model_experiment) :: test_cstr_kmc_experiment
+    real(c_double) :: a, b, c, d ! Element concentration
+    real(c_double) :: T
+  End Type test_cstr_kmc_experiment
+
 
   ! Values: X -> [c, d, T]
   ! T (with constaint T > 0) -> when T == 0 create A + increase T (beta/Volume)
@@ -51,6 +67,8 @@ Module test_cstr_kmc_model
     real(c_double), pointer :: Alpha, Beta, Delta, Kappa, Zeta, Volume
   Contains
     procedure :: init => test_hybrid_init
+    procedure :: setExperiment => test_setExperiment
+    procedure :: setParameters => test_setParameters
     procedure :: applyAction => test_applyAction
     procedure :: funTransitionRates => test_funTransitionRates
     procedure :: evalOde => test_evalOde
@@ -60,36 +78,86 @@ Module test_cstr_kmc_model
     procedure :: m_getDerivatives => test_getDerivatives
   End Type model_cstr_kmc
 Contains
-  Integer Function test_hybrid_init(this, X0, NIndiv, Volume, &
-      Alpha, Beta, Delta, Kappa, Zeta, data_handler) Result(info)
+  Integer(8) Function test_cstr_kmc_parameters_getNParameters(this) Result(N)
+    class(test_cstr_kmc_parameters), intent(inout), target :: this
+    N = 5
+  End Function test_cstr_kmc_parameters_getNParameters
+
+  Integer Function test_cstr_kmc_parameters_set(this, X) Result(info)
+    class(test_cstr_kmc_parameters), intent(inout), target :: this
+    real(c_double), intent(in) :: X(:)
+    this%Alpha = X(1)
+    this%Beta  = X(2)
+    this%Delta = X(3)
+    this%Kappa = X(4)
+    this%Zeta  = X(5)
+    info = 0
+  End Function test_cstr_kmc_parameters_set
+
+  Integer Function test_setExperiment(this, experiment) Result(info)
     class(model_cstr_kmc), intent(inout), target :: this
-    real(c_double), intent(in), optional :: X0(:), Volume, Alpha, Beta, &
-      Delta, Kappa, Zeta
-    integer(c_int64_t), intent(in), optional :: NIndiv(:)
+    class(mlf_model_experiment), intent(in) :: experiment
+    real(c_double) :: X0(3)
+    Select Type(experiment)
+    Class is (test_cstr_kmc_experiment)
+      this%NIndiv(1) = INT(experiment%a*this%Volume, KIND=8)
+      this%NIndiv(2) = INT(experiment%b*this%Volume, KIND=8)
+      X0(1) = experiment%c
+      X0(2) = experiment%d
+      X0(3) = experiment%T
+      info = this%initModel(X0)
+    Class Default
+      info = -1
+    End Select
+  End Function test_setExperiment
+
+  Integer Function test_setParameters(this, param) Result(info)
+    class(model_cstr_kmc), intent(inout), target :: this
+    class(mlf_model_parameters), intent(in) :: param
+    Select Type(param)
+    Class is (test_cstr_kmc_parameters)
+      this%Volume = param%Volume
+      this%Alpha  = param%Alpha
+      this%Beta   = param%Beta
+      this%Delta  = param%Delta
+      this%Kappa  = param%Kappa
+      this%Zeta   = param%Zeta
+      info = 0
+    Class Default
+      info = -1
+    End Select
+  End Function test_setParameters
+
+
+  Integer Function test_hybrid_init(this, data_handler) Result(info)
+    class(model_cstr_kmc), intent(inout), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
     type(mlf_step_numFields) :: numFields
+    class(mlf_ode_algo), pointer :: ode
     integer(c_int64_t) :: NCat
     CALL numFields%initFields(nRPar = 6, nRsc = 1)
-    info = mlf_hybrid_kmc_h_init(this, numFields, numCstr = 1, NActions = 2, &
-      X0 = X0, atoli = 1d-9, rtoli = 1d-7, data_handler = data_handler)
+    If(info < 0) RETURN
+    ALLOCATE(mlf_ode45_obj :: ode)
+    If(.NOT. PRESENT(data_handler)) Then
+      Select Type(ode)
+      Class is (mlf_ode45_obj)
+        info = ode%init(4_8, atoli = 1d-6, rtoli = 1d-6)
+        If(info < 0) RETURN
+      End Select
+    Endif
+    info = mlf_hybrid_kmc_h_init(this, numFields, ode, &
+      numCstr = 1, NActions = 1, data_handler = data_handler)
     If(info < 0) RETURN
     NCat = 2
     info = this%add_i64array(numFields, NCat, this%NIndiv, C_CHAR_"NIndiv", &
       data_handler = data_handler)
     If(info < 0) RETURN
-    If(PRESENT(NIndiv)) this%NIndiv = NIndiv
     CALL this%addRPar(numFields, this%Alpha, "Alpha")
     CALL this%addRPar(numFields, this%Beta, "Beta")
     CALL this%addRPar(numFields, this%Delta, "Delta")
     CALL this%addRPar(numFields, this%Kappa, "Kappa")
     CALL this%addRPar(numFields, this%Zeta, "Zeta")
     CALL this%addRPar(numFields, this%Volume, "Volume")
-    If(PRESENT(Alpha)) this%Alpha = Alpha
-    If(PRESENT(Beta)) this%Beta = Beta
-    If(PRESENT(Delta)) this%Delta = Delta
-    If(PRESENT(Kappa)) this%Kappa = Kappa
-    If(PRESENT(Zeta)) this%Zeta = Zeta
-    If(PRESENT(Volume)) this%Volume = Volume
   End Function test_hybrid_init
 
   Integer Function test_funTransitionRates(this, t, X, F, Rates) Result(N)

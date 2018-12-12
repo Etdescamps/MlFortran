@@ -1,4 +1,4 @@
-! Copyright (c) 2017-2018 Etienne Descamps
+! Copyright (c) 2018 Etienne Descamps
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without modification,
@@ -47,7 +47,7 @@ Module mlf_supervised_model
   Contains
     procedure(mlf_real_get_nparameters), deferred :: getNParameters
     procedure(mlf_real_parameters_set), deferred :: set
-  End Type
+  End Type mlf_model_real_parameters
 
   Type, Public :: mlf_model_experiment
   End Type mlf_model_experiment

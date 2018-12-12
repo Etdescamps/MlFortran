@@ -7,6 +7,7 @@ Program test_ode45
   Use mlf_step_algo
   Use mlf_fun_intf
   Use mlf_utils
+  Use mlf_ode_class
   Use mlf_ode45
   Use mlf_hdf5
   Use test_functions
@@ -27,8 +28,10 @@ Contains
     ALLOCATE(trajectory(4, Npoints), steps(4, N))
     info = h5f%createFile("arenstorf.h5")
     CALL fun%init(FArenstorf, RESHAPE([1d0,0d0,0d0,0d0], [4,1]))
-    !call fun%init(FArenstorf, [1])
-    info = ode%init(fun, X0Arenstorf, tMax = TEndArenstorf, atoli = 1d-6, rtoli = 1d-6)
+    info = ode%init(nX = 4_8, atoli = 1d-6, rtoli = 1d-6)
+    If(info < 0) RETURN
+    CALL ode%setFun(fun)
+    info = ode%initODE(X0Arenstorf, tMax = TEndArenstorf)
     If(info < 0) RETURN
     j = 1
     PRINT *, ode%t0, ode%X0

@@ -38,31 +38,35 @@ Program test_hybrid_kmc
   Use mlf_intf
   integer :: info
   type(mlf_hdf5_file) :: h5f
-  real(c_double) :: P(4), CIndiv(4)
+  real(c_double) :: P(4)
+  type(test_hybrid_kmc_experiment) :: modelExp
   P = [1d0, 1d0, 100d0, 100d0]
-  CIndiv = [0.001d0, 0d0, 0d0, 10d0]
+  modelExp = test_hybrid_kmc_experiment(0.001d0, 0d0, 0d0, 10d0)
   info = mlf_init()
   info = h5f%createFile("kmc_hybrid.h5")
-  info = eval(h5f, "r200000", P, 200000d0, CIndiv)
-  info = eval(h5f, "r20000", P, 20000d0, CIndiv)
-  info = eval(h5f, "r5000", P, 5000d0, CIndiv)
-  info = eval(h5f, "r1000", P, 1000d0, CIndiv)
+  info = eval(h5f, "r200000", P, 200000d0, modelExp)
+  info = eval(h5f, "r20000", P, 20000d0, modelExp)
+  info = eval(h5f, "r5000", P, 5000d0, modelExp)
+  info = eval(h5f, "r1000", P, 1000d0, modelExp)
   CALL h5f%finalize()
   info = mlf_quit()
 Contains
-  Integer Function eval(h5f, rname, Param, Volume, CIndiv) Result(info)
+  Integer Function eval(h5f, rname, Param, Volume, modelExp) Result(info)
     class(mlf_hdf5_file), intent(inout) :: h5f
     character(len=*), intent(in) :: rname
     real(c_double), intent(in) :: Param(4), Volume
-    real(c_double), intent(in) :: CIndiv(4)
+    type(test_hybrid_kmc_experiment), intent(in) :: modelExp
     integer(c_int64_t) :: NIndiv(2)
     type(model_hybrid_kmc) :: model
+    type(test_hybrid_kmc_parameters) :: p
     integer(8) :: i, N
     real(c_double), allocatable :: points(:,:)
-    NIndiv = INT(CIndiv(1:2)*Volume, KIND=8)
-    info = model%init(CIndiv(3:4), NIndiv, Volume, &
-      Param(1), Param(2), Param(3), Param(4))
-    N = 100*SUM(NIndiv)
+    p%Volume = Volume
+    info = p%set(Param)
+    info = model%init()
+    info = model%setParameters(p)
+    info = model%setExperiment(modelExp)
+    N = INT(Volume, KIND = 8)
     ALLOCATE(points(5, N))
     Do i = 1,N
       info = model%step()

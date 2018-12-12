@@ -36,9 +36,21 @@ Module test_kmc_model
   Use mlf_fun_intf
   Use mlf_utils
   Use mlf_kmc
+  Use mlf_supervised_model
   Use iso_fortran_env
   IMPLICIT NONE
   PRIVATE
+
+  Type, Public, Extends(mlf_model_real_parameters) :: test_kmc_parameters
+    real(c_double) :: Alpha, Beta, Volume
+  Contains
+    procedure :: set => test_kmc_parameters_set
+    procedure :: getNParameters => test_kmc_parameters_getNParameters
+  End Type test_kmc_parameters
+
+  Type, Public, Extends(mlf_model_experiment) :: test_kmc_experiment
+    real(c_double) :: cS, cI, cR 
+  End Type test_kmc_experiment
 
   Type, Public, Extends(mlf_ode_fun) :: kmc_ode
     real(c_double) :: Alpha, Beta
@@ -52,10 +64,24 @@ Module test_kmc_model
   Contains
     procedure :: applyAction => kmc_applyAction
     procedure :: funTransitionRates => kmc_funTransitionRates
+    procedure :: setExperiment => test_setExperiment
+    procedure :: setParameters => test_setParameters
     procedure :: init => kmc_init
   End Type kmc_model
-
 Contains
+  Integer(8) Function test_kmc_parameters_getNParameters(this) Result(N)
+    class(test_kmc_parameters), intent(inout), target :: this
+    N = 2
+  End Function test_kmc_parameters_getNParameters
+
+  Integer Function test_kmc_parameters_set(this, X) Result(info)
+    class(test_kmc_parameters), intent(inout), target :: this
+    real(c_double), intent(in) :: X(:)
+    this%Alpha = X(1)
+    this%Beta  = X(2)
+    info = 0
+  End Function test_kmc_parameters_set
+
   Integer Function kmc_ode_fun(this, t, X, F) Result(info)
     class(kmc_ode), intent(inout), target :: this
     real(c_double), intent(in) :: t
@@ -70,11 +96,36 @@ Contains
       If(cI == 0) info = mlf_ODE_StopTime
     END ASSOCIATE
   End Function kmc_ode_fun
-
-  Integer Function kmc_init(this, Alpha, Beta, Volume, NIndiv, data_handler) Result(info)
+  
+  Integer Function test_setExperiment(this, experiment) Result(info)
     class(kmc_model), intent(inout), target :: this
-    real(c_double), intent(in), optional :: Alpha, Beta, Volume
-    integer(c_int64_t), intent(in), optional :: NIndiv(3)
+    class(mlf_model_experiment), intent(in) :: experiment
+    Select Type(experiment)
+    Class is (test_kmc_experiment)
+      this%NIndiv(1) = INT(experiment%cS*this%Volume, KIND=8)
+      this%NIndiv(2) = INT(experiment%cI*this%Volume, KIND=8)
+      this%NIndiv(3) = INT(experiment%cR*this%Volume, KIND=8)
+    Class Default
+      info = -1
+    End Select
+  End Function test_setExperiment
+
+  Integer Function test_setParameters(this, param) Result(info)
+    class(kmc_model), intent(inout), target :: this
+    class(mlf_model_parameters), intent(in) :: param
+    Select Type(param)
+    Class is (test_kmc_parameters)
+      this%Volume = param%Volume
+      this%Alpha  = param%Alpha
+      this%Beta   = param%Beta
+      info = 0
+    Class Default
+      info = -1
+    End Select
+  End Function test_setParameters
+
+  Integer Function kmc_init(this, data_handler) Result(info)
+    class(kmc_model), intent(inout), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
     type(mlf_step_numFields) :: numFields
     integer(c_int64_t) :: NCat
@@ -85,13 +136,9 @@ Contains
     info = this%add_i64array(numFields, NCat, this%NIndiv, C_CHAR_"NIndiv", &
       data_handler = data_handler)
     If(info < 0) RETURN
-    If(PRESENT(NIndiv)) this%NIndiv = NIndiv
     CALL this%addRPar(numFields, this%Alpha, "Alpha")
     CALL this%addRPar(numFields, this%Beta, "Beta")
     CALL this%addRPar(numFields, this%Volume, "Volume")
-    If(PRESENT(Alpha)) this%Alpha = Alpha
-    If(PRESENT(Beta)) this%Beta = Beta
-    If(PRESENT(Volume)) this%Volume = Volume
   End Function kmc_init
 
   Integer Function kmc_funTransitionRates(this, Rates) Result(N)

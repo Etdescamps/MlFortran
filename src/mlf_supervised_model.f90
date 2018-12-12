@@ -62,8 +62,7 @@ Module mlf_supervised_model
 
   Type, Public, Abstract, Extends(mlf_step_obj) :: mlf_experience_model
   Contains
-    procedure(mlf_model_setExperiment), deferred :: setExperiment
-    procedure(mlf_model_setParameters), deferred :: setParameters
+    procedure(mlf_model_setupModel), deferred :: setupModel
     procedure :: getResults => mlf_experience_dummy_results
   End Type mlf_experience_model
 
@@ -123,17 +122,13 @@ Module mlf_supervised_model
       real(c_double), intent(in) :: X(:)
     End Function mlf_real_parameters_set
 
-    Integer Function mlf_model_setExperiment(this, experiment)
-      import :: mlf_experience_model, mlf_model_experiment
-      class(mlf_experience_model), intent(inout), target :: this
-      class(mlf_model_experiment), intent(in) :: experiment
-    End Function mlf_model_setExperiment
-
-    Integer Function mlf_model_setParameters(this, param)
-      import :: mlf_experience_model, mlf_model_parameters
+    Integer Function mlf_model_setupModel(this, param, experiment)
+      import :: mlf_experience_model, mlf_model_experiment, mlf_model_parameters
       class(mlf_experience_model), intent(inout), target :: this
       class(mlf_model_parameters), intent(in) :: param
-    End Function mlf_model_setParameters
+      class(mlf_model_experiment), intent(in) :: experiment
+    End Function mlf_model_setupModel
+
   End Interface
 
 Contains
@@ -154,9 +149,7 @@ Contains
     If(info < 0) RETURN
     info = this%model%reinit()
     If(info < 0) RETURN
-    info = this%model%setParameters(this%params)
-    If(info < 0) RETURN
-    info = this%model%setExperiment(experiment)
+    info = this%model%setupModel(this%params, experiment)
     If(info < 0) RETURN
     info = this%model%step(NITER = iMax)
     If(info < 0) RETURN

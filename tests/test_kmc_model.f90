@@ -63,9 +63,8 @@ Module test_kmc_model
     real(c_double), pointer :: Alpha, Beta, Volume
   Contains
     procedure :: applyAction => kmc_applyAction
+    procedure :: setupModel => test_setupModel
     procedure :: funTransitionRates => kmc_funTransitionRates
-    procedure :: setExperiment => test_setExperiment
-    procedure :: setParameters => test_setParameters
     procedure :: init => kmc_init
   End Type kmc_model
 Contains
@@ -97,32 +96,29 @@ Contains
     END ASSOCIATE
   End Function kmc_ode_fun
   
-  Integer Function test_setExperiment(this, experiment) Result(info)
+  Integer Function test_setupModel(this, param, experiment) Result(info)
     class(kmc_model), intent(inout), target :: this
+    class(mlf_model_parameters), intent(in) :: param
     class(mlf_model_experiment), intent(in) :: experiment
+    info = -1
+    Select Type(param)
+    Class is (test_kmc_parameters)
+      this%Volume = param%Volume
+      this%Alpha  = param%Alpha
+      this%Beta   = param%Beta
+    Class Default
+      RETURN
+    End Select
     Select Type(experiment)
     Class is (test_kmc_experiment)
       this%NIndiv(1) = INT(experiment%cS*this%Volume, KIND=8)
       this%NIndiv(2) = INT(experiment%cI*this%Volume, KIND=8)
       this%NIndiv(3) = INT(experiment%cR*this%Volume, KIND=8)
     Class Default
-      info = -1
+      RETURN
     End Select
-  End Function test_setExperiment
-
-  Integer Function test_setParameters(this, param) Result(info)
-    class(kmc_model), intent(inout), target :: this
-    class(mlf_model_parameters), intent(in) :: param
-    Select Type(param)
-    Class is (test_kmc_parameters)
-      this%Volume = param%Volume
-      this%Alpha  = param%Alpha
-      this%Beta   = param%Beta
-      info = 0
-    Class Default
-      info = -1
-    End Select
-  End Function test_setParameters
+    info = 0
+  End Function test_setupModel
 
   Integer Function kmc_init(this, data_handler) Result(info)
     class(kmc_model), intent(inout), target :: this

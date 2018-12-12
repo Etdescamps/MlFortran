@@ -88,12 +88,10 @@ Contains
     If(info < 0) RETURN
     p%Volume = Volume
     info = p%set([Alpha, Beta])
-    info = model%setParameters(p)
-    If(info < 0) RETURN
     modelExp%cS = CIndiv(1)
     modelExp%cI = CIndiv(2)
     modelExp%cR = CIndiv(3)
-    info = model%setExperiment(modelExp)
+    info = model%setupModel(p, modelExp)
     If(info < 0) RETURN
     N = Int(Volume*10, KIND = 8)
     ALLOCATE(points(6, N))

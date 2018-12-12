@@ -64,8 +64,7 @@ Contains
     p%Volume = Volume
     info = p%set(Param)
     info = model%init()
-    info = model%setParameters(p)
-    info = model%setExperiment(modelExp)
+    info = model%setupModel(p, modelExp)
     N = INT(Volume, KIND = 8)
     ALLOCATE(points(5, N))
     Do i = 1,N

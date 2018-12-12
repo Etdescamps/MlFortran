@@ -67,8 +67,7 @@ Module test_cstr_kmc_model
     real(c_double), pointer :: Alpha, Beta, Delta, Kappa, Zeta, Volume
   Contains
     procedure :: init => test_hybrid_init
-    procedure :: setExperiment => test_setExperiment
-    procedure :: setParameters => test_setParameters
+    procedure :: setupModel => test_setupModel
     procedure :: applyAction => test_applyAction
     procedure :: funTransitionRates => test_funTransitionRates
     procedure :: evalOde => test_evalOde
@@ -94,10 +93,23 @@ Contains
     info = 0
   End Function test_cstr_kmc_parameters_set
 
-  Integer Function test_setExperiment(this, experiment) Result(info)
+  Integer Function test_setupModel(this, param, experiment) Result(info)
     class(model_cstr_kmc), intent(inout), target :: this
+    class(mlf_model_parameters), intent(in) :: param
     class(mlf_model_experiment), intent(in) :: experiment
     real(c_double) :: X0(3)
+    info = -1
+    Select Type(param)
+    Class is (test_cstr_kmc_parameters)
+      this%Volume = param%Volume
+      this%Alpha  = param%Alpha
+      this%Beta   = param%Beta
+      this%Delta  = param%Delta
+      this%Kappa  = param%Kappa
+      this%Zeta   = param%Zeta
+    Class Default
+      RETURN
+    End Select
     Select Type(experiment)
     Class is (test_cstr_kmc_experiment)
       this%NIndiv(1) = INT(experiment%a*this%Volume, KIND=8)
@@ -107,27 +119,9 @@ Contains
       X0(3) = experiment%T
       info = this%initModel(X0)
     Class Default
-      info = -1
+      RETURN
     End Select
-  End Function test_setExperiment
-
-  Integer Function test_setParameters(this, param) Result(info)
-    class(model_cstr_kmc), intent(inout), target :: this
-    class(mlf_model_parameters), intent(in) :: param
-    Select Type(param)
-    Class is (test_cstr_kmc_parameters)
-      this%Volume = param%Volume
-      this%Alpha  = param%Alpha
-      this%Beta   = param%Beta
-      this%Delta  = param%Delta
-      this%Kappa  = param%Kappa
-      this%Zeta   = param%Zeta
-      info = 0
-    Class Default
-      info = -1
-    End Select
-  End Function test_setParameters
-
+  End Function test_setupModel
 
   Integer Function test_hybrid_init(this, data_handler) Result(info)
     class(model_cstr_kmc), intent(inout), target :: this

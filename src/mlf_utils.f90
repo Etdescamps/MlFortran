@@ -365,23 +365,23 @@ Contains
   End Function mlf_cumulativefromvect
 
   ! Do a dichotomous search for a value 
-  Pure integer(c_int) Function mlf_di_search(V, x) result(k)
+  Pure Integer(c_int) Function mlf_di_search(V, x) result(k)
     real(c_double), intent(in) :: V(:), x
     integer :: i, j
-    i = lbound(V, 1); j = ubound(V,1)
+    i = LBOUND(V, 1); j = UBOUND(V,1)
     Do While(j-i>1)
-      k = ishft(i+j, -1)
-      if(V(k)<x) then
+      k = ISHFT(i+j, -1)
+      If(V(k)<x) Then
         i = k+1
-      else
+      Else
         j = k
-      endif
+      Endif
     End Do
-    if(x <= V(i)) then 
+    If(x <= V(i)) Then 
       k = i
-    else
+    Else
       k = j
-    endif
+    Endif
   End Function mlf_di_search
   ! Print matrix (useful for debug)
   Subroutine mlf_printmatrix(M)

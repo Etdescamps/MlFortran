@@ -370,14 +370,14 @@ Contains
     integer :: i, j
     i = LBOUND(V, 1); j = UBOUND(V,1)
     Do While(j-i>1)
-      k = ISHFT(i+j, -1)
-      If(V(k)<x) Then
-        i = k+1
+      k = (i+j)/2
+      If(V(k) < x) Then
+        i = k
       Else
         j = k
       Endif
     End Do
-    If(x <= V(i)) Then 
+    If(x < V(j)) Then 
       k = i
     Else
       k = j

@@ -29,7 +29,7 @@
 Module mlf_rand
   Use ieee_arithmetic
   Use iso_c_binding
-  Use mlf_utils  
+  Use mlf_utils
   IMPLICIT NONE
   PRIVATE
 
@@ -38,16 +38,17 @@ Module mlf_rand
   
   Type, Public, Abstract :: mlf_1DRealSampler
   Contains
-    procedure(mlf_1DRealSampler_fun), deferred :: sample
+    procedure(mlf_1DRealSampler_fun), deferred :: random
+    procedure :: sample => mlf_1DRealSampler_sample
   End Type mlf_1DRealSampler
 
   Abstract Interface
-    Subroutine mlf_1DRealSampler_fun(this, X)
+    Function mlf_1DRealSampler_fun(this)
       use iso_c_binding
       import :: mlf_1DRealSampler
       class(mlf_1DRealSampler), intent(inout) :: this
-      real(c_double), intent(out) :: X(:)
-    End Subroutine mlf_1DRealSampler_fun
+      real(c_double) :: mlf_1DRealSampler_fun
+    End Function mlf_1DRealSampler_fun
   End Interface
 
   Interface RandSign  
@@ -68,6 +69,15 @@ Module mlf_rand
   End Interface Rand3DSurf
 
 Contains
+  Subroutine mlf_1DRealSampler_sample(this, X)
+    class(mlf_1DRealSampler), intent(inout) :: this
+    real(c_double), intent(out) :: X(:)
+    integer :: i
+    Do i = LBOUND(X,1), UBOUND(X,1)
+      X(i) = this%random()
+    End Do
+  End Subroutine mlf_1DRealSampler_sample
+  
   Subroutine mlf_RandSignV(V)
     real(c_double), intent(out) :: V(:)
     call RANDOM_NUMBER(V)

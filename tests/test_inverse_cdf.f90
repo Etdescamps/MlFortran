@@ -48,7 +48,7 @@ Program test_inverse_cdf
   hX = [(i/1000d0, i=1,999)]
   info = hist%init(hX)
   If(info < 0) GOTO 1
-  Do i = 1, 50000000
+  Do i = 1, 100000000
     CALL hist%addPoint(sampler%random(), 1_8)
     !CALL RANDOM_NUMBER(r)
     !CALL hist%addPoint(r, 1_8)

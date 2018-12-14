@@ -374,8 +374,8 @@ Contains
       ! Do an explicit euler step for evaluating the second derivative
       Do i=1,16
         info = this%fun%eval(this%t+h0, this%X+h0*this%K(:,1), this%K(:,2))
-        if(info == 0) EXIT ! The point (t+h0,X+h0*F0) is valid
-        if(info<0) RETURN
+        if(info < 0) RETURN
+        if(info <= 1) EXIT ! The point (t+h0,X+h0*F0) is valid
         h0 = 0.5d0*h0 ! The point (t+h0,X+h0*F0) is outside the constraints space
         hCstr = h0
       End Do
@@ -410,7 +410,7 @@ Contains
       If(info < 0) Then
         h = -1; RETURN
       Endif
-      If(info == 0) Then
+      If(info <= 1) Then
         h0 = h
       Else
         h1 = h
@@ -425,9 +425,9 @@ Contains
     integer(kind=8) :: i, niter0, nHard
     real(c_double) :: h, hMax, err, Xsti(size(this%X))
     real(c_double) :: t
-    logical :: lastHard
+    logical :: lastHard, stopTime
     i=0; niter0=1; info = 0; nHard = 0
-    lastHard = .FALSE.
+    lastHard = .FALSE.; stopTime = .FALSE.
     If(PRESENT(niter)) niter0 = niter
     info = mlf_ODE_FunError
     If(this%t == this%tMax) Then
@@ -441,7 +441,15 @@ Contains
       hMax = MIN(this%hMax, this%tMax-this%t)
       X0 = X
       info = fun%eval(t, X, K(:,1))
-      If(info /=0) RETURN
+      If(info < 0) RETURN
+      If(info == 1) Then
+        info = mlf_ODE_StopTime
+        RETURN
+      Endif
+      If(info > 1) Then
+        info = mlf_ODE_HardCstr
+        RETURN
+      Endif
       this%nFun = this%nFun + 1
       Select Type(fun)
       Class is (mlf_ode_funCstr)
@@ -453,7 +461,7 @@ Contains
         If(t+h >= this%tMax) h = this%tMax-t
         If(h<0) RETURN
         info = fun%eval(t+DOPRI5_C(2)*h, X0+h*DOPRI5_A2*K(:,1), K(:,2))
-        If(info<0) RETURN; If(info>0) Then
+        If(info<0) RETURN; If(info>1) Then
           ! Help to find a path that does not trigger a hard constraint
           this%nFun = this%nFun + 1; nHard = nHard + 1
           hMax = ODE45SearchHardCstr(this, K(:,1:2), t, DOPRI5_C(2)*h);
@@ -466,22 +474,22 @@ Contains
           info = mlf_ODE_HardCstr; RETURN
         Endif
         info = fun%eval(t+DOPRI5_C(3)*h, X0+h*MATMUL(K(:,1:2), DOPRI5_A3), K(:,3))
-        If(info<0) RETURN; If(info>0) Then
+        If(info<0) RETURN; If(info>1) Then
           this%nFun = this%nFun + 2; hMax = DOPRI5_C(2)*h; CYCLE
         Endif
         info = fun%eval(t+DOPRI5_C(4)*h, X0+h*MATMUL(K(:,1:3), DOPRI5_A4), K(:,4))
-        If(info<0) RETURN; If(info>0) Then
+        If(info<0) RETURN; If(info>1) Then
           this%nFun = this%nFun + 3; hMax = DOPRI5_C(3)*h; CYCLE
         Endif
         info = fun%eval(t+DOPRI5_C(5)*h, X0+h*MATMUL(K(:,1:4), DOPRI5_A5), K(:,5))
-        If(info<0) RETURN; If(info>0) Then
+        If(info<0) RETURN; If(info>1) Then
           this%nFun = this%nFun + 4; hMax = DOPRI5_C(4)*h; CYCLE
         Endif
 
         ! Xsti is used by DOPRI5 for stiffness detection
         Xsti = X0+h*MATMUL(K(:,1:5), DOPRI5_A6)
         info = fun%eval(t+DOPRI5_C(6)*h, Xsti, K(:,6))
-        If(info<0) RETURN; If(info>0) Then
+        If(info<0) RETURN; If(info>1) Then
           this%nFun = this%nFun + 5; hMax = DOPRI5_C(5)*h; CYCLE
         Endif
 
@@ -489,7 +497,7 @@ Contains
         X = X0+h*MATMUL(K(:,1:6), DOPRI5_A7)
         info = fun%eval(t+DOPRI5_C(7)*h, X, K(:,7))
         this%nFun = this%nFun + 6
-        If(info<0) RETURN; If(info>0) Then;
+        If(info<0) RETURN; If(info>1) Then;
           hMax = 0.5*SUM(DOPRI5_C(5:6))*h; CYCLE
         Endif
         err = ODE45ErrorFun(this, MATMUL(K,DOPRI5_EC), X0, X, h)
@@ -497,6 +505,7 @@ Contains
         ! Update X and t
         t = t + h
         this%t = t
+        If(info == 1) stopTime = .TRUE.
         ! If an iteration does not trigger a hard constraint -> reinit nHard counter
         If(.NOT. lastHard) nHard = 0
         If(MOD(this%nAccept, this%nStiff) == 0 .OR. this%iStiff > 0) Then
@@ -515,7 +524,7 @@ Contains
           this%t = t
           If(info == mlf_ODE_StopTime .OR. info == mlf_ODE_HardCstr) EXIT
         End Select
-        If(this%tMax <= t) Then
+        If(this%tMax <= t .OR. stopTime) Then
           info = mlf_ODE_StopTime
           EXIT
         Endif

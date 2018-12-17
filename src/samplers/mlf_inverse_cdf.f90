@@ -27,6 +27,9 @@
 ! EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Module mlf_inverse_cdf
+  ! This module contains a sampler for a distribution whose probability density
+  ! function is approximated by piecewise affine function.
+
   Use ieee_arithmetic
   Use iso_c_binding
   Use mlf_utils
@@ -91,9 +94,9 @@ Contains
     END ASSOCIATE
   End Function mlf_inverseCDF_random
 
-  !Subroutine mlf_inverseCDFSampler(this, X)
+  !Subroutine mlf_inverseCDF_sample(this, X)
   !  class(mlf_inverseCDFSampler), intent(inout) :: this
   !  real(c_double), intent(out) :: X(:)
-  !End Subroutine mlf_inverseCDFSampler
+  !End Subroutine mlf_inverseCDF_sample
 End Module mlf_inverse_cdf
 

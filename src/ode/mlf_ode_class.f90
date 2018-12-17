@@ -53,6 +53,7 @@ Module mlf_ode_class
     procedure :: setFun => mlf_ode_algo_setFun
     procedure :: reinit => mlf_ode_algo_reinit
     procedure :: initODE => mlf_ode_algo_initODE
+    procedure :: updateODE => mlf_ode_algo_updateODE
     procedure :: denseEvaluation => mlf_ode_algo_denseEvaluation
     procedure(mlf_ode_algo_initHandler), deferred :: initHandler
   End Type mlf_ode_algo
@@ -70,6 +71,23 @@ Module mlf_ode_class
   End Interface
 
 Contains
+  Integer Function mlf_ode_algo_updateODE(this, X0, t0, tMax, hMax) Result(info)
+    class(mlf_ode_algo), intent(inout), target :: this
+    real(c_double), intent(in), optional, target :: X0(:)
+    real(c_double), intent(in), optional :: t0, tMax, hMax
+    this%lastT = -HUGE(this%lastT)
+    If(PRESENT(X0)) Then
+      this%X0 = X0
+      this%X = this%X0
+    Endif
+    If(PRESENT(t0)) Then
+      this%t0 = t0
+      this%t = this%t0
+    Endif
+    If(PRESENT(tMax)) this%tMax = tMax
+    If(PRESENT(hMax)) this%hMax = hMax
+  End Function mlf_ode_algo_updateODE
+
   Integer Function mlf_ode_algo_initODE(this, X0, t0, tMax, hMax) Result(info)
     class(mlf_ode_algo), intent(inout), target :: this
     real(c_double), intent(in), optional, target :: X0(:)

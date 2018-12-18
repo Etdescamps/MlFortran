@@ -14,6 +14,7 @@ add_executable(test_inverse_cdf test_inverse_cdf.f90)
 add_executable(test_kmc test_kmc.f90 test_kmc_model.f90)
 add_executable(test_hybrid_kmc test_hybrid_kmc.f90 test_hybrid_kmc_model.f90)
 add_executable(test_cstr_kmc test_cstr_kmc.f90 test_cstr_kmc_model.f90)
+add_executable(test_sobol test_sobol.f90)
 
 target_link_libraries(test_rsc ${MLF_LIB})
 target_link_libraries(test_kmeans ${MLF_LIB})
@@ -31,4 +32,5 @@ target_link_libraries(test_inverse_cdf ${MLF_LIB})
 target_link_libraries(test_kmc ${MLF_LIB})
 target_link_libraries(test_hybrid_kmc ${MLF_LIB})
 target_link_libraries(test_cstr_kmc ${MLF_LIB})
+target_link_libraries(test_sobol ${MLF_LIB})
 

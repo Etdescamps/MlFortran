@@ -74,7 +74,7 @@ Contains
     integer :: N
     N = SIZE(V)
     If(B > N) RETURN
-    V(B:N) = INT(S(B:N), KIND = 8)
+    V(B:) = INT(S(B:N), KIND = 8)
   End Subroutine SetVect1
 
   Subroutine SetVect2(V, S, B)
@@ -84,7 +84,7 @@ Contains
     integer :: N
     N = SIZE(V)
     If(B > N) RETURN
-    V(B:N) = INT(S(B:N), KIND = 8)
+    V(B:) = INT(S(B:N), KIND = 8)
   End Subroutine SetVect2
  
   Integer Function mlf_sobol1111_init(this, numDim) Result(info)
@@ -99,7 +99,7 @@ Contains
     ASSOCIATE(V => this%table)
       V = 0
       v(1,:) = 1
-      V(2:numDim,1) = 1
+      V(2:,1) = 1
       CALL SetVect1(V(:,2), Sobol1111_V2, LBOUND(Sobol1111_V2, 1))
       CALL SetVect1(V(:,3), Sobol1111_V3, LBOUND(Sobol1111_V3, 1))
       CALL SetVect1(V(:,4), Sobol1111_V4, LBOUND(Sobol1111_V4, 1))

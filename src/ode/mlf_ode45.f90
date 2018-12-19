@@ -188,11 +188,11 @@ Contains
     BLOCK
       real(c_double) :: C0(N), C(N), Q(N,7)
       integer :: nIds(N)
-      CALL fun%getDerivatives(ids(1:N), this%X0, X, this%K, C0, C, Q)
+      CALL fun%getDerivatives(ids(:N), this%X0, X, this%K, C0, C, Q)
       Q = dt * Q
       K = ODE45FindCstrRoot(this%rtoli, this%atoli, Q, C0, C, nIds, h)
       h = dt * h
-      ids(1:K) = ids(nIds(1:K))
+      ids(:K) = ids(nIds(:K))
     END BLOCK
     If(K < 0) GOTO 10
     t = this%t0 + h
@@ -212,7 +212,7 @@ Contains
     RETURN
  10 info = -1
     WRITE (error_unit, *) "ODE45 findRoot error: h/dt=", (t-this%t0)/dt, " t0=", this%t0, &
-      " ids:", ids(1:N), " nIds:", ids(1:K)
+      " ids:", ids(:N), " nIds:", ids(:K)
   End Function ODE45FindRoot
 
   Real(c_double) Function FindNewtonRalphson(t0, A0, A, V) &

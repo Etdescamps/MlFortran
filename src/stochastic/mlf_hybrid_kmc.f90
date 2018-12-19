@@ -291,7 +291,7 @@ Contains
         If(info == 0) info = mlf_ODE_StopTime
         RETURN
       Endif
-      F(1) = -SUM(Rates(1:N))
+      F(1) = -SUM(Rates(:N))
       info = mlf_ODE_Continue
     END ASSOCIATE
   End Function 
@@ -423,7 +423,7 @@ Contains
     N = Model%funTransitionRates(t, X(2:), F(2:), Rates)
     If(N <= 0) RETURN ! Shall not happen
     CALL RANDOM_NUMBER(r)
-    r = r*SUM(Rates(1:N))
+    r = r*SUM(Rates(:N))
     Do idAction = 1,N-1
       r = r - Rates(idAction)
       If(r <= 0) Then

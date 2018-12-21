@@ -41,7 +41,7 @@ Module mlf_fun_intf
   End Type mlf_objfuninfo
 
   ! Function handler ((multi/mono) objective fitness function)
-  Type, Public, abstract, extends(mlf_obj) :: mlf_objective_fun
+  Type, Public, Abstract, Extends(mlf_obj) :: mlf_objective_fun
     integer :: nD, nC, nY
   Contains
     procedure (mlf_obj_eval), deferred :: eval
@@ -49,7 +49,7 @@ Module mlf_fun_intf
   End Type mlf_objective_fun
 
   ! C function wrapper
-  Type, Public, extends(mlf_objective_fun) :: mlf_objective_fun_c
+  Type, Public, Extends(mlf_objective_fun) :: mlf_objective_fun_c
     procedure (mlf_obj_eval_c), nopass, pointer :: evalC => NULL()
     procedure (mlf_obj_eval_c), nopass, pointer :: constraintsC => NULL()
     type(c_ptr) :: ptr
@@ -58,20 +58,26 @@ Module mlf_fun_intf
   End Type mlf_objective_fun_c
 
   ! Function handler for basis functions
-  Type, Public, abstract, extends(mlf_obj) :: mlf_basis_fun
+  Type, Public, Abstract, Extends(mlf_obj) :: mlf_basis_fun
   Contains
     procedure (mlf_basis_eval), deferred :: eval
   End Type mlf_basis_fun
 
+  Type, Public, Abstract, Extends(mlf_basis_fun) :: mlf_basis_fun_inv
+  Contains
+    procedure (mlf_basis_integral), deferred :: integral
+    procedure (mlf_basis_inv_integ), deferred :: inv_integ
+  End Type mlf_basis_fun_inv
+
   ! Function handler for basis functions
-  Type, Public, abstract, extends(mlf_obj) :: mlf_basis_funder
+  Type, Public, Abstract, Extends(mlf_obj) :: mlf_basis_funder
   Contains
     procedure (mlf_basis_evalder), deferred :: eval
   End Type mlf_basis_funder
 
 
   ! C function wrapper
-  Type, Public, extends(mlf_basis_fun) :: mlf_basis_fun_c
+  Type, Public, Extends(mlf_basis_fun) :: mlf_basis_fun_c
     procedure (mlf_basis_eval_c), nopass, pointer :: evalC => NULL()
     type(c_ptr) :: ptr
   Contains
@@ -233,6 +239,26 @@ Module mlf_fun_intf
       real(c_double), intent(in), target :: X(:), rpar(:,:)
       real(c_double), intent(out), target :: Y(:,:)
     End Function mlf_basis_eval
+
+    ! Abstract basis function type (for dimension reduction)
+    Integer Function mlf_basis_integral(this, x0, xEnd, rpar, Y)
+      use iso_c_binding
+      import :: mlf_basis_fun_inv
+      class(mlf_basis_fun_inv), intent(in), target :: this
+      real(c_double), intent(in) :: x0, xEnd
+      real(c_double), intent(in), target :: rpar(:,:)
+      real(c_double), intent(out), target :: Y(:)
+    End Function mlf_basis_integral
+
+    ! Abstract basis function type (for dimension reduction)
+    Integer Function mlf_basis_inv_integ(this, x0, Y, rpar, X)
+      use iso_c_binding
+      import :: mlf_basis_fun_inv
+      class(mlf_basis_fun_inv), intent(in), target :: this
+      real(c_double), intent(in) :: x0
+      real(c_double), intent(in), target :: Y(:), rpar(:)
+      real(c_double), intent(out), target :: X(:)
+    End Function mlf_basis_inv_integ
 
     ! Abstract basis function type (for dimension reduction)
     Integer Function mlf_basis_evalder(this, X, rpar, Y)

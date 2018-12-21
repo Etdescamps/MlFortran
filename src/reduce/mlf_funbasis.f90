@@ -41,10 +41,10 @@ Module mlf_funbasis
   PRIVATE
 
   ! Coefficients from Numerical Recipies in C (Press, Teukolsky) Chapter 4.1
-  real(c_double), parameter :: fb_icoeff(4) =  [3d0/8d0, 7d0/6d0, 23d0/24d0, 1d0]
+  Real(c_double), Parameter :: fb_icoeff(4) =  [3d0/8d0, 7d0/6d0, 23d0/24d0, 1d0]
 
   ! Object handling timer and step evaluations
-  Type, Public, extends(mlf_obj_model) :: mlf_algo_funbasis
+  Type, Public, Extends(mlf_obj_model) :: mlf_algo_funbasis
     class(mlf_basis_fun), pointer :: fun ! Reference function
     real(c_double), pointer :: P(:,:) ! Selected parameter function basis
     real(c_double), pointer :: W(:,:) ! Selected function basis
@@ -114,7 +114,8 @@ Contains
   End Function c_funbasis_init
 
   ! Init function for the step object
-  integer Function mlf_funbasis_init(this, f, alpha, x0, xEnd, P, sizeBase, nX, nXA, WP, data_handler) Result(info)
+  integer Function mlf_funbasis_init(this, f, alpha, x0, xEnd, P, sizeBase, &
+      nX, nXA, WP, data_handler) Result(info)
     class(mlf_algo_funbasis), intent(inout) :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
     class(mlf_basis_fun), intent(inout), optional, target :: f

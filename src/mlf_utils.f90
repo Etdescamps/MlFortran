@@ -297,59 +297,57 @@ Contains
     mlf_MeanV = sum(V)/real(size(V),kind=8)
   end function mlf_MeanV
 
-  Pure Real(c_double) function mlf_MeanM(M)
+  Pure Real(c_double) Function mlf_MeanM(M)
     real(c_double), intent(in) :: M(:,:)
     mlf_MeanM = sum(M)/real(size(M), kind=8)
-  end function mlf_MeanM
+  End Function mlf_MeanM
 
-  Pure Function mlf_MeanMV(M, dim) result(V)
+  Pure Function mlf_MeanMV(M, dim) Result(V)
     real(c_double), allocatable :: V(:)
     real(c_double), intent(in) :: M(:,:)
     integer, intent(in) :: dim
-    V = sum(M, dim=dim)/real(size(M,dim), kind=8)
-  end function mlf_MeanMV
+    V = SUM(M, DIM=dim)/REAL(SIZE(M,dim), KIND=8)
+  End Function mlf_MeanMV
 
   ! Count class apearance within an integer array
-  integer(c_int) function mlf_countcl(id, cnt) result(N)
-    integer(c_int), intent(in) :: id(:)
-    integer(c_int), intent(out) :: cnt(:)
-    integer :: l, u, i, k
+  Integer(c_int) Function mlf_countcl(id, cnt, l) result(N)
+    integer(c_int), intent(in) :: id(:), l
+    integer(c_int), intent(out) :: cnt(l:)
+    integer :: u, i, k
     N = 0
-    l = lbound(cnt,1)
-    u = ubound(cnt,1)
+    u = UBOUND(cnt,1)
     cnt = 0
-    do i=1,size(id,1)
+    Do i=1,SIZE(id,1)
       k = id(i)
-      if(k<l .OR. k>u) CYCLE ! Ignore elements outside the array
+      If(k<l .OR. k>u) CYCLE ! Ignore elements outside the array
       cnt(k) = cnt(k) + 1
       N = N+1 ! Return the number of detected elements
-    end do
-  end function mlf_countcl
+    End Do
+  End Function mlf_countcl
 
   ! Reverse class association array
   ! Use last appearance of the class
   ! Keep the value of cl if cl not present within id
-  integer(c_int) function mlf_reversecl(id, cl) result(N)
-    integer(c_int), intent(in) :: id(:)
-    integer(c_int), intent(inout) :: cl(:)
-    integer :: l, u, i, k
+  Integer(c_int) Function mlf_reversecl(id, cl, l) Result(N)
+    integer(c_int), intent(in) :: id(:), l
+    integer(c_int), intent(inout) :: cl(l:)
+    integer :: u, i, k
     N = 0
-    l = lbound(cl,1)
-    u = ubound(cl,1)
-    do i=1,size(id,1)
+    u = UBOUND(cl,1)
+    Do i=1,SIZE(id,1)
       k = id(i)
-      if(k<l .OR. k>u) CYCLE ! Ignore elements outside the array
+      If(k<l .OR. k>u) CYCLE ! Ignore elements outside the array
       cl(k) = i
       N = N+1 ! Return the number of detected elements
-    end do
+    End Do
   End Function mlf_reversecl
 
-  Function mlf_reverseid(id) result(cl)
+  Function mlf_reverseid(id) Result(cl)
     integer(c_int), intent(in) :: id(:)
     integer(c_int), allocatable :: cl(:)
     integer :: info
-    ALLOCATE(cl(size(id)))
-    info = mlf_reversecl(id,cl)
+    ALLOCATE(cl(SIZE(id)))
+    info = mlf_reversecl(id,cl,1)
   End Function mlf_reverseid
  
   ! Utility function generating cumulative vector
@@ -368,7 +366,7 @@ Contains
   Pure Integer(c_int) Function mlf_di_search(V, x) result(k)
     real(c_double), intent(in) :: V(:), x
     integer :: i, j
-    i = LBOUND(V, 1); j = UBOUND(V,1)
+    i = 1; j = SIZE(V)
     Do While(j-i>1)
       k = (i+j)/2
       If(V(k) < x) Then

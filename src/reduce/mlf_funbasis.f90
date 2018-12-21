@@ -68,8 +68,8 @@ Contains
   Subroutine mlf_model_FunBasisBounds(this, xMin, xMax)
     class(mlf_model_funbasis), intent(in) :: this
     real(c_double), intent(out), optional :: xMin, xMax
-    if(PRESENT(xMin)) xMin = this%top%x0
-    if(PRESENT(xMax)) xMax = this%top%xEnd
+    If(PRESENT(xMin)) xMin = this%top%x0
+    If(PRESENT(xMax)) xMax = this%top%xEnd
   End Subroutine mlf_model_FunBasisBounds
 
   ! Model initilisator
@@ -77,10 +77,10 @@ Contains
     class(mlf_model), intent(out), allocatable :: this
     class(mlf_algo_funbasis), intent(in), target :: top
     ALLOCATE(mlf_model_funbasis :: this)
-    select type(this)
-      class is (mlf_model_funbasis)
+    Select Type(this)
+      Class is (mlf_model_funbasis)
         this%top => top
-    end select
+    End Select
   End Subroutine mlf_model_funbasis_init
 
   ! C wrapper for init function
@@ -103,10 +103,10 @@ Contains
         call C_F_POINTER(cP, P, [nFPar, nP])
         ALLOCATE(x)
         if(.NOT. C_ASSOCIATED(cWP)) then
-          info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX, nXA)
+          info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX = nX, nXA = nXA)
         else
           call C_F_POINTER(cWP, WP, [nP])
-          info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX, nXA, WP)
+          info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX = nX, nXA = nXA, WP = WP)
         endif
         obj => x
         c_funbasis_init = c_allocate(obj)
@@ -115,71 +115,79 @@ Contains
 
   ! Init function for the step object
   integer Function mlf_funbasis_init(this, f, alpha, x0, xEnd, P, sizeBase, &
-      nX, nXA, WP, data_handler) Result(info)
+      nX, nXA, nXC, WP, data_handler) Result(info)
     class(mlf_algo_funbasis), intent(inout) :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
     class(mlf_basis_fun), intent(inout), optional, target :: f
     real(c_double), intent(in), optional :: alpha, x0, xEnd
     real(c_double), intent(in), optional :: WP(:), P(:,:)
-    integer, intent(in), optional :: sizeBase, nX, nXA
+    integer, intent(in), optional :: sizeBase, nX, nXC, nXA
     real(c_double), allocatable :: C(:,:), LD(:), LB(:,:)
     type(mlf_rsc_numFields) :: numFields
-    integer :: i, j, nP, N
+    integer :: i, j, nP, N, nXC0
     integer(c_int64_t) :: ndP(2), ndW(2), ndV(2), nX0
     N = -1
     numFields = mlf_rsc_numFields(0,0,4)
     info = mlf_arr_init(this, numFields, data_handler)
-    if(PRESENT(P) .AND. PRESENT(sizeBase) .AND. PRESENT(nX)) then
-      nP = size(P,1); N = size(P,2)
-      ndP = int([nP, N], kind=8); ndW = int([N, sizeBase], kind=8)
-      if(PRESENT(nXA)) then
-        ndV = int([sizeBase, nXA], kind=8)
-      else
-        ndV = int([sizeBase, nX], kind=8)
-      endif
-    else if(.NOT. PRESENT(data_handler)) then
-      write (error_unit, *) 'mlf_funbasis(init) error: no input parameter nor data_handler'
+    If(PRESENT(P) .AND. PRESENT(sizeBase) .AND. PRESENT(nX)) Then
+      nP = SIZE(P,1); N = SIZE(P,2)
+      ndP = INT([nP, N], kind=8); ndW = INT([N, sizeBase], kind=8)
+      If(PRESENT(nXA)) then
+        ndV = INT([sizeBase, nXA], kind=8)
+      Else
+        ndV = INT([sizeBase, nX], kind=8)
+      Endif
+    Else If(.NOT. PRESENT(data_handler)) Then
+      WRITE (error_unit, *) 'mlf_funbasis(init) error: no input parameter nor data_handler'
       info = -1; RETURN
-    endif
+    Endif
     info = this%add_rmatrix(numFields, ndP, this%P, C_CHAR_"P", data_handler = data_handler)
-    if(info /= 0) RETURN
-    if(N<0) N = int(ndP(2), kind=4)
+    If(info /= 0) RETURN
+    If(N<0) N = INT(ndP(2), kind=4)
     ndW(1) = ndP(2)
     info = this%add_rmatrix(numFields, ndW, this%W, C_CHAR_"W", &
       data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
-    if(info /= 0) RETURN
+    If(info /= 0) RETURN
     ndV(1) = ndW(2)
     info = this%add_rmatrix(numFields, ndV, this%Vals, C_CHAR_"Vals", &
       data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
-    if(info /= 0) RETURN
+    If(info /= 0) RETURN
     nX0 = ndV(2)
     info = this%add_rarray(numFields, nX0, this%X, C_CHAR_"X", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
-    if(info /= 0) RETURN
-    if(PRESENT(data_handler)) RETURN
+    If(info /= 0) RETURN
+    If(PRESENT(data_handler)) RETURN
     this%fun => f
     this%P = P
-    allocate(C(N,N), LD(N), LB(N,N))
+    ALLOCATE(C(N,N), LD(N), LB(N,N))
     CALL InitOrDefault(this%xEnd, ieee_value(0d0, ieee_positive_inf), xEnd)
-    if(ieee_is_finite(this%xEnd)) then
+    If(ieee_is_finite(this%xEnd)) Then
       CALL InitOrDefault(this%alpha, 0d0, alpha)
-    else
+    Else
       CALL InitOrDefault(this%alpha, 1d0, alpha)
-    endif
+    Endif
     CALL InitOrDefault(this%x0, 0d0, x0)
-    CALL ComputeFunMatrix(this, C, nX)
-    if(PRESENT(WP)) then
-      forall(i=1:N,j=1:N) C(i,j) = WP(i)*WP(j)*C(i,j)
-    endif
+    nXC0 = nX
+    If(PRESENT(nXC)) nXC0 = nXC
+    Select Type(f)
+    Class is(mlf_basis_fun_inv)
+      info = ComputeFunMatrixInv(f, this%x0, this%xEnd, P, C, nXC0)
+    Class Default
+      info = ComputeFunMatrix(f, this%x0, this%xEnd, this%alpha, P, C, nXC0)
+    End Select
+    If(info < 0) RETURN
+    If(PRESENT(WP)) Then
+      FORALL(i=1:N,j=1:N) C(i,j) = WP(i)*WP(j)*C(i,j)
+    Endif
     ! C is the positive definite matrix containing the dot product of each function
     info = SymMatrixEigenDecomposition(C, LD, LB)
-    if(info /= 0) RETURN
+    If(info /= 0) RETURN
     ! Choose the (normalised) eigenvector that have the higest eigenvalues
-    if(PRESENT(WP)) then
-      forall(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))*WP(:)
-    else
-      forall(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))
-    endif
+    If(PRESENT(WP)) Then
+      FORALL(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))*WP(:)
+    Else
+      FORALL(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))
+    Endif
     CALL ComputeBasisValue(this, int(nX0,4))
     CALL mlf_model_funbasis_init(this%model, this)
   End Function mlf_funbasis_init
@@ -234,61 +242,64 @@ Contains
       F = F + fb_icoeff(N+1-i)*Y(i)*Y0(i)
     end do
   End Function ComputeDotProduct
+
   ! Compute the matrix of the dot product between all functions
   ! Main function for determining a function basis
   ! Gives also the error
-  Subroutine ComputeFunMatrix(this, C, N)
-    class(mlf_algo_funbasis), intent(in) :: this
+  Integer Function ComputeFunMatrix(fun, x0, xEnd, alpha, Param, C, N) Result(info)
+    class(mlf_basis_fun), intent(inout), target :: fun
+    real(c_double), intent(in) :: x0, xEnd, alpha, Param(:,:)
     real(c_double), intent(out) :: C(:,:)
     integer, intent(in) :: N
     ! constants initialised once
     real(c_double) :: invAlpha, eDiff, difFact, eA0, eAEnd
     real(c_double), allocatable :: Y(:,:), Y0(:)
-    integer :: i, j, k, M, P, info
-    M = size(C,1)
+    integer :: i, j, k, M, P
+    info = 0
+    M = SIZE(C,1)
     P = M*(M+1)/2
     ALLOCATE(Y(1,M), Y0(P))
-    If(this%alpha == 0) Then
-      eA0 = this%x0
-      eAEnd = this%xEnd
-      eDiff = (eAEnd-eA0)/real(N-1, kind=8)
+    If(alpha == 0) Then
+      eA0 = x0
+      eAEnd = xEnd
+      eDiff = (eAEnd-eA0)/REAL(N-1, kind=8)
       difFact = eDiff
       Y0 = 0
       ! We made the sum backward for avoiding catastrophic cancellation
-      info = ComputeCoeff(this%fun, this%xEnd, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
-      info = ComputeCoeff(this%fun, eAEnd-eDiff, this%P, Y, Y0, fb_icoeff(2)*difFact, M)
-      info = ComputeCoeff(this%fun, eAEnd-2*eDiff, this%P, Y, Y0, fb_icoeff(3)*difFact, M)
+      info = ComputeCoeff(fun, xEnd, Param, Y, Y0, fb_icoeff(1)*difFact, M)
+      info = ComputeCoeff(fun, eAEnd-eDiff, Param, Y, Y0, fb_icoeff(2)*difFact, M)
+      info = ComputeCoeff(fun, eAEnd-2*eDiff, Param, Y, Y0, fb_icoeff(3)*difFact, M)
       Do i=3,N-4
-        info = ComputeCoeff(this%fun, eAEnd-i*eDiff, this%P, Y, Y0, difFact, M)
+        info = ComputeCoeff(fun, eAEnd-i*eDiff, Param, Y, Y0, difFact, M)
       End Do
-      info = ComputeCoeff(this%fun, eA0+2*eDiff, this%P, Y, Y0, fb_icoeff(3)*difFact, M)
-      info = ComputeCoeff(this%fun, eA0+eDiff, this%P, Y, Y0, fb_icoeff(2)*difFact, M)
-      info = ComputeCoeff(this%fun, this%x0, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
+      info = ComputeCoeff(fun, eA0+2*eDiff, Param, Y, Y0, fb_icoeff(3)*difFact, M)
+      info = ComputeCoeff(fun, eA0+eDiff, Param, Y, Y0, fb_icoeff(2)*difFact, M)
+      info = ComputeCoeff(fun, x0, Param, Y, Y0, fb_icoeff(1)*difFact, M)
     Else
-      eA0 = exp(-this%alpha*this%x0)
-      invAlpha = 1/this%alpha
-      If(ieee_is_finite(this%xEnd)) Then
-        eAEnd = exp(-this%alpha*this%xEnd)
+      eA0 = EXP(-alpha*x0)
+      invAlpha = 1/alpha
+      If(ieee_is_finite(xEnd)) Then
+        eAEnd = EXP(-alpha*xEnd)
       Else
         eAEnd = 0
       Endif
-      eDiff = (eA0-eAEnd)/real(N-1, kind=8)
+      eDiff = (eA0-eAEnd)/REAL(N-1, kind=8)
       difFact = eDiff*invAlpha
       Y0 = 0
       ! We made the sum backward for avoiding catastrophic cancellation
       If(eAEnd > 0) Then
-        info = ComputeCoeff(this%fun, this%xEnd, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
+        info = ComputeCoeff(fun, xEnd, Param, Y, Y0, fb_icoeff(1)*difFact, M)
       Else
         Y0 = 0
       Endif
-      info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+eDiff), this%P, Y, Y0, fb_icoeff(2)*difFact, M)
-      info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+2*eDiff), this%P, Y, Y0, fb_icoeff(3)*difFact, M)
+      info = ComputeCoeff(fun, -invAlpha*LOG(eAEnd+eDiff), Param, Y, Y0, fb_icoeff(2)*difFact, M)
+      info = ComputeCoeff(fun, -invAlpha*LOG(eAEnd+2*eDiff), Param, Y, Y0, fb_icoeff(3)*difFact, M)
       Do i=3,N-4
-        info = ComputeCoeff(this%fun, -invAlpha*log(eAEnd+i*eDiff), this%P, Y, Y0, difFact, M)
+        info = ComputeCoeff(fun, -invAlpha*LOG(eAEnd+i*eDiff), Param, Y, Y0, difFact, M)
       End Do
-      info = ComputeCoeff(this%fun, -invAlpha*log(eA0-2*eDiff), this%P, Y, Y0, fb_icoeff(3)*difFact, M)
-      info = ComputeCoeff(this%fun, -invAlpha*log(eA0-eDiff), this%P, Y, Y0, fb_icoeff(2)*difFact, M)
-      info = ComputeCoeff(this%fun, this%x0, this%P, Y, Y0, fb_icoeff(1)*difFact, M)
+      info = ComputeCoeff(fun, -invAlpha*LOG(eA0-2*eDiff), Param, Y, Y0, fb_icoeff(3)*difFact, M)
+      info = ComputeCoeff(fun, -invAlpha*LOG(eA0-eDiff), Param, Y, Y0, fb_icoeff(2)*difFact, M)
+      info = ComputeCoeff(fun, x0, Param, Y, Y0, fb_icoeff(1)*difFact, M)
     Endif
     k = 1
     Do i=1,M
@@ -300,9 +311,47 @@ Contains
     Do i=2,M
       forall(j=1:(i-1)) C(i,j) = C(j,i)
     End Do
-  End Subroutine ComputeFunMatrix
+  End Function ComputeFunMatrix
 
-    integer Function mlf_FunBasisGetProjectionSingle(this, Y, W, Aerror) result(info)
+  ! Compute the matrix of the dot product between all functions
+  ! Main function for determining a function basis
+  ! Gives also the error
+  Integer Function ComputeFunMatrixInv(fun, x0, xEnd, Param, C, N)
+    class(mlf_basis_fun_inv), intent(inout) :: fun
+    real(c_double), intent(in) :: x0, xEnd, Param(:,:)
+    real(c_double), intent(out) :: C(:,:)
+    integer, intent(in) :: N
+    ! constants initialised once
+    real(c_double) :: S, Fact
+    real(c_double), allocatable :: Y(:,:), Y0(:,:), II(:), Z(:), X(:), Y1(:), P(:,:)
+    integer(c_int), allocatable :: idx(:)
+    integer :: i, j, k, l, M, info
+    M = SIZE(C,1)
+    ALLOCATE(Y(2,M), Y0(N,1), II(M), Z(M), X(N), Y1(N), P(SIZE(Param, 1), N))
+    Y1 = [(REAL(i, KIND=8)/REAL(N+1, KIND=8), i=1,N)]
+    info = fun%integral(x0, xEnd, P, II)
+    If(info < 0) RETURN
+    info = fun%eval([x0, xEnd], P, Y)
+    If(info < 0) RETURN
+    Z(:) = II(:)/MAXVAL(Y, DIM=1)
+    CALL QSortIdx(Z, idx)
+    FORALL(i=1:N) P(:,i) = Param(:,idx(i))
+    Do i = 1, M
+      k = idx(i)
+      info = fun%inv_integ(x0, II(k)*X, P(:,i), Y0(:,1))
+      Fact = II(k)/REAL(N+1, KIND=8)
+      Do j = i, M
+        l = idx(j)
+        info = fun%eval(X, P(:,j:j), Y0)
+        S = (fb_icoeff(1)*SUM(Y(:,l)) + fb_icoeff(2)*(Y0(1,1)+Y0(N,1)) &
+          +  fb_icoeff(3)*(Y0(2,1)+Y(N-1,1)) + SUM(Y0(3:N-2,1)))*Fact
+        C(k,l) = S
+        C(l,k) = S
+      End Do
+    End Do
+  End Function ComputeFunMatrixInv
+
+  Integer Function mlf_FunBasisGetProjectionSingle(this, Y, W, Aerror) result(info)
     ! Get the projection of the function in the basis of the selected vector
     class(mlf_model_funbasis), intent(in), target :: this
     real(c_double), intent(in) :: Y(:)

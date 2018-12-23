@@ -241,13 +241,13 @@ Module mlf_fun_intf
     End Function mlf_basis_eval
 
     ! Abstract basis function type (for dimension reduction)
-    Integer Function mlf_basis_integral(this, x0, xEnd, rpar, I)
+    Integer Function mlf_basis_integral(this, x0, xEnd, rpar, Z)
       use iso_c_binding
       import :: mlf_basis_fun_inv
       class(mlf_basis_fun_inv), intent(in), target :: this
       real(c_double), intent(in) :: x0, xEnd
       real(c_double), intent(in), target :: rpar(:,:)
-      real(c_double), intent(out), target :: I(:)
+      real(c_double), intent(out), target :: Z(:)
     End Function mlf_basis_integral
 
     ! Abstract basis function type (for dimension reduction)

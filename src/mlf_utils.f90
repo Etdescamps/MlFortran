@@ -268,7 +268,7 @@ Contains
     real(c_double), intent(in), contiguous :: Y(:)
     integer, intent(in), optional :: mu
     real(c_double), allocatable :: Z(:)
-    integer, allocatable :: idx(:)
+    integer(c_int), allocatable :: idx(:)
     integer(c_int) :: N, mu0
     N = size(Y,1)
     mu0 = N
@@ -281,7 +281,7 @@ Contains
     real(c_double), intent(in), contiguous :: Y(:,:)
     integer, intent(in), optional :: mu
     real(c_double), allocatable :: Z(:,:)
-    integer, allocatable :: idx(:)
+    integer(c_int), allocatable :: idx(:)
     integer(c_int) :: ND, N, mu0
     N = size(Y,2); ND = size(Y,1)
     mu0 = N

@@ -215,7 +215,7 @@ Contains
     END ASSOCIATE
   End Subroutine FArenstorf
 
-  ! F_a,b (x) = 1/(1+a*exp(-b*x))-1
+  ! F_a,b (x) = 1-(1/(1+a*exp(-b*x))-1)**2
   Subroutine FExpInv(X, rpar, Y)
     real(c_double), intent(in) :: X(:), rpar(:,:)
     real(c_double), intent(out) :: Y(:,:)
@@ -225,7 +225,7 @@ Contains
     M = size(X,1)
     Do i=1,N
       a = rpar(1,i); b = rpar(2,i)
-      Y(:,i) = 1d0/(1d0+a*exp(-b*X))-1d0
+      Y(:,i) = 1d0-(1d0/(1d0+a*exp(-b*X))-1d0)**2
     End Do
   End Subroutine FExpInv
 

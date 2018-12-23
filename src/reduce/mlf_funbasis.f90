@@ -327,15 +327,16 @@ Contains
     integer(c_int), allocatable :: idx(:)
     integer :: i, j, k, l, M, info
     M = SIZE(C,1)
-    ALLOCATE(Y(2,M), Y0(N,1), II(M), Z(M), X(N), Y1(N), P(SIZE(Param, 1), N))
+    ALLOCATE(Y(2,M), Y0(N,1), II(M), Z(M), X(N), Y1(N), P(SIZE(Param, 1), N), idx(M))
     Y1 = [(REAL(i, KIND=8)/REAL(N+1, KIND=8), i=1,N)]
-    info = fun%integral(x0, xEnd, P, II)
+    info = fun%integral(x0, xEnd, Param, II)
     If(info < 0) RETURN
-    info = fun%eval([x0, xEnd], P, Y)
+    info = fun%eval([x0, xEnd], Param, Y)
     If(info < 0) RETURN
     Z(:) = II(:)/MAXVAL(Y, DIM=1)
     CALL QSortIdx(Z, idx)
-    FORALL(i=1:N) P(:,i) = Param(:,idx(i))
+    P = Param(:,idx)
+    Y = Y(:,idx)
     Do i = 1, M
       k = idx(i)
       info = fun%inv_integ(x0, II(k)*X, P(:,i), Y0(:,1))
@@ -343,8 +344,8 @@ Contains
       Do j = i, M
         l = idx(j)
         info = fun%eval(X, P(:,j:j), Y0)
-        S = (fb_icoeff(1)*SUM(Y(:,l)) + fb_icoeff(2)*(Y0(1,1)+Y0(N,1)) &
-          +  fb_icoeff(3)*(Y0(2,1)+Y(N-1,1)) + SUM(Y0(3:N-2,1)))*Fact
+        S = (fb_icoeff(1)*SUM(Y(:,j)) + fb_icoeff(2)*(Y0(1,1)+Y0(N,1)) &
+          +  fb_icoeff(3)*(Y0(2,1)+Y0(N-1,1)) + SUM(Y0(3:N-2,1)))*Fact
         C(k,l) = S
         C(l,k) = S
       End Do

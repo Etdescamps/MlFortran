@@ -75,7 +75,6 @@ Module mlf_fun_intf
     procedure (mlf_basis_evalder), deferred :: eval
   End Type mlf_basis_funder
 
-
   ! C function wrapper
   Type, Public, Extends(mlf_basis_fun) :: mlf_basis_fun_c
     procedure (mlf_basis_eval_c), nopass, pointer :: evalC => NULL()
@@ -85,17 +84,24 @@ Module mlf_fun_intf
   End Type mlf_basis_fun_c
 
   ! Function handler for weight functions
-  Type, Public, abstract, extends(mlf_obj) :: mlf_weight_fun
+  Type, Public, Abstract, Extends(mlf_obj) :: mlf_weight_fun
   Contains
     procedure (mlf_weight_eval), deferred :: eval
   End Type mlf_weight_fun
 
   ! Simple weight functions handler
-  Type, Public, abstract, extends(mlf_weight_fun) :: mlf_weight_simple_fun
+  Type, Public, Abstract, Extends(mlf_weight_fun) :: mlf_weight_simple_fun
     procedure (mlf_weight_simple_eval), nopass, pointer :: evalS
   Contains
     procedure :: eval => mlf_weight_simple_ev
   End Type mlf_weight_simple_fun
+
+  ! Bijection transformation object
+  Type, Public, Abstract, Extends(mlf_obj) :: mlf_bijection_fun
+  Contains
+    procedure(mlf_bijection_proj), deferred :: proj
+    procedure(mlf_bijection_invert), deferred :: invert
+  End Type mlf_bijection_fun
 
   ! ODE class has two type of constraint:
   !   - a "hard" constraint that prevent the evaluation of derivatives:
@@ -164,7 +170,6 @@ Module mlf_fun_intf
   Integer, Parameter, Public :: mlf_ODE_ReevaluateDer = 4
 
   Abstract Interface
-
     Integer Function mlf_ode_funCstr_reach(this, t, tMin, tMax, ids, X, F)
       Use iso_c_binding
       import :: mlf_ode_funCstr
@@ -202,7 +207,6 @@ Module mlf_fun_intf
       real(c_double), intent(in), target :: X(:), F(:)
       real(c_double) :: mlf_ode_funCstr_getHMax
     End Function mlf_ode_funCstr_getHMax
-
 
     ! Abstract ODE function type
     Integer Function mlf_ode_eval(this, t, X, F)
@@ -292,7 +296,26 @@ Module mlf_fun_intf
       real(c_double), intent(out) :: Y(:)
       integer :: lambda
     End Subroutine mlf_weight_simple_eval
-  End Interface
+
+    ! Functions definition for the bijection object
+    Pure Subroutine mlf_bijection_proj(this, X, Y)
+      use iso_c_binding
+      import :: mlf_bijection_fun
+      class(mlf_bijection_fun), intent(in) :: this
+      real(c_double), intent(in) :: X(:)
+      real(c_double), intent(out) :: Y(:)
+    End Subroutine mlf_bijection_proj
+
+    ! Functions definition for the bijection object
+    Pure Subroutine mlf_bijection_invert(this, Y, X)
+      use iso_c_binding
+      import :: mlf_bijection_fun
+      class(mlf_bijection_fun), intent(in) :: this
+      real(c_double), intent(in) :: Y(:)
+      real(c_double), intent(out) :: X(:)
+    End Subroutine mlf_bijection_invert
+
+   End Interface
 Contains
 
   Subroutine mlf_ode_allocateCstr(this, N, M)

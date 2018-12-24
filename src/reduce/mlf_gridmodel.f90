@@ -30,12 +30,13 @@ Module mlf_gridmodel
   Use ieee_arithmetic
   Use iso_c_binding
   Use mlf_intf
+  Use mlf_fun_intf
   Use mlf_rsc_array
   Use mlf_models
   IMPLICIT NONE
   PRIVATE
 
-  Type, Public, extends(mlf_obj_model) :: mlf_2dgrid
+  Type, Public, Extends(mlf_obj_model) :: mlf_2dgrid
     class(mlf_reduce_model), pointer :: funmodel
     real(c_float), pointer :: grid(:,:,:)
     real(c_double), pointer :: XMin, XMax, YMin, YMax
@@ -43,28 +44,45 @@ Module mlf_gridmodel
     procedure :: initF => mlf_GridModelInit
   End Type mlf_2dgrid
 
-  Type, Public, extends(mlf_reduce_model) :: mlf_2dgrid_model
+  Type, Public, Extends(mlf_reduce_model) :: mlf_2dgrid_model
     class(mlf_2dgrid), pointer :: top
   Contains
     procedure :: getProjSingleFloat => mlf_GridModelGetProjectionSingle
     procedure :: getProjSingle => mlf_GridModelGetProjectionSingleDouble
     procedure :: getProjMultFloat => mlf_GridModelGetProjection
   End Type mlf_2dgrid_model
+
+  Type, Public, Extends(mlf_2dgrid_model) :: mlf_2dgrid_fun_model
+    class(mlf_bijection_fun), pointer :: fun
+  Contains
+    procedure :: getProjSingleFloat => mlf_fun_GridModelGetProjectionSingle
+    procedure :: getProjSingle => mlf_fun_GridModelGetProjectionSingleDouble
+    procedure :: getProjMultFloat => mlf_fun_GridModelGetProjection
+  End Type mlf_2dgrid_fun_model
+
 Contains
   
   ! Model initilisator
-  Subroutine mlf_model_funbasis_init(this, top)
+  Subroutine mlf_model_funbasis_init(this, top, fun)
     class(mlf_model), intent(out), allocatable :: this
     class(mlf_2dgrid), intent(in), target :: top
-    ALLOCATE(mlf_2dgrid_model :: this)
-    select type(this)
-      class is (mlf_2dgrid_model)
-        this%top => top
-    end select
+    class(mlf_bijection_fun), intent(in), target, optional :: fun
+    If(PRESENT(fun)) Then
+      ALLOCATE(mlf_2dgrid_fun_model :: this)
+    Else
+      ALLOCATE(mlf_2dgrid_model :: this)
+    Endif
+    Select Type(this)
+    Class is (mlf_2dgrid_fun_model)
+      this%top => top
+      this%fun => fun
+    Class is (mlf_2dgrid_model)
+      this%top => top
+    End Select
   End Subroutine mlf_model_funbasis_init
 
   ! C wrapper for init function
-  type(c_ptr) Function c_2dgridmodel_init(cmodel, XMin, XMax, YMin, YMax, nW, nX0, nY0) &
+  Type(c_ptr) Function c_2dgridmodel_init(cmodel, XMin, XMax, YMin, YMax, nW, nX0, nY0) &
       bind(C, name="mlf_2dgridModelInit")
     type(c_ptr), value :: cmodel
     class(mlf_model), pointer :: model
@@ -75,68 +93,93 @@ Contains
     integer :: info
     c_2dgridmodel_init = C_NULL_PTR
     model => mlf_getModel(cmodel)
-    if(.NOT. associated(model)) RETURN
-    select type(model)
-      class is (mlf_reduce_model)
+    If(.NOT. ASSOCIATED(model)) RETURN
+    Select Type(model)
+      Class is (mlf_reduce_model)
         ALLOCATE(x)
         info = x%initF(model, XMin, XMax, YMin, YMax, nW, nX0, nY0)
-        if(info < 0) RETURN
+        If(info < 0) RETURN
         obj => x
         c_2dgridmodel_init = c_allocate(obj)
-    end select
+    End Select
   End Function c_2dgridmodel_init
 
-  Integer Function mlf_GridModelInit(this, fmodel, XMin, XMax, YMin, YMax, nW, nX0, nY0, data_handler) result(info)
+  Integer Function mlf_GridModelInit(this, fmodel, XMin, XMax, YMin, YMax, nW, nX0, nY0, fun, data_handler) result(info)
     class(mlf_2dgrid), intent(inout) :: this
     class(mlf_reduce_model), target :: fmodel
     class(mlf_data_handler), intent(inout), optional :: data_handler
     real(c_double), intent(in), optional :: XMin, XMax, YMin, YMax
     integer(c_int), intent(in), optional :: nX0, nY0, nW
     real(c_double), allocatable :: X(:,:,:), G(:,:)
+    class(mlf_bijection_fun), intent(in), target, optional :: fun
     type(mlf_rsc_numFields) :: numFields
-    integer :: i
+    real(c_double) :: XYMin(2), XYMax(2), XTemp(2)
+    integer :: i, j
     integer(c_int64_t) :: ndGrid(3)
     numFields = mlf_rsc_numFields(0,4,1)
     ndGrid = -1
-    if(present(nW)) ndGrid(1) = nW
-    if(present(nX0)) ndGrid(2) = nX0
-    if(present(nY0)) ndGrid(3) = nY0
+    If(PRESENT(nW)) ndGrid(1) = nW
+    If(PRESENT(nX0)) ndGrid(2) = nX0
+    If(PRESENT(nY0)) ndGrid(3) = nY0
     info = mlf_arr_init(this, numFields, data_handler)
-    if(info < 0) RETURN
-    call this%addRPar(numFields, this%XMin, "XMin")
-    call this%addRPar(numFields, this%XMax, "XMax")
-    call this%addRPar(numFields, this%YMin, "YMin")
-    call this%addRPar(numFields, this%YMax, "YMax")
+    If(info < 0) RETURN
+    CALL this%addRPar(numFields, this%XMin, "XMin")
+    CALL this%addRPar(numFields, this%XMax, "XMax")
+    CALL this%addRPar(numFields, this%YMin, "YMin")
+    CALL this%addRPar(numFields, this%YMax, "YMax")
     info = this%add_FMatrix3D(numFields, ndGrid, this%grid, C_CHAR_"grid", data_handler = data_handler)
-    if(info < 0) RETURN
+    If(info < 0) RETURN
     this%funmodel => fmodel
-    if(.NOT. present(data_handler)) then
+    If(.NOT. PRESENT(data_handler)) Then
       ALLOCATE(X(2,nX0,nY0), G(nW, nX0))
-      this%XMin = XMin; this%XMax = XMax; this%YMin = YMin; this%YMax = YMax;
-      forall(i=1:nX0) X(1, i, :) = Xmin+real(i-1)/real(nX0-1)*(Xmax-Xmin)
-      forall(i=1:nY0) X(2, :, i) = Ymin+real(i-1)/real(nY0-1)*(Ymax-Ymin)
-      do i = 1,nY0
+      If(PRESENT(fun)) Then
+        CALL fun%proj([XMin, YMin], XYMin)
+        CALL fun%proj([XMax, YMax], XYMax)
+        this%XMin = XYMin(1); this%YMin = XYMin(2)
+        this%XMax = XYMax(1); this%YMax = XYMax(2)
+      Else
+        this%XMin = XMin; this%XMax = XMax; this%YMin = YMin; this%YMax = YMax
+      Endif
+      FORALL(i=1:nX0) X(1, i, :) = this%Xmin+REAL(i-1)/REAL(nX0-1)*(this%Xmax-this%Xmin)
+      FORALL(i=1:nY0) X(2, :, i) = this%Ymin+REAL(i-1)/REAL(nY0-1)*(this%Ymax-this%Ymin)
+      If(PRESENT(fun)) Then
+        Do i=1,nX0
+          Do j=1,nY0
+            CALL fun%invert(X(:,i,j), XTemp)
+            X(:,i,j)=XTemp
+          End Do
+        End Do
+      Endif
+      Do i = 1,nY0
         info = fmodel%getProj(X(:,:,i), G)
-        this%grid(:,:,i) = real(G,4)
-      end do
-    endif
-    call mlf_model_funbasis_init(this%model, this)
+        this%grid(:,:,i) = REAL(G,4)
+      End Do
+    Endif
+    CALL mlf_model_funbasis_init(this%model, this, fun)
   End Function mlf_GridModelInit
 
-  integer Function mlf_GridModelGetProjectionSingleDouble(this, Y, W, Aerror) result(info)
+  Integer Function mlf_GridModelGetProjectionSingleDouble(this, Y, W, Aerror) Result(info)
     class(mlf_2dgrid_model), intent(in), target :: this
     real(c_double), intent(in) :: Y(:)
     real(c_double), intent(out) :: W(:)
     real(c_double), optional, intent(out) :: Aerror(:)
-    real(c_float) :: Y0(size(Y))
-    real(c_float) :: W0(size(W))
-    Y0 = REAL(Y, c_float)
-    info = this%getProj(Y0, W0)
+    real(c_float) :: W0(SIZE(W))
+    info = this%getProj(REAL(Y, c_float), W0)
     W = REAL(W0, c_double)
-    if(present(Aerror)) Aerror = 0
+    If(PRESENT(Aerror)) Aerror = 0
   End Function mlf_GridModelGetProjectionSingleDouble
 
-  integer Function mlf_GridModelGetProjectionSingle(this, Y, W, Aerror) result(info)
+  Integer Function mlf_fun_GridModelGetProjectionSingleDouble(this, Y, W, Aerror) Result(info)
+    class(mlf_2dgrid_fun_model), intent(in), target :: this
+    real(c_double), intent(in) :: Y(:)
+    real(c_double), intent(out) :: W(:)
+    real(c_double), optional, intent(out) :: Aerror(:)
+    real(c_double) :: Y0(SIZE(Y))
+    CALL this%fun%proj(Y, Y0)
+    info = mlf_GridModelGetProjectionSingleDouble(this, Y0, W, Aerror)
+  End Function mlf_fun_GridModelGetProjectionSingleDouble
+
+  Integer Function mlf_GridModelGetProjectionSingle(this, Y, W, Aerror) Result(info)
     class(mlf_2dgrid_model), intent(in), target :: this
     real(c_float), intent(in) :: Y(:)
     real(c_float), intent(out) :: W(:)
@@ -144,27 +187,37 @@ Contains
     real(c_double) :: vX, vY, ax, ay, dX, dY, diX, diY
     integer :: nXG, nYG, i, j
     info = -1
-    if(size(Y,1) /= 2) RETURN
+    If(SIZE(Y,1) /= 2) RETURN
     ASSOCIATE(grid => this%top%grid, XMin => this%top%XMin, XMax => this%top%XMax, &
         YMin => this%top%YMin, YMax => this%top%YMax)
-      nXG = size(grid,2); nYG = size(grid,3)
-      dX = (XMax-XMin)/real(nXG-1, kind = 4)
-      dY = (YMax-YMin)/real(nYG-1, kind = 4)
+      nXG = SIZE(grid,2); nYG = SIZE(grid,3)
+      dX = (XMax-XMin)/REAL(nXG-1, KIND = 4)
+      dY = (YMax-YMin)/REAL(nYG-1, KIND = 4)
       diX = 1d0/dX; diY = 1d0/dY
       vX = Y(1); vY = Y(2)
-      i = floor((vX-XMin)*diX)+1
-      j = floor((vY-YMin)*diY)+1
+      i = FLOOR((vX-XMin)*diX)+1
+      j = FLOOR((vY-YMin)*diY)+1
       ax = ((vX-XMin)-(i-1)*dX)*diX
       ay = ((vY-YMin)-(j-1)*dY)*diY
       W(:) = (1d0-ay)*((1d0-ax)*grid(:,i,j)+ax*grid(:,i+1,j)) &
              + ay*((1d0-ax)*grid(:,i,j+1)+ax*grid(:,i+1,j+1))
     END ASSOCIATE
     ! TODO: add error estimation
-    if(present(Aerror)) Aerror = 0
+    If(PRESENT(Aerror)) Aerror = 0
     info = 0
   End Function mlf_GridModelGetProjectionSingle
 
-  integer Function mlf_GridModelGetProjection(this, Y, W, Aerror) result(info)
+  Integer Function mlf_fun_GridModelGetProjectionSingle(this, Y, W, Aerror) Result(info)
+    class(mlf_2dgrid_fun_model), intent(in), target :: this
+    real(c_float), intent(in) :: Y(:)
+    real(c_float), intent(out) :: W(:)
+    real(c_float), optional, intent(out) :: Aerror(:)
+    real(c_double) :: Y0(SIZE(Y))
+    CALL this%fun%proj(REAL(Y, KIND=8), Y0)
+    info = mlf_GridModelGetProjectionSingle(this, REAL(Y0, KIND=4), W, Aerror)
+  End Function mlf_fun_GridModelGetProjectionSingle
+
+  Integer Function mlf_GridModelGetProjection(this, Y, W, Aerror) Result(info)
     class(mlf_2dgrid_model), intent(in), target :: this
     real(c_float), intent(in) :: Y(:,:)
     real(c_float), intent(out) :: W(:,:)
@@ -172,27 +225,43 @@ Contains
     real(c_double) :: vX, vY, ax, ay, dX, dY, diX, diY
     integer :: nXG, nYG, nIn, i, j, k
     info = -1
-    if(size(Y,1) /= 2) RETURN
-    nIn = size(Y,2)
+    If(SIZE(Y,1) /= 2) RETURN
+    nIn = SIZE(Y,2)
     ASSOCIATE(grid => this%top%grid, XMin => this%top%XMin, XMax => this%top%XMax, &
         YMin => this%top%YMin, YMax => this%top%YMax)
-      nXG = size(grid,2); nYG = size(grid,3)
-      dX = (XMax-XMin)/real(nXG-1, kind = 8)
-      dY = (YMax-YMin)/real(nYG-1, kind = 8)
+      nXG = SIZE(grid,2); nYG = SIZE(grid,3)
+      dX = (XMax-XMin)/REAL(nXG-1, KIND = 8)
+      dY = (YMax-YMin)/REAL(nYG-1, KIND = 8)
       diX = 1d0/dX; diY = 1d0/dY
-      do k = 1, nIn
+      Do k = 1, nIn
         vX = Y(1,k); vY = Y(2,k)
-        i = floor((vX-XMin)*diX)+1
-        j = floor((vY-YMin)*diY)+1
+        i = FLOOR((vX-XMin)*diX)+1
+        j = FLOOR((vY-YMin)*diY)+1
         ax = ((vX-XMin)-(i-1)*dX)*diX
         ay = ((vY-YMin)-(j-1)*dY)*diY
         W(:,k) = (1d0-ay)*((1d0-ax)*grid(:,i,j)+ax*grid(:,i+1,j)) &
                + ay*((1d0-ax)*grid(:,i,j+1)+ax*grid(:,i+1,j+1))
-      end do
+      End Do
     END ASSOCIATE
     ! TODO: add error estimation
-    if(present(Aerror)) Aerror = 0
+    If(PRESENT(Aerror)) Aerror = 0
     info = 0
   End Function mlf_GridModelGetProjection
+
+  Integer Function mlf_fun_GridModelGetProjection(this, Y, W, Aerror) Result(info)
+    class(mlf_2dgrid_fun_model), intent(in), target :: this
+    real(c_float), intent(in) :: Y(:,:)
+    real(c_float), intent(out) :: W(:,:)
+    real(c_float), optional, intent(out) :: Aerror(:,:)
+    real(c_float), allocatable :: X(:,:)
+    real(c_double) :: Y0(SIZE(Y,1))
+    integer :: i
+    ALLOCATE(X, MOLD=Y)
+    Do i=1,SIZE(Y,2)
+      CALL this%fun%proj(REAL(Y(:,i), KIND=8), Y0)
+      X(:,i) = REAL(Y0, KIND=4)
+    End Do
+    info = mlf_GridModelGetProjection(this, X, W, Aerror)
+  End Function mlf_fun_GridModelGetProjection
 End Module mlf_gridmodel
 

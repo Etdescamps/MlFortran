@@ -44,29 +44,33 @@ Module mlf_gridmodel
     procedure :: initF => mlf_GridModelInit
   End Type mlf_2dgrid
 
-  Type, Public, Extends(mlf_reduce_model) :: mlf_2dgrid_model
+  Type, Public, Extends(mlf_b_reduce_model) :: mlf_2dgrid_model
     class(mlf_2dgrid), pointer :: top
   Contains
     procedure :: getProjSingleFloat => mlf_GridModelGetProjectionSingle
     procedure :: getProjSingle => mlf_GridModelGetProjectionSingleDouble
     procedure :: getProjMultFloat => mlf_GridModelGetProjection
+    procedure :: getBounds => mlf_GridModelGetBounds
   End Type mlf_2dgrid_model
 
   Type, Public, Extends(mlf_2dgrid_model) :: mlf_2dgrid_fun_model
     class(mlf_bijection_fun), pointer :: fun
+    real(c_double) :: XMin, XMax, YMin, YMax
   Contains
     procedure :: getProjSingleFloat => mlf_fun_GridModelGetProjectionSingle
     procedure :: getProjSingle => mlf_fun_GridModelGetProjectionSingleDouble
     procedure :: getProjMultFloat => mlf_fun_GridModelGetProjection
+    procedure :: getBounds => mlf_fun_GridModelGetBounds
   End Type mlf_2dgrid_fun_model
 
 Contains
   
   ! Model initilisator
-  Subroutine mlf_model_funbasis_init(this, top, fun)
+  Subroutine mlf_model_funbasis_init(this, top, fun, XMin, XMax, YMin, YMax)
     class(mlf_model), intent(out), allocatable :: this
     class(mlf_2dgrid), intent(in), target :: top
     class(mlf_bijection_fun), intent(in), target, optional :: fun
+    real(c_double), intent(in), optional :: XMin, XMax, YMin, YMax
     If(PRESENT(fun)) Then
       ALLOCATE(mlf_2dgrid_fun_model :: this)
     Else
@@ -76,6 +80,10 @@ Contains
     Class is (mlf_2dgrid_fun_model)
       this%top => top
       this%fun => fun
+      If(PRESENT(XMin)) this%XMin = XMin
+      If(PRESENT(XMax)) this%XMax = XMax
+      If(PRESENT(YMin)) this%YMin = YMin
+      If(PRESENT(YMax)) this%YMax = YMax
     Class is (mlf_2dgrid_model)
       this%top => top
     End Select
@@ -155,8 +163,27 @@ Contains
         this%grid(:,:,i) = REAL(G,4)
       End Do
     Endif
-    CALL mlf_model_funbasis_init(this%model, this, fun)
+    CALL mlf_model_funbasis_init(this%model, this, fun, XMin, XMax, YMin, YMax)
   End Function mlf_GridModelInit
+  
+  Subroutine mlf_GridModelGetBounds(this, XMin, XMax)
+    class(mlf_2dgrid_model), intent(in), target :: this
+    real(c_double), intent(out) :: XMin(:), XMax(:)
+    XMin(1) = this%top%XMin
+    XMin(2) = this%top%YMin
+    XMax(1) = this%top%XMax
+    XMax(2) = this%top%YMax
+  End Subroutine mlf_GridModelGetBounds
+
+  Subroutine mlf_fun_GridModelGetBounds(this, XMin, XMax)
+    class(mlf_2dgrid_fun_model), intent(in), target :: this
+    real(c_double), intent(out) :: XMin(:), XMax(:)
+    XMin(1) = this%XMin
+    XMin(2) = this%YMin
+    XMax(1) = this%XMax
+    XMax(2) = this%YMax
+  End Subroutine mlf_fun_GridModelGetBounds
+
 
   Integer Function mlf_GridModelGetProjectionSingleDouble(this, Y, W, Aerror) Result(info)
     class(mlf_2dgrid_model), intent(in), target :: this

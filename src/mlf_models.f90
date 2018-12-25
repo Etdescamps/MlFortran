@@ -37,26 +37,26 @@ Module mlf_models
   Public :: mlf_getClass, mlf_getProba, mlf_getNumClasses, mlf_getValue, mlf_getProj
   Public :: mlf_getModel
 
-  Type, public :: mlf_model
+  Type, Public :: mlf_model
   End Type mlf_model
   
-  Type, public, abstract, extends(mlf_arr_obj) :: mlf_obj_model
+  Type, Public, Abstract, Extends(mlf_arr_obj) :: mlf_obj_model
     class(mlf_model), allocatable :: model
   End Type mlf_obj_model
 
-  Type, public, abstract, extends(mlf_model) :: mlf_class_model
+  Type, Public, abstract, extends(mlf_model) :: mlf_class_model
   Contains
     procedure (mlf_model_getClass), deferred :: getClass
   End Type mlf_class_model
    
-  Type, public, abstract, extends(mlf_class_model) :: mlf_class_proba_model
+  Type, Public, Abstract, Extends(mlf_class_model) :: mlf_class_proba_model
   Contains
     procedure (mlf_model_getProba), deferred :: getProba
     procedure (mlf_model_getNumClasses), deferred :: getNumClasses
     procedure :: getClass => mlf_model_getClass_proba
   End Type mlf_class_proba_model
 
-  Type, public, abstract, extends(mlf_model) :: mlf_reduce_model
+  Type, Public, Abstract, Extends(mlf_model) :: mlf_reduce_model
   Contains
     procedure (mlf_model_getProjSingle), deferred :: getProjSingle
     procedure :: getProjSingleFloat => mlf_model_getProjSingleFloat
@@ -66,13 +66,18 @@ Module mlf_models
       getProjMultFloat
   End Type mlf_reduce_model
 
-  Type, public, abstract, extends(mlf_reduce_model) :: mlf_approx_model
+  Type, Public, Abstract, Extends(mlf_reduce_model) :: mlf_b_reduce_model
+  Contains
+    procedure (mlf_model_reduce_getBounds), deferred :: getBounds
+  End Type mlf_b_reduce_model
+
+  Type, Public, Abstract, Extends(mlf_reduce_model) :: mlf_approx_model
   Contains
     procedure (mlf_model_getValue), deferred :: getValue
     procedure (mlf_model_getValueBounds), deferred :: getValueBounds
   End Type mlf_approx_model
 
-  Type, public, abstract, extends(mlf_approx_model) :: mlf_approx_linear
+  Type, Public, Abstract, Extends(mlf_approx_model) :: mlf_approx_linear
   Contains
     procedure :: getValue => mlf_approx_linear_getValue
     procedure (mlf_model_getValueBasis), deferred :: getValueBasis
@@ -80,7 +85,7 @@ Module mlf_models
 
 
   Abstract Interface
-    integer Function mlf_model_getClass(this, X, Cl)
+    Integer Function mlf_model_getClass(this, X, Cl)
       use iso_c_binding
       import :: mlf_class_model
       class(mlf_class_model), intent(in), target :: this
@@ -88,13 +93,13 @@ Module mlf_models
       integer(c_int), intent(out) :: Cl(:)
     End Function mlf_model_getClass
 
-    integer Function mlf_model_getNumClasses(this)
+    Integer Function mlf_model_getNumClasses(this)
       use iso_c_binding
       import :: mlf_class_proba_model
       class(mlf_class_proba_model), intent(in), target :: this
     End Function mlf_model_getNumClasses
 
-    integer Function mlf_model_getProba(this, X, Proba)
+    Integer Function mlf_model_getProba(this, X, Proba)
       use iso_c_binding
       import :: mlf_class_proba_model
       class(mlf_class_proba_model), intent(in), target :: this
@@ -102,7 +107,14 @@ Module mlf_models
       real(c_double), intent(out) :: Proba(:,:)
     End Function mlf_model_getProba
 
-    integer Function mlf_model_getProjSingle(this, Y, W, Aerror)
+    Subroutine mlf_model_reduce_getBounds(this, XMin, XMax)
+      use iso_c_binding
+      import :: mlf_b_reduce_model
+      class(mlf_b_reduce_model), intent(in), target :: this
+      real(c_double), intent(out) :: XMin(:), XMax(:)
+    End Subroutine mlf_model_reduce_getBounds
+
+    Integer Function mlf_model_getProjSingle(this, Y, W, Aerror)
       use iso_c_binding
       import :: mlf_reduce_model
       class(mlf_reduce_model), intent(in), target :: this
@@ -135,7 +147,7 @@ Module mlf_models
     End Subroutine mlf_model_getValueBounds
   End Interface
 Contains
-  integer Function mlf_model_getProjSingleFloat(this, Y, W, Aerror) result(info)
+  Integer Function mlf_model_getProjSingleFloat(this, Y, W, Aerror) result(info)
     class(mlf_reduce_model), intent(in), target :: this
     real(c_float), intent(in) :: Y(:)
     real(c_float), intent(out) :: W(:)
@@ -157,7 +169,7 @@ Contains
     W = REAL(W0, c_float)
   End Function mlf_model_getProjSingleFloat
 
-  integer Function mlf_model_getProjMult(this, Y, W, Aerror) result(info)
+  Integer Function mlf_model_getProjMult(this, Y, W, Aerror) result(info)
     class(mlf_reduce_model), intent(in), target :: this
     real(c_double), intent(in) :: Y(:,:)
     real(c_double), intent(out) :: W(:,:)
@@ -169,7 +181,7 @@ Contains
     End Do
   End Function mlf_model_getProjMult
 
-  integer Function mlf_model_getProjMultFloat(this, Y, W, Aerror) result(info)
+  Integer Function mlf_model_getProjMultFloat(this, Y, W, Aerror) result(info)
     class(mlf_reduce_model), intent(in), target :: this
     real(c_float), intent(in) :: Y(:,:)
     real(c_float), intent(out) :: W(:,:)
@@ -198,7 +210,7 @@ Contains
     endif
   End Function mlf_model_getProjMultFloat
 
-  real(c_double) Function mlf_approx_linear_getValue(this, W, x) result(Y)
+  Real(c_double) Function mlf_approx_linear_getValue(this, W, x) result(Y)
     class(mlf_approx_linear), intent(in) :: this
     real(c_double), intent(in) :: W(:), x
     real(c_double) :: Z(size(W))
@@ -211,7 +223,7 @@ Contains
     endif
   End Function mlf_approx_linear_getValue
 
-  integer Function mlf_model_getClass_proba(this, X, Cl) result(info)
+  Integer Function mlf_model_getClass_proba(this, X, Cl) result(info)
     class(mlf_class_proba_model), intent(in), target :: this
     real(c_double), intent(in) :: X(:,:)
     integer(c_int), intent(out) :: Cl(:)
@@ -238,7 +250,7 @@ Contains
     end select
   End Function mlf_getModel
 
-  integer(c_int) Function mlf_getClass(model, X, Cl) result(info)
+  Integer(c_int) Function mlf_getClass(model, X, Cl) result(info)
     class(mlf_model), intent(inout) :: model
     integer(c_int), intent(out) :: Cl(:)
     real(c_double), intent(in) :: X(:,:)
@@ -249,7 +261,7 @@ Contains
     end select
   End Function mlf_getClass
 
-  integer(c_int) Function c_getClass(cptr, cX, cCl, nX, nIn) result(info) bind(C, name="mlf_getClass")
+  Integer(c_int) Function c_getClass(cptr, cX, cCl, nX, nIn) result(info) bind(C, name="mlf_getClass")
     type(c_ptr), value :: cptr, cX, cCl
     integer(c_int), value :: nX, nIn
     real(c_double), pointer :: X(:,:)
@@ -263,7 +275,7 @@ Contains
     info = mlf_getClass(model, X, Cl)
   End Function c_getClass
 
-  integer(c_int) Function mlf_getProba(model, X, Cl) result(info)
+  Integer(c_int) Function mlf_getProba(model, X, Cl) result(info)
     class(mlf_model), intent(inout) :: model
     real(c_double), intent(out) :: Cl(:,:)
     real(c_double), intent(in) :: X(:,:)
@@ -274,7 +286,7 @@ Contains
     end select
   End Function mlf_getProba
 
-  integer(c_int) Function c_getProba(cptr, cX, cCl, nX, nIn, nCl) result(info) bind(C, name="mlf_getProba")
+  Integer(c_int) Function c_getProba(cptr, cX, cCl, nX, nIn, nCl) result(info) bind(C, name="mlf_getProba")
     type(c_ptr), value :: cptr, cX, cCl
     integer(c_int), value :: nX, nIn, nCl
     class(mlf_model), pointer :: model
@@ -287,7 +299,7 @@ Contains
     info = mlf_getProba(model, X, Cl)
   End Function c_getProba
 
-  integer(c_int) Function mlf_getNumClasses(model) result(info)
+  Integer(c_int) Function mlf_getNumClasses(model) result(info)
     class(mlf_model), intent(inout) :: model
     info = -1
     select type(model)
@@ -296,7 +308,7 @@ Contains
     end select
   End Function mlf_getNumClasses
 
-  integer(c_int) Function c_getNumClasses(cptr) result(info) bind(C, name="mlf_getNumClasses")
+  Integer(c_int) Function c_getNumClasses(cptr) result(info) bind(C, name="mlf_getNumClasses")
     type(c_ptr), value :: cptr
     class(mlf_model), pointer :: model
     info = -1
@@ -305,7 +317,7 @@ Contains
     info = mlf_getNumClasses(model)
   End Function c_getNumClasses
 
-  integer(c_int) Function mlf_getProj(model, Y, W, Aerror) result(info)
+  Integer(c_int) Function mlf_getProj(model, Y, W, Aerror) result(info)
     class(mlf_model), intent(inout) :: model
     real(c_double), intent(in) :: Y(:,:)
     real(c_double), intent(out) :: W(:,:)
@@ -317,7 +329,7 @@ Contains
     end select
   End Function mlf_getProj
 
-  integer(c_int) Function mlf_getProj_f(model, Y, W, Aerror) result(info)
+  Integer(c_int) Function mlf_getProj_f(model, Y, W, Aerror) result(info)
     class(mlf_model), intent(inout) :: model
     real(c_float), intent(in) :: Y(:,:)
     real(c_float), intent(out) :: W(:,:)
@@ -330,7 +342,7 @@ Contains
   End Function mlf_getProj_f
 
 
-  integer(c_int) Function c_getProj(cptr, cY, cW, nIn, nDimIn, nDimOut) result(info) bind(C, name="mlf_getProj")
+  Integer(c_int) Function c_getProj(cptr, cY, cW, nIn, nDimIn, nDimOut) result(info) bind(C, name="mlf_getProj")
     type(c_ptr), value :: cptr, cY, cW
     integer(c_int), value :: nIn
     class(mlf_model), pointer :: model
@@ -344,7 +356,7 @@ Contains
     info = mlf_getProj(model, Y, W)
   End Function c_getProj
 
-  integer(c_int) Function c_getProj_f(cptr, cY, cW, nIn, nDimIn, nDimOut) result(info) bind(C, name="mlf_getProj_f")
+  Integer(c_int) Function c_getProj_f(cptr, cY, cW, nIn, nDimIn, nDimOut) result(info) bind(C, name="mlf_getProj_f")
     type(c_ptr), value :: cptr, cY, cW
     integer(c_int), value :: nIn
     class(mlf_model), pointer :: model
@@ -359,7 +371,7 @@ Contains
   End Function c_getProj_f
 
 
-  real(c_double) Function mlf_getValue(model, W, t) result(Y)
+  Real(c_double) Function mlf_getValue(model, W, t) result(Y)
     class(mlf_model), intent(inout) :: model
     real(c_double), intent(in) :: W(:), t
     Y = IEEE_VALUE(Y, IEEE_QUIET_NAN)
@@ -369,7 +381,7 @@ Contains
     end select
   End Function mlf_getValue
 
-  real(c_double) Function c_getValue(cptr, cW, t, nDimOut) result(Y) bind(C, name="mlf_getValue")
+  Real(c_double) Function c_getValue(cptr, cW, t, nDimOut) result(Y) bind(C, name="mlf_getValue")
     type(c_ptr), value :: cptr, cW
     real(c_double), value :: t
     class(mlf_model), pointer :: model

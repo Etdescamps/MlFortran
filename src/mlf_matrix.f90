@@ -180,7 +180,7 @@ Contains
   End Subroutine randOrthogonal
   
   Integer Function SymMatrixEigenDecomposition(C, LD, LB) result(info)
-    ! Get orthogonal eigenvectors (LB) and eigenvalue (LD) of the symmetric matrix C
+    ! Get orthogonal eigenvectors (LB) and eigenvalue (LD) from the symmetric matrix C
     ! (eigenvalues in ascending order)
     integer :: ND, LWORK
     real(c_double), intent(in) :: C(:,:)
@@ -201,9 +201,9 @@ Contains
     CALL dsteqr('V', ND, LD, LE, LB, ND, WORK, info)
   End Function SymMatrixEigenDecomposition
 
-  ! 
+  !  
   Integer Function SymMatrixSelectEigenValues(C, SLD, SLB) result(info)
-    ! Get orthogonal eigenvectors (LB) and eigenvalue (LD) of the symmetric matrix C
+    ! Get the most prominent eigenvectors (SLB) and eigenvalue (SLD) from the symmetric matrix C
     ! (eigenvalues in ascending order)
     real(c_double), intent(in) :: C(:,:)
     real(c_double), intent(out) :: SLD(:), SLB(:,:)
@@ -216,6 +216,11 @@ Contains
     ! Compute eigen values and orthogonal matrix
     CALL dsyevr('V', 'I', 'U', ND, A, ND, 0d0, HUGE(0d0), ND-nR+1, ND, 1d-12, K, LD, SLB, ND, iSUPPZ, &
       WORK, SIZE(WORK), IWORK, SIZE(IWORK), info)
+    If(info /= 0) RETURN
+    If(K < nR) Then
+      info = -1
+      RETURN
+    Endif
     SLD = LD(1:nR)
   End Function SymMatrixSelectEigenValues
 

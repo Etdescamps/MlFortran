@@ -184,7 +184,7 @@ Contains
     ! C is the positive definite matrix containing the dot product of each function
     !info = SymMatrixEigenDecomposition(C, LD, LB)
     info = SymMatrixSelectEigenValues(C, LD, LB)
-    If(info /= 0) RETURN
+    If(info /= 0) GOTO 10
     ! Choose the (normalised) eigenvector that have the higest eigenvalues
     If(PRESENT(WP)) Then
       !FORALL(i=1:sizeBase) this%W(:,i) = LB(:,N-i+1)/sqrt(LD(N-i+1))*WP(:)
@@ -195,6 +195,8 @@ Contains
     Endif
     CALL ComputeBasisValue(this, int(nX0,4))
     CALL mlf_model_funbasis_init(this%model, this)
+    RETURN
+ 10 info = -1
   End Function mlf_funbasis_init
 
   ! Subroutines used for computing a huge number of dot product between function
@@ -321,7 +323,7 @@ Contains
   ! Compute the matrix of the dot product between all functions
   ! Main function for determining a function basis
   ! Gives also the error
-  Integer Function ComputeFunMatrixInv(fun, x0, xEnd, Param, C, N)
+  Integer Function ComputeFunMatrixInv(fun, x0, xEnd, Param, C, N) Result(info)
     class(mlf_basis_fun_inv), intent(inout) :: fun
     real(c_double), intent(in) :: x0, xEnd, Param(:,:)
     real(c_double), intent(out) :: C(:,:)
@@ -330,7 +332,7 @@ Contains
     real(c_double) :: S, Fact
     real(c_double), allocatable :: Y(:,:), Y0(:,:), II(:), Z(:), X(:), Y1(:), P(:,:)
     integer(c_int), allocatable :: idx(:)
-    integer :: i, j, k, l, M, info
+    integer :: i, j, k, l, M
     M = SIZE(C,1)
     ALLOCATE(Y(2,M), Y0(N,1), II(M), Z(M), X(N), Y1(N), P(SIZE(Param, 1), N), idx(M))
     Y1 = [(REAL(i, KIND=8)/REAL(N+1, KIND=8), i=1,N)]
@@ -338,22 +340,31 @@ Contains
     If(info < 0) RETURN
     info = fun%eval([x0, xEnd], Param, Y)
     If(info < 0) RETURN
-    Z(:) = II(:)/MAXVAL(Y, DIM=1)
+    Where(II > 0d0)
+      Z = ABS(II)/MAXVAL(ABS(Y), DIM=1)
+    ElseWhere
+      Z = 0d0
+    End Where
     CALL QSortIdx(Z, idx)
     P = Param(:,idx)
     Y = Y(:,idx)
     Do i = 1, M
       k = idx(i)
-      info = fun%inv_integ(x0, Y1*II(k), P(:,i), X)
-      Fact = II(k)/REAL(N+1, KIND=8)
-      Do j = i, M
-        l = idx(j)
-        info = fun%eval(X, P(:,j:j), Y0)
-        S = (fb_icoeff(1)*SUM(Y(:,j)) + fb_icoeff(2)*(Y0(1,1)+Y0(N,1)) &
-          +  fb_icoeff(3)*(Y0(2,1)+Y0(N-1,1)) + SUM(Y0(3:N-2,1)))*Fact
-        C(k,l) = S
-        C(l,k) = S
-      End Do
+      If(II(k) /= 0) Then
+        info = fun%inv_integ(x0, Y1*II(k), P(:,i), X)
+        Fact = II(k)/REAL(N+1, KIND=8)
+        Do j = i, M
+          l = idx(j)
+          info = fun%eval(X, P(:,j:j), Y0)
+          S = (fb_icoeff(1)*SUM(Y(:,j)) + fb_icoeff(2)*(Y0(1,1)+Y0(N,1)) &
+            +  fb_icoeff(3)*(Y0(2,1)+Y0(N-1,1)) + SUM(Y0(3:N-2,1)))*Fact
+          C(k,l) = S
+          C(l,k) = S
+        End Do
+      Else
+        C(k,:) = 0d0
+        C(:,k) = 0d0
+      Endif
     End Do
   End Function ComputeFunMatrixInv
 
@@ -539,9 +550,13 @@ Contains
         If(info < 0) RETURN
         X = [(REAL(i, KIND=8)/REAL(nX+1, KIND=8), i=1,nX)]
         Do i = 1, nY
-          info = fun%inv_integ(x0, X*IY(i), P(:,i), IX)
-          If(info < 0) RETURN
-          CALL ComputeDotProductAbscissa(this%top%X, this%top%eDiff, this%top%Vals, IX, IY(i), W(:,i))
+          If(IX(i) /= 0) Then
+            info = fun%inv_integ(x0, X*IY(i), P(:,i), IX)
+            If(info < 0) RETURN
+            CALL ComputeDotProductAbscissa(this%top%X, this%top%eDiff, this%top%Vals, IX, IY(i), W(:,i))
+          Else
+            W(:,i) = 0d0
+          Endif
         End Do
       Class Default
         info = -1

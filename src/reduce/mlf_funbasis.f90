@@ -581,7 +581,7 @@ Contains
         uY = X(j)
       Endif
       X0 = (Y(i)-X(j-1:j+2))/dX
-      ASSOCIATE(Y1 => Vals(:,i-1), Y2 => Vals(:,i), Y3 => Vals(:,i+1), Y4 => Vals(:,i+2))
+      ASSOCIATE(Y1 => Vals(:,j-1), Y2 => Vals(:,j), Y3 => Vals(:,j+1), Y4 => Vals(:,j+2))
         Z = 1d0/6d0*X0(2)*X0(3)*(X0(1)*Y4-X0(4)*Y1)+0.5d0*X0(1)*X0(4)*(X0(3)*Y2-X0(2)*Y3)
       END ASSOCIATE
       If(i == 1 .OR. i == nY-1) Then

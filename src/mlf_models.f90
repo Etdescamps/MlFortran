@@ -83,6 +83,10 @@ Module mlf_models
     procedure (mlf_model_getValueBasis), deferred :: getValueBasis
   End Type mlf_approx_linear
 
+  Type, Public, Abstract, Extends(mlf_approx_linear) :: mlf_fast_approx_linear
+  Contains
+    procedure (mlf_model_getFastProj), deferred :: getFastProj
+  End Type mlf_fast_approx_linear
 
   Abstract Interface
     Integer Function mlf_model_getClass(this, X, Cl)
@@ -138,6 +142,15 @@ Module mlf_models
       real(c_double), intent(in) :: x
       real(c_double), intent(out) :: Y(:)
     End Function mlf_model_getValueBasis
+
+    Integer Function mlf_model_getFastProj(this, P, nX, W) result(info)
+      use iso_c_binding
+      import :: mlf_fast_approx_linear
+      class(mlf_fast_approx_linear), intent(in) :: this
+      real(c_double), intent(in) :: P(:,:)
+      integer, intent(in) :: nX
+      real(c_double), intent(out) :: W(:,:)
+    End Function mlf_model_getFastProj
 
     Subroutine mlf_model_getValueBounds(this, xMin, xMax)
       use iso_c_binding

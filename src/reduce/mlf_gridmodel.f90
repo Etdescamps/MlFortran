@@ -112,12 +112,12 @@ Contains
     End Select
   End Function c_2dgridmodel_init
 
-  Integer Function mlf_GridModelInit(this, fmodel, XMin, XMax, YMin, YMax, nW, nX0, nY0, fun, data_handler) result(info)
+  Integer Function mlf_GridModelInit(this, fmodel, XMin, XMax, YMin, YMax, nW, nX0, nY0, fun, nFastX, data_handler) result(info)
     class(mlf_2dgrid), intent(inout) :: this
     class(mlf_reduce_model), target :: fmodel
     class(mlf_data_handler), intent(inout), optional :: data_handler
     real(c_double), intent(in), optional :: XMin, XMax, YMin, YMax
-    integer(c_int), intent(in), optional :: nX0, nY0, nW
+    integer(c_int), intent(in), optional :: nX0, nY0, nW, nFastX
     real(c_double), allocatable :: X(:,:,:), G(:,:)
     class(mlf_bijection_fun), intent(in), target, optional :: fun
     type(mlf_rsc_numFields) :: numFields
@@ -159,7 +159,16 @@ Contains
         End Do
       Endif
       Do i = 1,nY0
-        info = fmodel%getProj(X(:,:,i), G)
+        If(PRESENT(nFastX)) Then
+          Select Type(fmodel)
+          Class is (mlf_fast_approx_linear)
+            info = fmodel%getFastProj(X(:,:,i), nFastX, G)
+          Class Default
+            info = fmodel%getProj(X(:,:,i), G)
+          End Select
+        Else
+          info = fmodel%getProj(X(:,:,i), G)
+        Endif
         this%grid(:,:,i) = REAL(G,4)
       End Do
     Endif

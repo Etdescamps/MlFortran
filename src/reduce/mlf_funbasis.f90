@@ -56,13 +56,14 @@ Module mlf_funbasis
     procedure :: getValueBasis => mlf_FunBasisValue
   End Type mlf_algo_funbasis
 
-  Type, Public, extends(mlf_approx_linear) :: mlf_model_funbasis
+  Type, Public, extends(mlf_fast_approx_linear) :: mlf_model_funbasis
     class(mlf_algo_funbasis), pointer :: top
   Contains
     procedure :: getProjMult => mlf_FunBasisGetProjection
     procedure :: getProjSingle => mlf_FunBasisGetProjectionSingle
     procedure :: getValueBasis => mlf_model_FunBasisValue
     procedure :: getValueBounds => mlf_model_FunBasisBounds
+    procedure :: getFastProj => mlf_FastProjection
   End Type mlf_model_funbasis
 Contains
   Subroutine mlf_model_FunBasisBounds(this, xMin, xMax)
@@ -78,8 +79,8 @@ Contains
     class(mlf_algo_funbasis), intent(in), target :: top
     ALLOCATE(mlf_model_funbasis :: this)
     Select Type(this)
-      Class is (mlf_model_funbasis)
-        this%top => top
+    Class is (mlf_model_funbasis)
+      this%top => top
     End Select
   End Subroutine mlf_model_funbasis_init
 
@@ -96,21 +97,21 @@ Contains
     integer :: info
     c_funbasis_init = C_NULL_PTR
     fobj => mlf_getobjfromc(cfobj)
-    if(.NOT. associated(fobj)) RETURN
-    select type(fobj)
-      class is (mlf_basis_fun)
-        if(.NOT. C_ASSOCIATED(cP)) RETURN
-        call C_F_POINTER(cP, P, [nFPar, nP])
-        ALLOCATE(x)
-        if(.NOT. C_ASSOCIATED(cWP)) then
-          info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX = nX, nXA = nXA)
-        else
-          call C_F_POINTER(cWP, WP, [nP])
-          info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX = nX, nXA = nXA, WP = WP)
-        endif
-        obj => x
-        c_funbasis_init = c_allocate(obj)
-    end select
+    If(.NOT. ASSOCIATED(fobj)) RETURN
+    Select Type(fobj)
+    Class is (mlf_basis_fun)
+      If(.NOT. C_ASSOCIATED(cP)) RETURN
+      CALL C_F_POINTER(cP, P, [nFPar, nP])
+      ALLOCATE(x)
+      If(.NOT. C_ASSOCIATED(cWP)) Then
+        info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX = nX, nXA = nXA)
+      Else
+        CALL C_F_POINTER(cWP, WP, [nP])
+        info = x%initF(fobj, alpha, x0, xEnd, P, sizeBase, nX = nX, nXA = nXA, WP = WP)
+      Endif
+      obj => x
+      c_funbasis_init = c_allocate(obj)
+    End Select
   End Function c_funbasis_init
 
   ! Init function for the step object
@@ -170,7 +171,7 @@ Contains
     nXC0 = nX
     If(PRESENT(nXC)) nXC0 = nXC
     Select Type(f)
-    Class is(mlf_basis_fun_inv)
+    Class is (mlf_basis_fun_inv)
       info = ComputeFunMatrixInv(f, this%x0, this%xEnd, P, C, nXC0)
     Class Default
       info = ComputeFunMatrix(f, this%x0, this%xEnd, this%alpha, P, C, nXC0)
@@ -339,7 +340,7 @@ Contains
     Y = Y(:,idx)
     Do i = 1, M
       k = idx(i)
-      info = fun%inv_integ(x0, II(k)*X, P(:,i), Y0(:,1))
+      info = fun%inv_integ(x0, Y1*II(k), P(:,i), X)
       Fact = II(k)/REAL(N+1, KIND=8)
       Do j = i, M
         l = idx(j)
@@ -352,7 +353,7 @@ Contains
     End Do
   End Function ComputeFunMatrixInv
 
-  Integer Function mlf_FunBasisGetProjectionSingle(this, Y, W, Aerror) result(info)
+  Integer Function mlf_FunBasisGetProjectionSingle(this, Y, W, Aerror) Result(info)
     ! Get the projection of the function in the basis of the selected vector
     class(mlf_model_funbasis), intent(in), target :: this
     real(c_double), intent(in) :: Y(:)
@@ -361,28 +362,28 @@ Contains
     real(c_double), allocatable :: F(:,:), P(:)
     integer :: np, nx, i
     real(c_double) :: coeff
-    np = size(this%top%W, 2)
-    nx = size(this%top%X)
-    allocate(F(nx,1), P(nx))
-    info = this%top%fun%eval(this%top%X, reshape(Y, [size(Y),1]), F)
-    if(info<0) RETURN
-    if(this%top%alpha == 0) then
+    np = SIZE(this%top%W, 2)
+    nx = SIZE(this%top%X)
+    ALLOCATE(F(nx,1), P(nx))
+    info = this%top%fun%eval(this%top%X, RESHAPE(Y, [SIZE(Y),1]), F)
+    If(info<0) RETURN
+    If(this%top%alpha == 0) Then
       coeff = this%top%eDiff
-    else
+    Else
       coeff = this%top%eDiff/this%top%alpha
-    endif
-    do i = 1,np
+    Endif
+    Do i = 1,np
       P =  this%top%Vals(i,:)
       W(i) = coeff*ComputeDotProduct(F(:,1), P, this%top%xEnd)
       ! It is not essential to remove this part (the function basis is orthonormal)
       ! but the remaining value can be used for estimating the error of the approximation
       F(:,1) = F(:,1)-W(i)*P
-    end do
-    if(present(Aerror)) then
-      F = abs(F)
-      Aerror(1) = sum(F)/real(nx)
-      Aerror(2) = maxval(F)
-    endif
+    End Do
+    If(PRESENT(Aerror)) Then
+      F = ABS(F)
+      Aerror(1) = SUM(F)/REAL(nx)
+      Aerror(2) = MAXVAL(F)
+    Endif
   End Function mlf_FunBasisGetProjectionSingle
 
   integer Function mlf_FunBasisGetProjection(this, Y, W, Aerror) result(info)
@@ -394,33 +395,33 @@ Contains
     real(c_double), allocatable :: F(:,:), P(:)
     integer :: np, nx, ny, i, j
     real(c_double) :: coeff
-    np = size(this%top%W, 2)
-    ny = size(Y, 2)
-    nx = size(this%top%X)
-    allocate(F(nx,ny), P(nx))
+    np = SIZE(this%top%W, 2)
+    ny = SIZE(Y, 2)
+    nx = SIZE(this%top%X)
+    ALLOCATE(F(nx,ny), P(nx))
     info = this%top%fun%eval(this%top%X, Y, F)
-    if(info<0) RETURN
-    if(this%top%alpha == 0) then
+    If(info<0) RETURN
+    If(this%top%alpha == 0) Then
       coeff = this%top%eDiff
-    else
+    Else
       coeff = this%top%eDiff/this%top%alpha
-    endif
-    do i = 1,np
+    Endif
+    Do i = 1,np
       P =  this%top%Vals(i,:)
-      do j = 1,ny
+      Do j = 1,ny
         W(i,j) = coeff*ComputeDotProduct(F(:,j), P, this%top%xEnd)
         ! It is not essential to remove this part (the function basis is orthonormal)
         ! but the remaining value can be used for estimating the error of the approximation
         F(:,j) = F(:,j)-W(i,j)*P
-      end do
-    end do
-    if(present(Aerror)) then
-      F = abs(F)
-      forall (i=1:ny)
-        Aerror(i,1) = sum(F(:,i))/real(nx)
-        Aerror(i,2) = maxval(F(:,i))
-      end forall 
-    endif
+      End Do
+    End Do
+    If(PRESENT(Aerror)) Then
+      F = ABS(F)
+      FORALL (i=1:ny)
+        Aerror(i,1) = SUM(F(:,i))/REAL(nx)
+        Aerror(i,2) = MAXVAL(F(:,i))
+      END FORALL 
+    Endif
   End Function mlf_FunBasisGetProjection
 
   Integer Function mlf_model_FunBasisValue(this, x, Y) result(info)
@@ -481,31 +482,31 @@ Contains
     real(c_double), allocatable :: Y(:,:)
     M = SIZE(this%P,2)
     ALLOCATE(Y(1,M))
-    if(this%alpha == 0) then
+    If(this%alpha == 0) Then
       this%eDiff = (this%xEnd-this%x0)/REAL(N-1, KIND=8)
-      forall(i=1:N) this%X(i) = REAL(i-1, KIND=8)*this%eDiff+this%x0
+      FORALL(i=1:N) this%X(i) = REAL(i-1, KIND=8)*this%eDiff+this%x0
       coeff = this%eDiff
-    else
+    Else
       eA0 = EXP(-this%alpha*this%x0)
       invAlpha = 1d0/this%alpha
-      if(ieee_is_finite(this%xEnd)) then
+      If(ieee_is_finite(this%xEnd)) Then
         eAEnd = EXP(-this%alpha*this%xEnd)
         eDiff = (eA0-eAEnd)/REAL(N-1, KIND=8)
         this%X(1) = this%xEnd
-      else
+      Else
         eDiff = eA0/REAL(N, KIND=8)
         eAEnd = eDiff
         this%X(1) = -invAlpha*LOG(eDiff)
-      endif
+      Endif
       this%eA0 = eA0
       this%eAEnd = eAEnd
       this%eDiff = eDiff
       this%X(N) = this%x0
-      do i = 2,N-1
+      Do i = 2,N-1
         this%X(i) = -invAlpha*LOG(eAEnd+(i-1)*eDiff)
-      end do
+      End Do
       coeff = this%eDiff*this%alpha
-    endif
+    Endif
     Do i = 1,N
       info = this%fun%eval(this%X(i:i), this%P, Y)
       this%Vals(:,i) = MATMUL(Y(1,:),this%W)
@@ -517,5 +518,62 @@ Contains
       this%Vals(i,:) = this%Vals(i,:)/SQRT(Z)
     End Do
   End Subroutine ComputeBasisValue
+
+  Integer Function mlf_FastProjection(this, P, nX, W) Result(info)
+    class(mlf_model_funbasis), intent(in) :: this
+    real(c_double), intent(in) :: P(:,:)
+    integer, intent(in) :: nX
+    real(c_double), intent(out) :: W(:,:)
+    real(c_double), allocatable :: X(:), IX(:), IY(:)
+    integer :: i, nY
+    nY = SIZE(P,2)
+    ASSOCIATE(fun => this%top%fun, x0 => this%top%x0, xEnd => this%top%xEnd)
+      Select Type(fun)
+      Class is (mlf_basis_fun_inv)
+        ALLOCATE(X(nX), IY(nY), IX(nX))
+        info = fun%integral(x0, xEnd, P, IY)
+        If(info < 0) RETURN
+        X = [(REAL(i, KIND=8)/REAL(nX+1, KIND=8), i=1,nX)]
+        Do i = 1, nY
+          info = fun%inv_integ(x0, X*IY(i), P(:,i), IX)
+          If(info < 0) RETURN
+          CALL ComputeDotProductAbscissa(this%top%X, this%top%eDiff, this%top%Vals, IX, IY(i), W(:,i))
+        End Do
+      Class Default
+        info = -1
+      End Select
+    END ASSOCIATE
+  End Function mlf_FastProjection
+
+  ! Compute dot product with list of abscissa (case with mlf_basis_fun_inv)
+  Subroutine ComputeDotProductAbscissa(X, dX, Vals, Y, IY, F)
+    real(c_double), intent(in) :: X(:), Vals(:,:), dX, IY
+    real(c_double), intent(in) :: Y(:) ! Shall not include x0 and xEnd (already included in computation)
+    real(c_double), intent(out) :: F(:) ! Dimension: size of base
+    real(c_double) :: uY, X0(4), Z(SIZE(F))
+    integer :: N, nY, nP, i, j
+    N = SIZE(X); nP = SIZE(Vals, 2); nY = SIZE(Y)
+    F(:) = fb_icoeff(1)*(Vals(:,1)+Vals(:,nP))
+    j = 2; uY = X(2)
+    Do i = 1, nY
+      If(Y(i) > uY) Then
+        j = CEILING((Y(i)-X(1))/dX)
+        j = MAX(2, MIN(j, N-2))
+        uY = X(j)
+      Endif
+      X0 = (Y(i)-X(j-1:j+2))/dX
+      ASSOCIATE(Y1 => Vals(:,i-1), Y2 => Vals(:,i), Y3 => Vals(:,i+1), Y4 => Vals(:,i+2))
+        Z = 1d0/6d0*X0(2)*X0(3)*(X0(1)*Y4-X0(4)*Y1)+0.5d0*X0(1)*X0(4)*(X0(3)*Y2-X0(2)*Y3)
+      END ASSOCIATE
+      If(i == 1 .OR. i == nY-1) Then
+        F = F + fb_icoeff(2)*Z
+      Else If(i == 2 .OR. i == nY-2) Then
+        F = F + fb_icoeff(3)*Z
+      Else
+        F = F + Z
+      Endif
+    End Do
+    F = F*IY/REAL(nY+1, KIND = 8)
+  End Subroutine ComputeDotProductAbscissa
 End Module mlf_funbasis
 

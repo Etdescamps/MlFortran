@@ -160,7 +160,8 @@ Contains
     If(PRESENT(data_handler)) RETURN
     this%fun => f
     this%P = P
-    ALLOCATE(C(N,N), LD(N), LB(N,N))
+    !ALLOCATE(C(N,N), LD(N), LB(N,N))
+    ALLOCATE(C(N,N), LD(sizeBase), LB(N,sizeBase))
     CALL InitOrDefault(this%xEnd, ieee_value(0d0, ieee_positive_inf), xEnd)
     If(ieee_is_finite(this%xEnd)) Then
       CALL InitOrDefault(this%alpha, 0d0, alpha)
@@ -181,13 +182,16 @@ Contains
       FORALL(i=1:N,j=1:N) C(i,j) = WP(i)*WP(j)*C(i,j)
     Endif
     ! C is the positive definite matrix containing the dot product of each function
-    info = SymMatrixEigenDecomposition(C, LD, LB)
+    !info = SymMatrixEigenDecomposition(C, LD, LB)
+    info = SymMatrixSelectEigenValues(C, LD, LB)
     If(info /= 0) RETURN
     ! Choose the (normalised) eigenvector that have the higest eigenvalues
     If(PRESENT(WP)) Then
-      FORALL(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))*WP(:)
+      !FORALL(i=1:sizeBase) this%W(:,i) = LB(:,N-i+1)/sqrt(LD(N-i+1))*WP(:)
+      FORALL(i=1:sizeBase) this%W(:,i) = LB(:,sizeBase-i+1)/sqrt(LD(sizeBase-i+1))*WP(:)
     Else
-      FORALL(i=1:sizeBase) this%W(:,i) = LB(:,(N-i+1))/sqrt(LD(N-i+1))
+      !FORALL(i=1:sizeBase) this%W(:,i) = LB(:,N-i+1)/sqrt(LD(N-i+1))
+      FORALL(i=1:sizeBase) this%W(:,i) = LB(:,sizeBase-i+1)/sqrt(LD(sizeBase-i+1))
     Endif
     CALL ComputeBasisValue(this, int(nX0,4))
     CALL mlf_model_funbasis_init(this%model, this)

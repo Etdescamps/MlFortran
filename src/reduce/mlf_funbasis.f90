@@ -187,15 +187,14 @@ Contains
     If(info /= 0) GOTO 10
     ! Choose the (normalised) eigenvector that have the higest eigenvalues
     If(PRESENT(WP)) Then
-      !FORALL(i=1:sizeBase) this%W(:,i) = LB(:,N-i+1)/sqrt(LD(N-i+1))*WP(:)
-      FORALL(i=1:sizeBase) this%W(:,i) = LB(:,sizeBase-i+1)/sqrt(LD(sizeBase-i+1))*WP(:)
+      FORALL(i=1:sizeBase) this%W(:,i) = LB(:,sizeBase-i+1)/sqrt(LD(sizeBase-i+1))*WP
     Else
-      !FORALL(i=1:sizeBase) this%W(:,i) = LB(:,N-i+1)/sqrt(LD(N-i+1))
       FORALL(i=1:sizeBase) this%W(:,i) = LB(:,sizeBase-i+1)/sqrt(LD(sizeBase-i+1))
     Endif
     CALL ComputeBasisValue(this, int(nX0,4))
     CALL mlf_model_funbasis_init(this%model, this)
     RETURN
+    WRITE (error_unit, *) "mlf_funbasis: error with Eigen decomposition"
  10 info = -1
   End Function mlf_funbasis_init
 
@@ -351,7 +350,7 @@ Contains
     Y = Y(:,idx)
     !$OMP PARALLEL default(shared) PRIVATE(Y0, X, XV, i, j, k, l, infoI, S, Fact)
     ALLOCATE(Y0(N,1), X(N), XV(N))
-    !$OMP Do 
+    !$OMP Do schedule(dynamic)
     Do i = 1, M
       k = idx(i)
       If(II(k) /= 0) Then

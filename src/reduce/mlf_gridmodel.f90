@@ -160,7 +160,7 @@ Contains
       Endif
       !$OMP PARALLEL default(shared) PRIVATE(G, i, infoI)
       ALLOCATE(G(nW, nX0))
-      !$OMP Do
+      !$OMP Do schedule(dynamic)
       Do i = 1,nY0
         If(PRESENT(nFastX)) Then
           Select Type(fmodel)

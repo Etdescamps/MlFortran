@@ -205,6 +205,4 @@ Contains
     !Normalize probabilities
     FORALL(i=1:NX) Proba(i,:) = Proba(i,:)/SUM(Proba(i,:))
   End Function ExpStep
-
-
 End Module mlf_emgmm

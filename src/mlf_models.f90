@@ -127,7 +127,7 @@ Module mlf_models
       real(c_double), optional, intent(out) :: Aerror(:)
     End Function mlf_model_getProjSingle
 
-    Function mlf_model_getValue(this, W, x) result(Y)
+    Function mlf_model_getValue(this, W, x) Result(Y)
       use iso_c_binding
       import :: mlf_approx_model
       class(mlf_approx_model), intent(in) :: this
@@ -135,7 +135,7 @@ Module mlf_models
       real(c_double) :: Y
     End Function mlf_model_getValue
 
-    Integer Function mlf_model_getValueBasis(this, x, Y) result(info)
+    Integer Function mlf_model_getValueBasis(this, x, Y) Result(info)
       use iso_c_binding
       import :: mlf_approx_linear
       class(mlf_approx_linear), intent(in) :: this
@@ -143,7 +143,7 @@ Module mlf_models
       real(c_double), intent(out) :: Y(:)
     End Function mlf_model_getValueBasis
 
-    Integer Function mlf_model_getFastProj(this, P, nX, W) result(info)
+    Integer Function mlf_model_getFastProj(this, P, nX, W) Result(info)
       use iso_c_binding
       import :: mlf_fast_approx_linear
       class(mlf_fast_approx_linear), intent(in) :: this
@@ -160,29 +160,29 @@ Module mlf_models
     End Subroutine mlf_model_getValueBounds
   End Interface
 Contains
-  Integer Function mlf_model_getProjSingleFloat(this, Y, W, Aerror) result(info)
+  Integer Function mlf_model_getProjSingleFloat(this, Y, W, Aerror) Result(info)
     class(mlf_reduce_model), intent(in), target :: this
     real(c_float), intent(in) :: Y(:)
     real(c_float), intent(out) :: W(:)
     real(c_float), optional, intent(out) :: Aerror(:)
-    real(c_double) :: Y0(size(Y))
-    real(c_double) :: W0(size(W))
+    real(c_double) :: Y0(SIZE(Y))
+    real(c_double) :: W0(SIZE(W))
     integer :: l
     Y0 = REAL(Y, c_double)
-    if(present(Aerror)) then
-      l = size(Aerror)
+    If(PRESENT(Aerror)) Then
+      l = SIZE(Aerror)
       BLOCK
         real(c_double) :: Aerror0(l)
         info = this%getProj(Y0, W0, Aerror0)
         Aerror = REAL(Aerror0, c_float)
       END BLOCK
-    else
+    Else
       info = this%getProj(Y0, W0)
-    endif
+    Endif
     W = REAL(W0, c_float)
   End Function mlf_model_getProjSingleFloat
 
-  Integer Function mlf_model_getProjMult(this, Y, W, Aerror) result(info)
+  Integer Function mlf_model_getProjMult(this, Y, W, Aerror) Result(info)
     class(mlf_reduce_model), intent(in), target :: this
     real(c_double), intent(in) :: Y(:,:)
     real(c_double), intent(out) :: W(:,:)
@@ -194,58 +194,58 @@ Contains
     End Do
   End Function mlf_model_getProjMult
 
-  Integer Function mlf_model_getProjMultFloat(this, Y, W, Aerror) result(info)
+  Integer Function mlf_model_getProjMultFloat(this, Y, W, Aerror) Result(info)
     class(mlf_reduce_model), intent(in), target :: this
     real(c_float), intent(in) :: Y(:,:)
     real(c_float), intent(out) :: W(:,:)
     real(c_float), optional, intent(out) :: Aerror(:,:)
-    real(c_double) :: Y0(size(Y,1))
-    real(c_double) :: W0(size(W,1))
+    real(c_double) :: Y0(SIZE(Y,1))
+    real(c_double) :: W0(SIZE(W,1))
     integer :: i, l
     info = 0
-    if(present(Aerror)) then
-      l = size(Aerror, 1)
+    If(PRESENT(Aerror)) Then
+      l = SIZE(Aerror, 1)
       BLOCK
         real(c_double) :: Aerror0(l)
-        Do i=1,size(Y,2)
+        Do i=1,SIZE(Y,2)
           Y0 = REAL(Y(:,i), c_double)
           info = this%getProj(Y0, W0, Aerror0)
           W(:,i) = REAL(W0, c_float)
           Aerror(:,i) = REAL(Aerror0, c_float)
         End Do
       END BLOCK
-    else
-      Do i=1,size(Y,2)
+    Else
+      Do i=1,SIZE(Y,2)
         Y0 = REAL(Y(:,i), c_double)
         info = this%getProj(Y0, W0)
         W(:,i) = REAL(W0, c_float)
       End Do
-    endif
+    Endif
   End Function mlf_model_getProjMultFloat
 
-  Real(c_double) Function mlf_approx_linear_getValue(this, W, x) result(Y)
+  Real(c_double) Function mlf_approx_linear_getValue(this, W, x) Result(Y)
     class(mlf_approx_linear), intent(in) :: this
     real(c_double), intent(in) :: W(:), x
-    real(c_double) :: Z(size(W))
+    real(c_double) :: Z(SIZE(W))
     integer :: info
     info = this%getValueBasis(x, Z)
-    if(info == 0) then
+    If(info == 0) Then
       Y = DOT_PRODUCT(W,Z)
-    else
-      Y = ieee_value(0d0, ieee_quiet_nan)
-    endif
+    Else
+      Y = IEEE_VALUE(0d0, ieee_quiet_nan)
+    Endif
   End Function mlf_approx_linear_getValue
 
-  Integer Function mlf_model_getClass_proba(this, X, Cl) result(info)
+  Integer Function mlf_model_getClass_proba(this, X, Cl) Result(info)
     class(mlf_class_proba_model), intent(in), target :: this
     real(c_double), intent(in) :: X(:,:)
     integer(c_int), intent(out) :: Cl(:)
     real(c_double), allocatable :: Proba(:,:)
     integer :: nX, nC
-    nX = size(X,2); nC = this%getNumClasses()
-    allocate(Proba(nX, nC))
+    nX = SIZE(X,2); nC = this%getNumClasses()
+    ALLOCATE(Proba(nX, nC))
     info = this%getProba(X, Proba)
-    cl = maxloc(Proba, dim=2)
+    cl = MAXLOC(Proba, DIM=2)
   End Function mlf_model_getClass_proba
 
   Function mlf_getModel(cptr) result(model)
@@ -254,27 +254,27 @@ Contains
     class(mlf_model), pointer :: model
     model => NULL()
     obj => mlf_getrawfromc(cptr)
-    if(.NOT. associated(obj)) RETURN
-    select type(obj)
-      class is (mlf_obj_model)
-        if(allocated(obj%model)) model => obj%model
-      class is (mlf_model)
-        model => obj
-    end select
+    If(.NOT. associated(obj)) RETURN
+    Select Type(obj)
+    Class is (mlf_obj_model)
+      If(allocated(obj%model)) model => obj%model
+    Class is (mlf_model)
+      model => obj
+    End Select
   End Function mlf_getModel
 
-  Integer(c_int) Function mlf_getClass(model, X, Cl) result(info)
+  Integer(c_int) Function mlf_getClass(model, X, Cl) Result(info)
     class(mlf_model), intent(inout) :: model
     integer(c_int), intent(out) :: Cl(:)
     real(c_double), intent(in) :: X(:,:)
     info = -1
-    select type(model)
-      class is (mlf_class_model)
-        info = model%getClass(X, Cl)
-    end select
+    Select Type(model)
+    Class is (mlf_class_model)
+      info = model%getClass(X, Cl)
+    End Select
   End Function mlf_getClass
 
-  Integer(c_int) Function c_getClass(cptr, cX, cCl, nX, nIn) result(info) bind(C, name="mlf_getClass")
+  Integer(c_int) Function c_getClass(cptr, cX, cCl, nX, nIn) Result(info) Bind(C, name="mlf_getClass")
     type(c_ptr), value :: cptr, cX, cCl
     integer(c_int), value :: nX, nIn
     real(c_double), pointer :: X(:,:)
@@ -282,80 +282,79 @@ Contains
     integer(c_int), pointer :: Cl(:)
     info = -1
     model => mlf_getModel(cptr)
-    if(.NOT. associated(model)) RETURN
-    call C_F_POINTER(cX, X, [nX, nIn])
-    call C_F_POINTER(cCl, Cl, [nIn])
+    If(.NOT. ASSOCIATED(model)) RETURN
+    CALL C_F_POINTER(cX, X, [nX, nIn])
+    CALL C_F_POINTER(cCl, Cl, [nIn])
     info = mlf_getClass(model, X, Cl)
   End Function c_getClass
 
-  Integer(c_int) Function mlf_getProba(model, X, Cl) result(info)
+  Integer(c_int) Function mlf_getProba(model, X, Cl) Result(info)
     class(mlf_model), intent(inout) :: model
     real(c_double), intent(out) :: Cl(:,:)
     real(c_double), intent(in) :: X(:,:)
     info = -1
-    select type(model)
-      class is (mlf_class_proba_model)
-        info = model%getProba(X, Cl)
-    end select
+    Select Type(model)
+    Class is (mlf_class_proba_model)
+      info = model%getProba(X, Cl)
+    End Select
   End Function mlf_getProba
 
-  Integer(c_int) Function c_getProba(cptr, cX, cCl, nX, nIn, nCl) result(info) bind(C, name="mlf_getProba")
+  Integer(c_int) Function c_getProba(cptr, cX, cCl, nX, nIn, nCl) Result(info) Bind(C, name="mlf_getProba")
     type(c_ptr), value :: cptr, cX, cCl
     integer(c_int), value :: nX, nIn, nCl
     class(mlf_model), pointer :: model
     real(c_double), pointer :: X(:,:), Cl(:,:)
     info = -1
     model => mlf_getModel(cptr)
-    if(.NOT. associated(model)) RETURN
-    call C_F_POINTER(cX, X, [nX, nIn])
-    call C_F_POINTER(cCl, Cl, [nCl, nIn])
+    If(.NOT. ASSOCIATED(model)) RETURN
+    CALL C_F_POINTER(cX, X, [nX, nIn])
+    CALL C_F_POINTER(cCl, Cl, [nCl, nIn])
     info = mlf_getProba(model, X, Cl)
   End Function c_getProba
 
-  Integer(c_int) Function mlf_getNumClasses(model) result(info)
+  Integer(c_int) Function mlf_getNumClasses(model) Result(info)
     class(mlf_model), intent(inout) :: model
     info = -1
-    select type(model)
-      class is (mlf_class_proba_model)
-        info = model%getNumClasses()
-    end select
+    Select Type(model)
+    Class is (mlf_class_proba_model)
+      info = model%getNumClasses()
+    End Select
   End Function mlf_getNumClasses
 
-  Integer(c_int) Function c_getNumClasses(cptr) result(info) bind(C, name="mlf_getNumClasses")
+  Integer(c_int) Function c_getNumClasses(cptr) Result(info) Bind(C, name="mlf_getNumClasses")
     type(c_ptr), value :: cptr
     class(mlf_model), pointer :: model
     info = -1
     model => mlf_getModel(cptr)
-    if(.NOT. associated(model)) RETURN
+    If(.NOT. associated(model)) RETURN
     info = mlf_getNumClasses(model)
   End Function c_getNumClasses
 
-  Integer(c_int) Function mlf_getProj(model, Y, W, Aerror) result(info)
+  Integer(c_int) Function mlf_getProj(model, Y, W, Aerror) Result(info)
     class(mlf_model), intent(inout) :: model
     real(c_double), intent(in) :: Y(:,:)
     real(c_double), intent(out) :: W(:,:)
     real(c_double), optional, intent(out) :: Aerror(:,:)
     info = -1
-    select type(model)
-      class is (mlf_reduce_model)
-        info = model%getProj(Y,W,Aerror)
-    end select
+    Select Type(model)
+    Class is (mlf_reduce_model)
+      info = model%getProj(Y,W,Aerror)
+    End Select
   End Function mlf_getProj
 
-  Integer(c_int) Function mlf_getProj_f(model, Y, W, Aerror) result(info)
+  Integer(c_int) Function mlf_getProj_f(model, Y, W, Aerror) Result(info)
     class(mlf_model), intent(inout) :: model
     real(c_float), intent(in) :: Y(:,:)
     real(c_float), intent(out) :: W(:,:)
     real(c_float), optional, intent(out) :: Aerror(:,:)
     info = -1
-    select type(model)
-      class is (mlf_reduce_model)
-        info = model%getProj(Y,W,Aerror)
-    end select
+    Select Type(model)
+    Class is (mlf_reduce_model)
+      info = model%getProj(Y,W,Aerror)
+    End Select
   End Function mlf_getProj_f
 
-
-  Integer(c_int) Function c_getProj(cptr, cY, cW, nIn, nDimIn, nDimOut) result(info) bind(C, name="mlf_getProj")
+  Integer(c_int) Function c_getProj(cptr, cY, cW, nIn, nDimIn, nDimOut) Result(info) Bind(C, name="mlf_getProj")
     type(c_ptr), value :: cptr, cY, cW
     integer(c_int), value :: nIn
     class(mlf_model), pointer :: model
@@ -363,13 +362,13 @@ Contains
     integer(c_int), value :: nDimIn, nDimOut
     info = -1
     model => mlf_getModel(cptr)
-    if(.NOT. associated(model)) RETURN
-    call C_F_POINTER(cY, Y, [nDimIn, nIn])
-    call C_F_POINTER(cW, W, [nDimOut, nIn])
+    If(.NOT. ASSOCIATED(model)) RETURN
+    CALL C_F_POINTER(cY, Y, [nDimIn, nIn])
+    CALL C_F_POINTER(cW, W, [nDimOut, nIn])
     info = mlf_getProj(model, Y, W)
   End Function c_getProj
 
-  Integer(c_int) Function c_getProj_f(cptr, cY, cW, nIn, nDimIn, nDimOut) result(info) bind(C, name="mlf_getProj_f")
+  Integer(c_int) Function c_getProj_f(cptr, cY, cW, nIn, nDimIn, nDimOut) Result(info) Bind(C, name="mlf_getProj_f")
     type(c_ptr), value :: cptr, cY, cW
     integer(c_int), value :: nIn
     class(mlf_model), pointer :: model
@@ -377,24 +376,24 @@ Contains
     integer(c_int), value :: nDimIn, nDimOut
     info = -1
     model => mlf_getModel(cptr)
-    if(.NOT. associated(model)) RETURN
-    call C_F_POINTER(cY, Y, [nDimIn, nIn])
-    call C_F_POINTER(cW, W, [nDimOut, nIn])
+    If(.NOT. ASSOCIATED(model)) RETURN
+    CALL C_F_POINTER(cY, Y, [nDimIn, nIn])
+    CALL C_F_POINTER(cW, W, [nDimOut, nIn])
     info = mlf_getProj_f(model, Y, W)
   End Function c_getProj_f
 
 
-  Real(c_double) Function mlf_getValue(model, W, t) result(Y)
+  Real(c_double) Function mlf_getValue(model, W, t) Result(Y)
     class(mlf_model), intent(inout) :: model
     real(c_double), intent(in) :: W(:), t
     Y = IEEE_VALUE(Y, IEEE_QUIET_NAN)
-    select type(model)
-      class is (mlf_approx_model)
-        Y = model%getValue(W,t)
-    end select
+    Select type(model)
+    Class is (mlf_approx_model)
+      Y = model%getValue(W,t)
+    End Select
   End Function mlf_getValue
 
-  Real(c_double) Function c_getValue(cptr, cW, t, nDimOut) result(Y) bind(C, name="mlf_getValue")
+  Real(c_double) Function c_getValue(cptr, cW, t, nDimOut) Result(Y) Bind(C, name="mlf_getValue")
     type(c_ptr), value :: cptr, cW
     real(c_double), value :: t
     class(mlf_model), pointer :: model
@@ -402,11 +401,9 @@ Contains
     integer(c_int), value :: nDimOut
     Y = IEEE_VALUE(Y, IEEE_QUIET_NAN)
     model => mlf_getModel(cptr)
-    if(.NOT. associated(model)) RETURN
-    call C_F_POINTER(cW, W, [nDimOut])
+    If(.NOT. ASSOCIATED(model)) RETURN
+    CALL C_F_POINTER(cW, W, [nDimOut])
     Y = mlf_getValue(model, W, t)
   End Function c_getValue
-
-
 End Module mlf_models
 

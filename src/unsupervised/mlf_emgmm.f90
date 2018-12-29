@@ -61,23 +61,19 @@ Module mlf_emgmm
     procedure :: getProba => mlf_algo_emgmm_getLikelihood
     procedure :: getNumClasses => mlf_algo_emgmm_getNumClasses
   End Type mlf_model_emgmm
-
-
-
 Contains
   ! Model initilisator
   Subroutine mlf_model_emgmm_init(this, top)
     class(mlf_model), intent(out), allocatable :: this
     class(mlf_algo_emgmm), intent(in), target :: top
     ALLOCATE(mlf_model_emgmm :: this)
-    select type(this)
-      class is (mlf_model_emgmm)
-        this%top => top
-    end select
+    Select Type(this)
+    Class is (mlf_model_emgmm)
+      this%top => top
+    End Select
   End Subroutine mlf_model_emgmm_init
 
-
-  integer Function mlf_algo_emgmm_init(this, X, nC, minProba, data_handler) result(info)
+  Integer Function mlf_algo_emgmm_init(this, X, nC, minProba, data_handler) Result(info)
     class(mlf_algo_emgmm), intent(out), target :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
     real(c_double), optional :: minProba
@@ -85,129 +81,130 @@ Contains
     integer, intent(inout) :: nC
     type(mlf_step_numFields) :: numFields
     integer(c_int64_t) :: nY, nX, ndMu(2), ndC(3), nC2
-    call numFields%initFields(nRVar = 1, nRsc = 3, nIVar = 1)
+    CALL numFields%initFields(nRVar = 1, nRsc = 3, nIVar = 1)
     info = mlf_step_obj_init(this, numFields, data_handler = data_handler)
     this%X => X
-    if(info < 0) RETURN
-    nY = size(X,1); nX = size(X,2); nC2 = nC
+    If(info < 0) RETURN
+    nY = SIZE(X,1); nX = SIZE(X,2); nC2 = nC
     ndMu = [nY, nC2]; ndC = [nY, nY, nC2]
     info = this%add_rmatrix(numFields, ndMu, this%Mu, C_CHAR_"Mu", &
       data_handler = data_handler, fixed_dims = [.TRUE., .FALSE.])
-    if(CheckF(info, "emgmm: error creating Mu")) RETURN
+    If(CheckF(info, "emgmm: error creating Mu")) RETURN
     ndC(3) = ndMu(2)
     info = this%add_rmatrix3d(numFields, ndC, this%Cov, C_CHAR_"Cov", &
       data_handler = data_handler, fixed_dims = [.TRUE., .TRUE., .TRUE.])
-    if(CheckF(info, "emgmm: error creating Cov")) RETURN
+    If(CheckF(info, "emgmm: error creating Cov")) RETURN
     nC2 = ndMu(2)
     info = this%add_rarray(numFields, nC2, this%lambda, C_CHAR_"lambda", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
-    if(CheckF(info, "emgmm: error creating lambda")) RETURN
-    nC = int(nC2, kind=4)
+    If(CheckF(info, "emgmm: error creating lambda")) RETURN
+    nC = INT(nC2, kind=4)
     ALLOCATE(this%ProbaC(nX, nC))
-    call this%addRVar(numFields, this%sumLL, "sumLL")
-    call this%addRPar(numFields, this%minProba, "minProba")
-    call InitOrDefault(this%minProba, 0.0d0, minProba)
-    if(present(data_handler)) then
+    CALL this%addRVar(numFields, this%sumLL, "sumLL")
+    CALL this%addRPar(numFields, this%minProba, "minProba")
+    CALL InitOrDefault(this%minProba, 0.0d0, minProba)
+    If(PRESENT(data_handler)) Then
       this%initialized = .TRUE.
-    else
+    Else
       info = this%reinit()
-    endif
-    call mlf_model_emgmm_init(this%model, this)
+    Endif
+    CALL mlf_model_emgmm_init(this%model, this)
   End Function mlf_algo_emgmm_init
 
   ! Reinit algorithm parameters
-  integer Function mlf_algo_emgmm_reinit(this) result(info)
+  integer Function mlf_algo_emgmm_reinit(this) Result(info)
     class(mlf_algo_emgmm), intent(inout), target :: this
     info = mlf_step_obj_reinit(this)
-    if(associated(this%Mu)) this%Mu = 0
-    if(associated(this%Cov)) this%Cov = 0
-    if(allocated(this%ProbaC)) this%ProbaC = 0
+    If(associated(this%Mu)) this%Mu = 0
+    If(associated(this%Cov)) this%Cov = 0
+    If(allocated(this%ProbaC)) this%ProbaC = 0
     this%initialized = .FALSE.
   End Function mlf_algo_emgmm_reinit
 
   ! Step function
-  integer Function mlf_algo_emgmm_stepF(this, niter) result(info)
+  Integer Function mlf_algo_emgmm_stepF(this, niter) Result(info)
     class(mlf_algo_emgmm), intent(inout), target :: this
     type(mlf_algo_kmeans_naive) :: km_algo
     integer(kind=8), intent(inout), optional :: niter
     integer(kind=8) :: i, N, nkm
     integer :: j,nC
     N = 1; nkm = 16
-    nC = size(this%Mu,2)
-    if(present(niter)) N = niter
-    do i=1,N
-      if(.NOT. this%initialized) then
+    nC = SIZE(this%Mu,2)
+    If(PRESENT(niter)) N = niter
+    Do i=1,N
+      If(.NOT. this%initialized) Then
         info = km_algo%init(this%X, nC = nC)
-        if(info<0) RETURN
+        If(info<0) RETURN
         info = km_algo%stepF(nkm)
-        if(info<0) RETURN
+        If(info<0) RETURN
         this%Mu=km_algo%Mu
         this%initialized = .TRUE.
-        do j=1,nC
-          call IdentityMatrix(this%Cov(:,:,j))
-        end do
-        this%lambda = 1d0/real(nC, kind=c_double)
-      else
+        Do j=1,nC
+          CALL IdentityMatrix(this%Cov(:,:,j))
+        End Do
+        this%lambda = 1d0/REAL(nC, KIND=c_double)
+      Else
         info = ExpStep(this%X, this%ProbaC, this%Mu, this%Cov, this%Lambda, this%sumLL)
-        if(info /= 0) RETURN
-        call MaxStep(this%X, this%ProbaC, this%Mu, this%Cov, this%Lambda, this%minProba)
-      endif
-    end do
+        If(info /= 0) RETURN
+        CALL MaxStep(this%X, this%ProbaC, this%Mu, this%Cov, this%Lambda, this%minProba)
+      Endif
+    End Do
     info = 0
   End Function mlf_algo_emgmm_stepF
 
-  integer Function mlf_algo_emgmm_getNumClasses(this) result(nC)
+  Integer Function mlf_algo_emgmm_getNumClasses(this) Result(nC)
     class(mlf_model_emgmm), intent(in), target :: this
-    nC = size(this%top%Mu,2)
+    nC = SIZE(this%top%Mu,2)
   End Function mlf_algo_emgmm_getNumClasses
 
   ! Function that determines likelihood of input datapoints
-  integer Function mlf_algo_emgmm_getLikelihood(this, X, Proba) result(info)
+  Integer Function mlf_algo_emgmm_getLikelihood(this, X, Proba) Result(info)
     class(mlf_model_emgmm), intent(in), target :: this
     real(c_double), intent(in) :: X(:,:)
     real(c_double), intent(out) :: Proba(:,:)
     real(c_double) :: sumLL
-    if(.NOT. this%top%initialized) then
+    If(.NOT. this%top%initialized) Then
       info = mlf_UNINIT
       RETURN
-    endif
+    Endif
     info = ExpStep(X, Proba, this%top%Mu, this%top%Cov, this%top%Lambda, sumLL)
   End Function mlf_algo_emgmm_getLikelihood
 
   ! Maximum likelihood step of the EM algorithm
-  subroutine MaxStep(X, Proba, Mu, Covar, Lambda, minProba)
+  Subroutine MaxStep(X, Proba, Mu, Covar, Lambda, minProba)
     real(c_double), intent(in) :: X(:,:), Proba(:,:), minProba
     real(c_double), intent(out) :: Mu(:,:), Covar(:,:,:), Lambda(:)
     integer :: Nmix, i
     Nmix = size(Proba,2)
-    !$OMP PARALLEL DO
-    do i = 1,Nmix
+    !$OMP PARALLEL DO default(shared) PRIVATE(i)
+    Do i = 1,Nmix
       Lambda(i) = mlf_MaxGaussian(X, Proba(:,i), Mu(:,i), Covar(:,:,i))
-    end do
+    End Do
     !$OMP END PARALLEL DO
-    if(minProba > 0) then
+    If(minProba > 0) Then
       Lambda(:) = MAX(Lambda(:), minProba*MAXVAL(Lambda))
-    endif
+    Endif
     Lambda(:) = Lambda(:)/sum(Lambda)
-  end subroutine MaxStep
+  End Subroutine MaxStep
 
   ! Expectation step: compute responsabilities
-  integer(c_int) function ExpStep(X, Proba, Mu, Covar, Lambda, sumLL) result(info)
+  Integer(c_int) Function ExpStep(X, Proba, Mu, Covar, Lambda, sumLL) Result(info)
     real(c_double), intent(in) :: X(:,:), Mu(:,:), Covar(:,:,:), Lambda(:)
     real(c_double), intent(out) :: Proba(:,:), sumLL
-    integer :: ND, NX, Nmix, i
+    integer :: ND, NX, Nmix, i, infoI
     real(c_double) :: LL
     ND = size(X,1); NX = size(X,2); Nmix = size(Mu,2)
     sumLL = 0
     info = 0 ! Remove warning
-    do i = 1,Nmix
-      info = mlf_EvalGaussian(X, Proba(:,i), Mu(:,i), Covar(:,:,i), Lambda(i), LL)
-      if(info /= 0) RETURN
+    !$OMP PARALLEL DO default(shared) PRIVATE(i, LL, infoI) REDUCTION(+:sumLL)
+    Do i = 1,Nmix
+      infoI = mlf_EvalGaussian(X, Proba(:,i), Mu(:,i), Covar(:,:,i), Lambda(i), LL)
       sumLL = sumLL + LL
-    end do
+    End Do
+    !$OMP END PARALLEL DO
     !Normalize probabilities
-    forall(i=1:NX) Proba(i,:) = Proba(i,:)/sum(Proba(i,:))
-  end function ExpStep
+    FORALL(i=1:NX) Proba(i,:) = Proba(i,:)/SUM(Proba(i,:))
+  End Function ExpStep
 
 
 End Module mlf_emgmm

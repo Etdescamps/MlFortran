@@ -122,7 +122,7 @@ Contains
     class(mlf_bijection_fun), intent(in), target, optional :: fun
     type(mlf_rsc_numFields) :: numFields
     real(c_double) :: XYMin(2), XYMax(2), XTemp(2)
-    integer :: i, j
+    integer :: i, j, infoI
     integer(c_int64_t) :: ndGrid(3)
     numFields = mlf_rsc_numFields(0,4,1)
     ndGrid = -1
@@ -139,7 +139,7 @@ Contains
     If(info < 0) RETURN
     this%funmodel => fmodel
     If(.NOT. PRESENT(data_handler)) Then
-      ALLOCATE(X(2,nX0,nY0), G(nW, nX0))
+      ALLOCATE(X(2,nX0,nY0))
       If(PRESENT(fun)) Then
         CALL fun%proj([XMin, YMin], XYMin)
         CALL fun%proj([XMax, YMax], XYMax)
@@ -158,20 +158,27 @@ Contains
           End Do
         End Do
       Endif
+      !$OMP PARALLEL default(shared) PRIVATE(G, i, infoI)
+      ALLOCATE(G(nW, nX0))
+      !$OMP Do
       Do i = 1,nY0
         If(PRESENT(nFastX)) Then
           Select Type(fmodel)
           Class is (mlf_fast_approx_linear)
-            info = fmodel%getFastProj(X(:,:,i), nFastX, G)
+            infoI = fmodel%getFastProj(X(:,:,i), nFastX, G)
           Class Default
-            info = fmodel%getProj(X(:,:,i), G)
+            infoI = fmodel%getProj(X(:,:,i), G)
           End Select
         Else
-          info = fmodel%getProj(X(:,:,i), G)
+          infoI = fmodel%getProj(X(:,:,i), G)
         Endif
         this%grid(:,:,i) = REAL(G,4)
       End Do
+      !$OMP END Do
+      DEALLOCATE(G)
+      !$OMP END PARALLEL
     Endif
+    info = 0
     CALL mlf_model_funbasis_init(this%model, this, fun, XMin, XMax, YMin, YMax)
   End Function mlf_GridModelInit
   

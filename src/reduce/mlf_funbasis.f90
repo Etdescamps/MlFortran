@@ -330,11 +330,12 @@ Contains
     integer, intent(in) :: N
     ! constants initialised once
     real(c_double) :: S, Fact
-    real(c_double), allocatable :: Y(:,:), Y0(:,:), II(:), Z(:), X(:), Y1(:), P(:,:)
+    real(c_double), allocatable :: Y(:,:),  II(:), Z(:), Y1(:), P(:,:)
+    real(c_double), allocatable :: Y0(:,:), X(:), XV(:)
     integer(c_int), allocatable :: idx(:)
-    integer :: i, j, k, l, M
+    integer :: i, j, k, l, M, infoI
     M = SIZE(C,1)
-    ALLOCATE(Y(2,M), Y0(N,1), II(M), Z(M), X(N), Y1(N), P(SIZE(Param, 1), N), idx(M))
+    ALLOCATE(Y(2,M), II(M), Z(M), Y1(N), P(SIZE(Param, 1), N), idx(M))
     Y1 = [(REAL(i, KIND=8)/REAL(N+1, KIND=8), i=1,N)]
     info = fun%integral(x0, xEnd, Param, II)
     If(info < 0) RETURN
@@ -348,14 +349,18 @@ Contains
     CALL QSortIdx(Z, idx)
     P = Param(:,idx)
     Y = Y(:,idx)
+    !$OMP PARALLEL default(shared) PRIVATE(Y0, X, XV, i, j, k, l, infoI, S, Fact)
+    ALLOCATE(Y0(N,1), X(N), XV(N))
+    !$OMP Do 
     Do i = 1, M
       k = idx(i)
       If(II(k) /= 0) Then
-        info = fun%inv_integ(x0, Y1*II(k), P(:,i), X)
+        XV = Y1*II(k)
+        infoI = fun%inv_integ(x0, XV, P(:,i), X)
         Fact = II(k)/REAL(N+1, KIND=8)
         Do j = i, M
           l = idx(j)
-          info = fun%eval(X, P(:,j:j), Y0)
+          infoI = fun%eval(X, P(:,j:j), Y0)
           S = (fb_icoeff(1)*SUM(Y(:,j)) + fb_icoeff(2)*(Y0(1,1)+Y0(N,1)) &
             +  fb_icoeff(3)*(Y0(2,1)+Y0(N-1,1)) + SUM(Y0(3:N-2,1)))*Fact
           C(k,l) = S
@@ -366,6 +371,10 @@ Contains
         C(:,k) = 0d0
       Endif
     End Do
+    !$OMP END Do
+    DEALLOCATE(Y0, X, XV)
+    !$OMP END PARALLEL
+    info = 0
   End Function ComputeFunMatrixInv
 
   Integer Function mlf_FunBasisGetProjectionSingle(this, Y, W, Aerror) Result(info)

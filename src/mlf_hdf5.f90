@@ -665,7 +665,7 @@ Contains
     Class is (mlf_obj)
       handler => this%open_group(nameObj, create)
       If(.NOT. ASSOCIATED(handler)) RETURN
-      info = handler%pushState(obj, override)
+      info = handler%pushState(obj, override, subObjects = .TRUE.)
     Class Default
       WRITE (error_unit, *) 'Hdf5PushSubObject: error subobject nor from mlf_obj type'
     End Select

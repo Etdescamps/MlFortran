@@ -103,7 +103,7 @@ Contains
     id = this%file_id
   End Function mlf_hdf5_file_getId
 
-  Function mlf_hdf5_openGroup(this, groupName, create) result(handler)
+  Function mlf_hdf5_openGroup(this, groupName, create) Result(handler)
     class(mlf_hdf5_handler), intent(inout), target :: this
     class(mlf_hdf5_group), pointer :: handler
     class(mlf_obj), pointer :: np
@@ -116,8 +116,7 @@ Contains
     handler => NULL()
     id = this%getId()
     If(id<0) RETURN
-    If(present(create)) do_create = create
-    If(do_create) Then
+    If(PresentAndTrue(create)) Then
       CALL H5GCreate_f(id, groupName, handler%group_id, hdferr)
     Else
       CALL H5GOpen_f(id, groupName, handler%group_id, hdferr)
@@ -126,12 +125,11 @@ Contains
     np => handler
     CALL this%add_subobject(groupName, np)
     RETURN
-10  ALLOCATE(handler)
-    DEALLOCATE(handler)
+10  DEALLOCATE(handler)
     handler => NULL()
   EndFunction mlf_hdf5_openGroup
   
-  Function mlf_hdf5_getSubGroup(this, obj_name) result(ptr)
+  Function mlf_hdf5_getSubGroup(this, obj_name) Result(ptr)
     class(mlf_hdf5_handler), intent(inout), target :: this
     class(mlf_data_handler), pointer :: ptr
     character(LEN=*,kind=c_char), intent(in) :: obj_name
@@ -654,21 +652,49 @@ Contains
       rname, h5kind_to_type(c_int64_t, H5_INTEGER_KIND), f_ptr, .FALSE.)
   End Function mlf_pushdata_int64_1d
 
-  Integer(c_int) Function mlf_hdf5_pushState(this, obj, override) result(info)
+  Integer(c_int) Function Hdf5PushSubObject(this, obj, nameObj, override) Result(info)
+    class(mlf_hdf5_handler), intent(inout), target :: this
+    class(*), intent(in), target :: obj
+    character(:, kind=c_char), intent(in), pointer :: nameObj
+    logical, intent(in), optional :: override
+    class(mlf_hdf5_handler), pointer :: handler
+    logical :: create
+    info = -1
+    create = .NOT. PresentAndTrue(override)
+    Select Type(obj)
+    Class is (mlf_obj)
+      handler => this%open_group(nameObj, create)
+      If(.NOT. ASSOCIATED(handler)) RETURN
+      info = handler%pushState(obj, override)
+    Class Default
+      WRITE (error_unit, *) 'Hdf5PushSubObject: error subobject nor from mlf_obj type'
+    End Select
+  End Function Hdf5PushSubObject
+
+  Integer(c_int) Function mlf_hdf5_pushState(this, obj, override, subObjects) Result(info)
     class(mlf_hdf5_handler), intent(inout), target :: this
     class(mlf_obj), intent(in), target :: obj
     integer :: i
     type(c_ptr) :: f_ptr
     integer(HID_T) :: gid
-    logical, intent(in), optional :: override
-    logical :: ov = .FALSE.
+    logical, intent(in), optional :: override, subObjects
+    logical :: ov
     info = 0
     gid = this%getId()
     If(gid<0) info=-1
     If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
     info = 0
+    If(PresentAndTrue(subObjects) .AND. ALLOCATED(this%sub_objects)) Then
+      Do i = 1,SIZE(this%sub_objects)
+        ASSOCIATE(p => this%sub_objects(i))
+          If(ASSOCIATED(p%elt) .AND. ALLOCATED(p%obj_name)) Then
+            info = Hdf5PushSubObject(this, p%elt, p%obj_name, override)
+          Endif
+        END ASSOCIATE
+      End Do
+    Endif
     If(.NOT. ALLOCATED(obj%v)) RETURN
-    If(PRESENT(override)) ov = override
+    ov = PresentAndTrue(override)
     Do i=1,size(obj%v)
       If(.NOT. ALLOCATED(obj%v(i)%r)) CYCLE
       ASSOCIATE(x => obj%v(i)%r)

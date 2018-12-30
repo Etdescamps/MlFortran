@@ -38,9 +38,9 @@ Module mlf_rsc_array
   Public :: mlf_arr_init
 
   Type, Public :: mlf_rsc_numFields
-    integer(c_int64_t) :: nIPar
-    integer(c_int64_t) :: nRPar
-    integer(c_int) :: nRsc
+    integer(c_int64_t) :: nIPar = 0
+    integer(c_int64_t) :: nRPar = 0
+    integer(c_int) :: nRsc = 0
   Contains
     procedure :: incNRsc => mlf_rsc_incNRsc
   End Type mlf_rsc_numFields

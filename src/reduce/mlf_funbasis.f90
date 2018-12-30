@@ -50,7 +50,7 @@ Module mlf_funbasis
     real(c_double), pointer :: W(:,:) ! Selected function basis
     real(c_double), pointer :: X(:) ! Selected inputs of X
     real(c_double), pointer :: Vals(:,:) ! Values of the function basis
-    real(c_double) :: alpha, x0, xEnd, eA0, eDiff, eAEnd
+    real(c_double), pointer :: alpha, x0, xEnd, eA0, eDiff, eAEnd
   Contains
     procedure :: initF => mlf_funbasis_init
     procedure :: getValueBasis => mlf_FunBasisValue
@@ -164,7 +164,7 @@ Contains
     integer :: nP, N, nXC0
     integer(c_int64_t) :: ndP(2), ndW(2), ndV(2), nX0
     N = -1
-    numFields = mlf_rsc_numFields(0,0,4)
+    numFields = mlf_rsc_numFields(nRPar = 6, nRsc = 4)
     info = mlf_arr_init(this, numFields, data_handler)
     If(PRESENT(P) .AND. PRESENT(sizeBase) .AND. PRESENT(nX)) Then
       nP = SIZE(P,1); N = SIZE(P,2)
@@ -193,6 +193,12 @@ Contains
     info = this%add_rarray(numFields, nX0, this%X, C_CHAR_"X", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
     If(info /= 0) RETURN
+    CALL this%addRPar(numFields, this%alpha, "alpha")    
+    CALL this%addRPar(numFields, this%x0, "x0")
+    CALL this%addRPar(numFields, this%xEnd, "xEnd")
+    CALL this%addRPar(numFields, this%eA0, "eA0")
+    CALL this%addRPar(numFields, this%eAEnd, "eAEnd")
+    CALL this%addRPar(numFields, this%eDiff, "eDiff")
     this%fun => f
     If(PRESENT(P)) this%P = P
     If(.NOT. PRESENT(data_handler)) Then

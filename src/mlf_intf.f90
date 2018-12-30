@@ -132,13 +132,13 @@ Module mlf_intf
       integer(c_int) :: mlf_cupdatedata
     End Function mlf_cupdatedata
 
-    Function mlf_rsc_handler_push(this, obj, override)
+    Function mlf_rsc_handler_push(this, obj, override, subObjects)
       use iso_c_binding
       import :: mlf_rsc_handler, mlf_obj
       class(mlf_rsc_handler), intent(inout), target :: this
       class(mlf_obj), intent(in), target :: obj
       integer(c_int) :: mlf_rsc_handler_push
-      logical, intent(in), optional :: override
+      logical, intent(in), optional :: override, subObjects
     End Function mlf_rsc_handler_push
   End Interface
 

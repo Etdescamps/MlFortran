@@ -34,7 +34,7 @@ Module mlf_utils
   PRIVATE
 
   Public :: Xchange, QSortIdx, QSort, Mean, PrintMatrix, mlf_countcl, mlf_reversecl, SetIf
-  Public :: InitOrDefault, FirstEltVal
+  Public :: InitOrDefault, FirstEltVal, PresentAndTrue
   Public :: mlf_reverseid, mlf_cumulativefromvect, mlf_di_search, mlf_printmatrix_c, mlf_isSorted
 
   Interface FirstEltVal
@@ -79,16 +79,21 @@ Module mlf_utils
   End Interface InitOrDefault
   real(c_double), public, parameter :: mlf_PI = acos(-1d0)
 Contains
+  Logical Function PresentAndTrue(x) Result(y)
+    logical, optional :: x
+    y = .FALSE.
+    If(PRESENT(x)) y = x
+  End Function PresentAndTrue
 
   Pure Subroutine mlf_initOrDefault_bool(var, def, opt)
     logical, intent(out) :: var
     logical, intent(in) :: def
     logical, intent(in), optional :: opt
-    if(present(opt)) then
+    If(PRESENT(opt)) Then
       var = opt
-    else
+    Else
       var = def
-    endif
+    Endif
   End Subroutine mlf_initOrDefault_bool
 
   Pure Subroutine mlf_initOrDefault_int(var, def, opt)

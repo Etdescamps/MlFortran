@@ -654,21 +654,16 @@ Contains
 
   Integer(c_int) Function Hdf5PushSubObject(this, obj, nameObj, override) Result(info)
     class(mlf_hdf5_handler), intent(inout), target :: this
-    class(*), intent(in), target :: obj
+    class(mlf_obj), intent(in), target :: obj
     character(:, kind=c_char), intent(in), pointer :: nameObj
     logical, intent(in), optional :: override
     class(mlf_hdf5_handler), pointer :: handler
     logical :: create
     info = -1
     create = .NOT. PresentAndTrue(override)
-    Select Type(obj)
-    Class is (mlf_obj)
-      handler => this%open_group(nameObj, create)
-      If(.NOT. ASSOCIATED(handler)) RETURN
-      info = handler%pushState(obj, override, subObjects = .TRUE.)
-    Class Default
-      WRITE (error_unit, *) 'Hdf5PushSubObject: error subobject nor from mlf_obj type'
-    End Select
+    handler => this%open_group(nameObj, create)
+    If(.NOT. ASSOCIATED(handler)) RETURN
+    info = handler%pushState(obj, override, subObjects = .TRUE.)
   End Function Hdf5PushSubObject
 
   Integer(c_int) Function mlf_hdf5_pushState(this, obj, override, subObjects) Result(info)
@@ -684,12 +679,15 @@ Contains
     If(gid<0) info=-1
     If(CheckF(info, "mlf_hdf5: error getting id")) RETURN
     info = 0
-    If(PresentAndTrue(subObjects) .AND. ALLOCATED(this%sub_objects)) Then
-      Do i = 1,SIZE(this%sub_objects)
-        ASSOCIATE(p => this%sub_objects(i))
-          If(ASSOCIATED(p%elt) .AND. ALLOCATED(p%obj_name)) Then
-            info = Hdf5PushSubObject(this, p%elt, p%obj_name, override)
-          Endif
+    If(PresentAndTrue(subObjects) .AND. ALLOCATED(obj%sub_objects)) Then
+      Do i = 1,SIZE(obj%sub_objects)
+        If(.NOT. ASSOCIATED(obj%sub_objects(i)%elt)) CYCLE
+        If(.NOT. ALLOCATED(obj%sub_objects(i)%obj_name)) CYCLE
+        ASSOCIATE(p => obj%sub_objects(i)%elt, pname => obj%sub_objects(i)%obj_name)
+          Select Type(p)
+          Class is (mlf_obj)
+            info = Hdf5PushSubObject(this, p, pname, override)
+          End Select
         END ASSOCIATE
       End Do
     Endif

@@ -146,7 +146,6 @@ Contains
       FORALL(i=1:sizeBase) this%W(:,i) = LB(:,sizeBase-i+1)/sqrt(LD(sizeBase-i+1))
     Endif
     CALL ComputeBasisValue(this, nX)
-    CALL mlf_model_funbasis_init(this%model, this)
     RETURN
  10 WRITE (error_unit, *) "mlf_funbasis: error with Eigen decomposition"
     info = -1
@@ -209,6 +208,7 @@ Contains
       CALL InitOrDefault(this%x0, 0d0, x0)
       info = FunBasisInit(this, sizeBase, INT(nX0, KIND=4), nXC0, WP)
     Endif
+    CALL mlf_model_funbasis_init(this%model, this)
     RETURN
  10 WRITE (error_unit, *) 'mlf_funbasis error: missing required parameter'
     info = -1

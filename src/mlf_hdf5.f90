@@ -105,7 +105,7 @@ Contains
 
   Function mlf_hdf5_openGroup(this, groupName, create) Result(handler)
     class(mlf_hdf5_handler), intent(inout), target :: this
-    class(mlf_hdf5_group), pointer :: handler
+    type(mlf_hdf5_group), pointer :: handler
     class(mlf_obj), pointer :: np
     character(LEN=*), intent(in) :: groupName
     logical, optional :: create
@@ -116,6 +116,7 @@ Contains
     handler => NULL()
     id = this%getId()
     If(id<0) RETURN
+    ALLOCATE(handler)
     If(PresentAndTrue(create)) Then
       CALL H5GCreate_f(id, groupName, handler%group_id, hdferr)
     Else
@@ -655,7 +656,7 @@ Contains
   Integer(c_int) Function Hdf5PushSubObject(this, obj, nameObj, override) Result(info)
     class(mlf_hdf5_handler), intent(inout), target :: this
     class(mlf_obj), intent(in), target :: obj
-    character(:, kind=c_char), intent(in), pointer :: nameObj
+    character(*, kind=c_char), intent(in) :: nameObj
     logical, intent(in), optional :: override
     class(mlf_hdf5_handler), pointer :: handler
     logical :: create

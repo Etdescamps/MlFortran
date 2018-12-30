@@ -85,8 +85,8 @@ Contains
   End Subroutine mlf_model_funbasis_init
 
   ! C wrapper for init function
-  type(c_ptr) Function c_funbasis_init(cfobj, nFPar, alpha, x0, xEnd, cP, nP, sizeBase, nX, nXA, cWP) &
-      bind(C, name="mlf_funBasisInit")
+  Type(c_ptr) Function c_funbasis_init(cfobj, nFPar, alpha, x0, xEnd, cP, nP, sizeBase, nX, nXA, cWP) &
+      Bind(C, name="mlf_funBasisInit")
     type(c_ptr), value :: cfobj, cP, cWP
     class(mlf_obj), pointer :: fobj
     type(mlf_algo_funbasis), pointer :: x
@@ -114,18 +114,55 @@ Contains
     End Select
   End Function c_funbasis_init
 
+  Integer Function FunBasisInit(this, sizeBase, nX, nXC, WP) Result(info)
+    class(mlf_algo_funbasis), intent(inout) :: this
+    integer, intent(in) :: sizeBase, nXC, nX
+    real(c_double), intent(in), optional :: WP(:)
+    real(c_double), allocatable :: C(:,:), LD(:), LB(:,:)
+    integer :: i, j, N
+    N = SIZE(this%P, 2)
+    ALLOCATE(C(N,N), LD(sizeBase), LB(N,sizeBase))
+    ! Compute the matrix of the dot product between each function <f_i,f_j>
+    ASSOCIATE(f => this%fun)
+      Select Type(f)
+      Class is (mlf_basis_fun_inv)
+        info = ComputeFunMatrixInv(f, this%x0, this%xEnd, this%P, C, nXC)
+      Class Default
+        info = ComputeFunMatrix(f, this%x0, this%xEnd, this%alpha, this%P, C, nXC)
+      End Select
+    END ASSOCIATE
+    If(info < 0) RETURN
+    !
+    If(PRESENT(WP)) Then
+      FORALL(i=1:N,j=1:N) C(i,j) = WP(i)*WP(j)*C(i,j)
+    Endif
+    ! C is the positive definite matrix containing the dot product of each function
+    info = SymMatrixSelectEigenValues(C, LD, LB)
+    If(info /= 0) GOTO 10
+    ! Choose the (normalised) eigenvector that have the higest eigenvalues
+    If(PRESENT(WP)) Then
+      FORALL(i=1:sizeBase) this%W(:,i) = LB(:,sizeBase-i+1)/sqrt(LD(sizeBase-i+1))*WP
+    Else
+      FORALL(i=1:sizeBase) this%W(:,i) = LB(:,sizeBase-i+1)/sqrt(LD(sizeBase-i+1))
+    Endif
+    CALL ComputeBasisValue(this, nX)
+    CALL mlf_model_funbasis_init(this%model, this)
+    RETURN
+ 10 WRITE (error_unit, *) "mlf_funbasis: error with Eigen decomposition"
+    info = -1
+  End Function FunBasisInit
+
   ! Init function for the step object
-  integer Function mlf_funbasis_init(this, f, alpha, x0, xEnd, P, sizeBase, &
+  Integer Function mlf_funbasis_init(this, f, alpha, x0, xEnd, P, sizeBase, &
       nX, nXA, nXC, WP, data_handler) Result(info)
     class(mlf_algo_funbasis), intent(inout) :: this
     class(mlf_data_handler), intent(inout), optional :: data_handler
-    class(mlf_basis_fun), intent(inout), optional, target :: f
+    class(mlf_basis_fun), intent(inout), target :: f
     real(c_double), intent(in), optional :: alpha, x0, xEnd
     real(c_double), intent(in), optional :: WP(:), P(:,:)
     integer, intent(in), optional :: sizeBase, nX, nXC, nXA
-    real(c_double), allocatable :: C(:,:), LD(:), LB(:,:)
     type(mlf_rsc_numFields) :: numFields
-    integer :: i, j, nP, N, nXC0
+    integer :: nP, N, nXC0
     integer(c_int64_t) :: ndP(2), ndW(2), ndV(2), nX0
     N = -1
     numFields = mlf_rsc_numFields(0,0,4)
@@ -157,45 +194,24 @@ Contains
     info = this%add_rarray(numFields, nX0, this%X, C_CHAR_"X", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
     If(info /= 0) RETURN
-    If(PRESENT(data_handler)) RETURN
     this%fun => f
-    this%P = P
-    !ALLOCATE(C(N,N), LD(N), LB(N,N))
-    ALLOCATE(C(N,N), LD(sizeBase), LB(N,sizeBase))
-    CALL InitOrDefault(this%xEnd, ieee_value(0d0, ieee_positive_inf), xEnd)
-    If(ieee_is_finite(this%xEnd)) Then
-      CALL InitOrDefault(this%alpha, 0d0, alpha)
-    Else
-      CALL InitOrDefault(this%alpha, 1d0, alpha)
+    If(PRESENT(P)) this%P = P
+    If(.NOT. PRESENT(data_handler)) Then
+      nXC0 = nX
+      If(PRESENT(nXC)) nXC0 = nXC
+      If(.NOT. PRESENT(P)) GOTO 10
+      CALL InitOrDefault(this%xEnd, ieee_value(0d0, ieee_positive_inf), xEnd)
+      If(ieee_is_finite(this%xEnd)) Then
+        CALL InitOrDefault(this%alpha, 0d0, alpha)
+      Else
+        CALL InitOrDefault(this%alpha, 1d0, alpha)
+      Endif
+      CALL InitOrDefault(this%x0, 0d0, x0)
+      info = FunBasisInit(this, sizeBase, INT(nX0, KIND=4), nXC0, WP)
     Endif
-    CALL InitOrDefault(this%x0, 0d0, x0)
-    nXC0 = nX
-    If(PRESENT(nXC)) nXC0 = nXC
-    Select Type(f)
-    Class is (mlf_basis_fun_inv)
-      info = ComputeFunMatrixInv(f, this%x0, this%xEnd, P, C, nXC0)
-    Class Default
-      info = ComputeFunMatrix(f, this%x0, this%xEnd, this%alpha, P, C, nXC0)
-    End Select
-    If(info < 0) RETURN
-    If(PRESENT(WP)) Then
-      FORALL(i=1:N,j=1:N) C(i,j) = WP(i)*WP(j)*C(i,j)
-    Endif
-    ! C is the positive definite matrix containing the dot product of each function
-    !info = SymMatrixEigenDecomposition(C, LD, LB)
-    info = SymMatrixSelectEigenValues(C, LD, LB)
-    If(info /= 0) GOTO 10
-    ! Choose the (normalised) eigenvector that have the higest eigenvalues
-    If(PRESENT(WP)) Then
-      FORALL(i=1:sizeBase) this%W(:,i) = LB(:,sizeBase-i+1)/sqrt(LD(sizeBase-i+1))*WP
-    Else
-      FORALL(i=1:sizeBase) this%W(:,i) = LB(:,sizeBase-i+1)/sqrt(LD(sizeBase-i+1))
-    Endif
-    CALL ComputeBasisValue(this, int(nX0,4))
-    CALL mlf_model_funbasis_init(this%model, this)
     RETURN
-    WRITE (error_unit, *) "mlf_funbasis: error with Eigen decomposition"
- 10 info = -1
+ 10 WRITE (error_unit, *) 'mlf_funbasis error: missing required parameter'
+    info = -1
   End Function mlf_funbasis_init
 
   ! Subroutines used for computing a huge number of dot product between function
@@ -203,7 +219,7 @@ Contains
 
   ! First subroutine: compute for one particular X all possibles
   ! local dot product
-  integer Function ComputeCoeff(fun, x, P, Y, Y0, fact, M) Result(info)
+  Integer Function ComputeCoeff(fun, x, P, Y, Y0, fact, M) Result(info)
     class(mlf_basis_fun), intent(inout), target :: fun
     real(c_double), intent(in) :: P(:,:), x, fact
     real(c_double), intent(out) :: Y(:,:)
@@ -350,7 +366,7 @@ Contains
     Y = Y(:,idx)
     !$OMP PARALLEL default(shared) PRIVATE(Y0, X, XV, i, j, k, l, infoI, S, Fact)
     ALLOCATE(Y0(N,1), X(N), XV(N))
-    !$OMP Do schedule(dynamic)
+    !$OMP Do schedule(dynamic, 4)
     Do i = 1, M
       k = idx(i)
       If(II(k) /= 0) Then

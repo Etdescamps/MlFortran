@@ -160,7 +160,7 @@ Contains
       Endif
       !$OMP PARALLEL default(shared) PRIVATE(G, i, infoI)
       ALLOCATE(G(nW, nX0))
-      !$OMP Do schedule(dynamic)
+      !$OMP Do schedule(dynamic, 4)
       Do i = 1,nY0
         If(PRESENT(nFastX)) Then
           Select Type(fmodel)
@@ -179,7 +179,8 @@ Contains
       !$OMP END PARALLEL
     Endif
     info = 0
-    CALL mlf_model_funbasis_init(this%model, this, fun, XMin, XMax, YMin, YMax)
+    CALL mlf_model_funbasis_init(this%model, this, fun, this%XMin, this%XMax, &
+      this%YMin, this%YMax)
   End Function mlf_GridModelInit
   
   Subroutine mlf_GridModelGetBounds(this, XMin, XMax)
@@ -238,8 +239,8 @@ Contains
       dY = (YMax-YMin)/REAL(nYG-1, KIND = 4)
       diX = 1d0/dX; diY = 1d0/dY
       vX = Y(1); vY = Y(2)
-      i = FLOOR((vX-XMin)*diX)+1
-      j = FLOOR((vY-YMin)*diY)+1
+      i = MAX(MIN(FLOOR((vX-XMin)*diX)+1, nXG-1),1)
+      j = MAX(MIN(FLOOR((vY-YMin)*diY)+1, nYG-1),1)
       ax = ((vX-XMin)-(i-1)*dX)*diX
       ay = ((vY-YMin)-(j-1)*dY)*diY
       W(:) = (1d0-ay)*((1d0-ax)*grid(:,i,j)+ax*grid(:,i+1,j)) &
@@ -278,8 +279,8 @@ Contains
       diX = 1d0/dX; diY = 1d0/dY
       Do k = 1, nIn
         vX = Y(1,k); vY = Y(2,k)
-        i = FLOOR((vX-XMin)*diX)+1
-        j = FLOOR((vY-YMin)*diY)+1
+        i = MAX(MIN(FLOOR((vX-XMin)*diX)+1, nXG-1),1)
+        j = MAX(MIN(FLOOR((vY-YMin)*diY)+1, nYG-1),1)
         ax = ((vX-XMin)-(i-1)*dX)*diX
         ay = ((vY-YMin)-(j-1)*dY)*diY
         W(:,k) = (1d0-ay)*((1d0-ax)*grid(:,i,j)+ax*grid(:,i+1,j)) &

@@ -138,7 +138,7 @@ Contains
     ptr => NULL()
     np => this%get_subobject(obj_name)
     If(ASSOCIATED(np)) then
-      sELECT TYPE(np)
+      SELECT TYPE(np)
       Class is (mlf_hdf5_group)
         ptr => np
       Class default
@@ -305,7 +305,7 @@ Contains
     character(len=*,kind=c_char), intent(in) :: rname
     integer(HSIZE_T), intent(inout) :: dims(:)
     logical, intent(in), optional :: fixed_dims(:)
-    integer(HSIZE_T) :: max_dims(SIZE(dims)), orig_dims(SIZE(dims))
+    integer(HSIZE_T) :: max_dims(SIZE(dims)), new_dims(SIZE(dims))
     integer :: frank0, frank
     integer(HID_T), intent(inout) :: space_id, data_id
     info = 0
@@ -321,16 +321,17 @@ Contains
       info = -1
       RETURN
     Endif
-    If(.NOT. PRESENT(fixed_dims)) orig_dims = dims
-    CALL H5Sget_simple_extent_dims_f(space_id, dims, max_dims, info)
+    CALL H5Sget_simple_extent_dims_f(space_id, new_dims, max_dims, info)
     If(CheckF(info, "Error getting dimensions")) RETURN
-    If(.NOT. PRESENT(fixed_dims)) RETURN
-    If(.NOT. ANY((orig_dims /= dims).AND.fixed_dims)) Then
-      WRITE (error_unit, *) "Dimensions don't match:", PACK(orig_dims, fixed_dims), &
-        " /= ", PACK(dims, fixed_dims)
-      info = -1
-      RETURN
+    If(PRESENT(fixed_dims)) Then
+      If(ANY((new_dims /= dims).AND.fixed_dims)) Then
+        WRITE (error_unit, *) "Dimensions don't match:", PACK(new_dims, fixed_dims), &
+          " /= ", PACK(dims, fixed_dims)
+        info = -1
+        RETURN
+      Endif
     Endif
+    dims = new_dims
   End Function mlf_hdf5_openSpaceResource
 
   Integer Function mlf_hdf5_getDouble1d(this, rsc_data, rsc_name, dims, fixed_dims) result(info)

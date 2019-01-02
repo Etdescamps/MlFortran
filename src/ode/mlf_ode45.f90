@@ -197,9 +197,7 @@ Contains
     If(K < 0) GOTO 10
     t = this%t0 + h
     CALL this%denseEvaluation(t, X, this%K(:,7))
-    Do i = 1, K
-      info = fun%reachCstr(t, this%t0, this%t, ids(1:K), X, this%K(:,7))
-    End Do
+    info = fun%reachCstr(t, this%t0, this%t, ids(1:K), X, this%K(:,7))
     If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
     If(t >= this%tMax) Then
       info = mlf_ODE_StopTime

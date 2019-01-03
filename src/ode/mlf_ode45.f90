@@ -543,6 +543,7 @@ Contains
     If(info < 0) info = 0
     RETURN
  12 WRITE (error_unit, *) "h negative ", h, this%t0, this%X0
+    RETURN
  11 WRITE (error_unit, *) "OdeEval error ", this%t0, this%X0
     RETURN
  10 info = -1

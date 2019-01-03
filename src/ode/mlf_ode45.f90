@@ -198,7 +198,8 @@ Contains
     t = this%t0 + h
     CALL this%denseEvaluation(t, X, this%K(:,7))
     info = fun%reachCstr(t, this%t0, this%t, ids(1:K), X, this%K(:,7))
-    If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
+    If(info < 0) GOTO 11
+    If(info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
     If(t >= this%tMax) Then
       info = mlf_ODE_StopTime
       RETURN
@@ -207,6 +208,11 @@ Contains
     ! reachCstr makes a supplementary evaluation of the function
     this%nFun = this%nFun + 1
     hMax = MIN(hMax0, fun%getHMax(t, X, this%K(:,7)))
+    RETURN
+ 11 info = -1
+    WRITE (error_unit, *) "ODE45 findRoot error with reachCstr: ", info
+    WRITE (error_unit, *) "t0: ", this%t0, this%X0
+    WRITE (error_unit, *) "t: ", this%t, this%X
     RETURN
  10 info = -1
     WRITE (error_unit, *) "ODE45 findRoot error: h/dt=", (t-this%t0)/dt, " t0=", this%t0, &
@@ -457,37 +463,35 @@ Contains
         this%t0 = t
         h = ODE45DeltaFun(this, hMax)
         If(t+h >= this%tMax) h = this%tMax-t
-        If(h<0) RETURN
+        If(h<0) GOTO 12
         info = fun%eval(t+DOPRI5_C(2)*h, X0+h*DOPRI5_A2*K(:,1), K(:,2))
-        If(info<0) RETURN; If(info>1) Then
+        If(info<0) GOTO 11; If(info>1) Then
           ! Help to find a path that does not trigger a hard constraint
           this%nFun = this%nFun + 1; nHard = nHard + 1
           hMax = ODE45SearchHardCstr(this, K(:,1:2), t, DOPRI5_C(2)*h);
           lastHard = .TRUE.
-          If(hMax < 0) Then
-            info = -1; RETURN
-          Endif
+          If(hMax < 0) GOTO 10
           If(nHard < 5) CYCLE ! Continue the evaluation
           ! Stop the evaluation: cannot avoid hard constaint
           info = mlf_ODE_HardCstr; RETURN
         Endif
         info = fun%eval(t+DOPRI5_C(3)*h, X0+h*MATMUL(K(:,1:2), DOPRI5_A3), K(:,3))
-        If(info<0) RETURN; If(info>1) Then
+        If(info<0) GOTO 11; If(info>1) Then
           this%nFun = this%nFun + 2; hMax = DOPRI5_C(2)*h; CYCLE
         Endif
         info = fun%eval(t+DOPRI5_C(4)*h, X0+h*MATMUL(K(:,1:3), DOPRI5_A4), K(:,4))
-        If(info<0) RETURN; If(info>1) Then
+        If(info<0) GOTO 11; If(info>1) Then
           this%nFun = this%nFun + 3; hMax = DOPRI5_C(3)*h; CYCLE
         Endif
         info = fun%eval(t+DOPRI5_C(5)*h, X0+h*MATMUL(K(:,1:4), DOPRI5_A5), K(:,5))
-        If(info<0) RETURN; If(info>1) Then
+        If(info<0) GOTO 11; If(info>1) Then
           this%nFun = this%nFun + 4; hMax = DOPRI5_C(4)*h; CYCLE
         Endif
 
         ! Xsti is used by DOPRI5 for stiffness detection
         Xsti = X0+h*MATMUL(K(:,1:5), DOPRI5_A6)
         info = fun%eval(t+DOPRI5_C(6)*h, Xsti, K(:,6))
-        If(info<0) RETURN; If(info>1) Then
+        If(info<0) GOTO 11; If(info>1) Then
           this%nFun = this%nFun + 5; hMax = DOPRI5_C(5)*h; CYCLE
         Endif
 
@@ -495,7 +499,7 @@ Contains
         X = X0+h*MATMUL(K(:,1:6), DOPRI5_A7)
         info = fun%eval(t+DOPRI5_C(7)*h, X, K(:,7))
         this%nFun = this%nFun + 6
-        If(info<0) RETURN; If(info>1) Then;
+        If(info<0) GOTO 11; If(info>1) Then;
           hMax = 0.5*SUM(DOPRI5_C(5:6))*h; CYCLE
         Endif
         err = ODE45ErrorFun(this, MATMUL(K,DOPRI5_EC), X0, X, h)
@@ -537,6 +541,12 @@ Contains
     END ASSOCIATE
     If(PRESENT(niter)) niter = i
     If(info < 0) info = 0
+    RETURN
+ 12 WRITE (error_unit, *) "h negative ", h, this%t0, this%X0
+ 11 WRITE (error_unit, *) "OdeEval error ", this%t0, this%X0
+    RETURN
+ 10 info = -1
+    WRITE (error_unit, *) "Error with hardconstraint: ", this%t0, this%X0
   End Function mlf_ode45_stepFun
 End Module mlf_ode45
 

@@ -491,6 +491,7 @@ Contains
       If(i > sX+2) Then
         info = 1 ! Indicate that the function evaluation is inacurate
         Y = this%Vals(:,sX)*exp(this%xEnd-x)
+        RETURN
       Endif
       i = MAX(2,MIN(i,sX-2))
       X0 = (x-this%X(i-1:i+2))/this%eDiff

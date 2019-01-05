@@ -89,7 +89,7 @@ Module mlf_cmaes
     End Function mlf_matrix_updateF
   End Interface
 Contains
-  Integer Function mlf_matrix_es_obj_init(this, numFields, data_handler, params) result(info)
+  Integer Function mlf_matrix_es_obj_init(this, numFields, data_handler, params) Result(info)
     class(mlf_matrix_es_obj), intent(inout), target :: this
     class(mlf_step_numFields), intent(inout) :: numFields
     class(mlf_data_handler), intent(inout), optional :: data_handler
@@ -97,109 +97,109 @@ Contains
     integer(c_int64_t) :: nD, CND(2), mu
     nD = params%fun%nD
     CND = nD
-    if(params%lambda <= 0) then
-      params%lambda = 4 + floor(3.0*log(real(ND)))
-    end if
-    call numFields%addFields(nRPar = 1, nRsc = 4)
+    If(params%lambda <= 0) Then
+      params%lambda = 4 + FLOOR(3.0*LOG(REAL(ND)))
+    Endif
+    CALL numFields%addFields(nRPar = 1, nRsc = 4)
     info = mlf_optim_init(this, numFields, data_handler, params)
     info = this%add_rmatrix(numFields, CND, this%M, C_CHAR_"M", data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
     info = this%add_rarray(numFields, nD, this%X0, C_CHAR_"X0", data_handler = data_handler, fixed_dims = [.TRUE.])
     info = this%add_rarray(numFields, nD, this%ps, C_CHAR_"ps", data_handler = data_handler, fixed_dims = [.TRUE.])
     mu = this%mu
     info = this%add_rarray(numFields, mu, this%W, C_CHAR_"W", data_handler = data_handler)
-    this%mu = int(mu, kind=c_int)
-    call this%addRPar(numFields, this%alphaCov, "alphaCov")
+    this%mu = INT(mu, KIND=c_int)
+    CALL this%addRPar(numFields, this%alphaCov, "alphaCov")
     ALLOCATE(this%Z(ND, this%lambda), this%D(ND, this%lambda), this%Dw(ND), this%DM(ND,ND))
   End Function mlf_matrix_es_obj_init
 
   Subroutine mlf_matrix_es_obj_updateW(this)
     class(mlf_matrix_es_obj), intent(inout), target :: this
     integer :: ND
-    ND = size(this%Z, 1)
-    Associate(W => this%W, mueff => this%mueff, alphacov => this%alphacov, &
+    ND = SIZE(this%Z, 1)
+    ASSOCIATE(W => this%W, mueff => this%mueff, alphacov => this%alphacov, &
         chiN => this%chiN, c1 => this%c1, cs => this%cs, cw => this%cw, &
-        dsigma => this%dsigma, nR =>real(nD, kind=8))
-      W = 1d0/sum(W) * W
-      mueff = 1d0/(sum(W * W))
+        dsigma => this%dsigma, nR =>REAL(nD, KIND=8))
+      W = 1d0/SUM(W) * W
+      mueff = 1d0/(SUM(W * W))
       c1 = alphacov/((nR+1.3d0)**2 + mueff)
       cs = (mueff + 2d0)/(mueff + nR + 5d0)
-      cw = min(1d0 - c1, alphacov*(mueff+1d0/mueff-2d0)/((nR+2d0)**2 + alphacov*mueff*0.5d0))
-      dsigma = 1d0 + cs + 2d0*max(0d0, sqrt((mueff-1d0)/(nR+1d0))-1d0)
-      chiN = sqrt(nR)*(1d0-1d0/(4d0*nR)+1d0/(21d0*nR*nR))
-    End Associate
+      cw = MIN(1d0 - c1, alphacov*(mueff+1d0/mueff-2d0)/((nR+2d0)**2 + alphacov*mueff*0.5d0))
+      dsigma = 1d0 + cs + 2d0*MAX(0d0, SQRT((mueff-1d0)/(nR+1d0))-1d0)
+      chiN = SQRT(nR)*(1d0-1d0/(4d0*nR)+1d0/(21d0*nR*nR))
+    END ASSOCIATE
   End Subroutine mlf_matrix_es_obj_updateW 
 
-  integer Function mlf_matrix_es_obj_reinit(this) result(info)
+  Integer Function mlf_matrix_es_obj_reinit(this) Result(info)
     class(mlf_matrix_es_obj), intent(inout), target :: this
     info = this%reinit_X()
   End Function mlf_matrix_es_obj_reinit
  
-  integer Function mlf_matrix_es_obj_reinit_X(this, X0, sigma0, funW, alphacovIn) result(info)
+  Integer Function mlf_matrix_es_obj_reinit_X(this, X0, sigma0, funW, alphacovIn) Result(info)
     class(mlf_matrix_es_obj), intent(inout), target :: this
     class(mlf_weight_fun), optional, intent(in) :: funW
     real(c_double), intent(in), optional :: X0(:), sigma0, alphacovIn
     integer :: lambda, mu, i
-    if(present(sigma0)) this%sigma = sigma0
+    If(PRESENT(sigma0)) this%sigma = sigma0
     info = mlf_optim_reinit(this)
-    lambda = size(this%Z, 2); mu = size(this%W)
-    call IdentityMatrix(this%M)
+    lambda = SIZE(this%Z, 2); mu = SIZE(this%W)
+    CALL IdentityMatrix(this%M)
     this%ps = 0
-    if(present(X0)) then
+    If(PRESENT(X0)) Then
       this%X0 = X0
-    else
-      call this%randomStartPoint(this%X0)
-    endif
+    Else
+      CALL this%randomStartPoint(this%X0)
+    Endif
     this%alphacov = 2d0
-    if(present(alphacovIn)) this%alphacov=alphacovIn
-    if(present(funW)) then
-      call funW%eval(this%W, lambda)
-    else
-      this%W = log(0.5d0*(lambda+1d0))-[(log(real(i,kind=8)), i=1,mu)]
-    endif
-    call this%updateW()
+    If(PRESENT(alphacovIn)) this%alphacov=alphacovIn
+    If(PRESENT(funW)) Then
+      CALL funW%eval(this%W, lambda)
+    Else
+      this%W = LOG(0.5d0*(lambda+1d0))-[(LOG(REAL(i,KIND=8)), i=1,mu)]
+    Endif
+    CALL this%updateW()
   End Function mlf_matrix_es_obj_reinit_X
 
-  integer Function mlf_matrix_es_obj_genX(this, ids) result(info)
+  Integer Function mlf_matrix_es_obj_genX(this, ids) Result(info)
     class(mlf_matrix_es_obj), intent(inout), target :: this
     integer(c_int), intent(in), optional :: ids(:) ! Regenerates selected ids
     integer :: i, j
     info = 0
-    if(present(ids)) then
-      Do i=1,size(ids)
+    If(PRESENT(ids)) Then
+      Do i=1,SIZE(ids)
         j = ids(i)
-        call RandN(this%Z(:,j))
-        this%D(:,j) = matmul(this%M, this%Z(:,j))
+        CALL RandN(this%Z(:,j))
+        this%D(:,j) = MATMUL(this%M, this%Z(:,j))
         this%X(:,j) = this%sigma*this%D(:,j)+this%X0
       End Do
-    else
-      call RandN(this%Z)
-      Do i=1,size(this%Z,2)
-        this%D(:,i) = matmul(this%M, this%Z(:,i))
+    Else
+      CALL RandN(this%Z)
+      Do i=1,SIZE(this%Z,2)
+        this%D(:,i) = MATMUL(this%M, this%Z(:,i))
         this%X(:,i) = this%sigma*this%D(:,i)+this%X0
       End Do
-    endif
+    Endif
   End Function mlf_matrix_es_obj_genX
   
-  integer Function mlf_matrix_es_obj_stopCond(this) result(info)
+  Integer Function mlf_matrix_es_obj_stopCond(this) Result(info)
     class(mlf_matrix_es_obj), intent(inout), target :: this
     info = mlf_optim_stopCond(this)
   End Function mlf_matrix_es_obj_stopCond
 
-  Integer Function mlf_maes_init(this, funW, alphacovIn, data_handler, params) result(info)
+  Integer Function mlf_maes_init(this, funW, alphacovIn, data_handler, params) Result(info)
     class(mlf_maes_obj), intent(inout), target :: this
     class(mlf_optim_param), intent(inout) :: params
     class(mlf_weight_fun), optional, intent(in) :: funW
     real(c_double), intent(in), optional :: alphacovIn
     class(mlf_data_handler), intent(inout), optional :: data_handler
     type(mlf_step_numFields) :: numFields
-    call numFields%initFields()
+    CALL numFields%initFields()
     info = mlf_matrix_es_obj_init(this, numFields, data_handler, params)
-    if(CheckF(info, 'mlf_maes_init: Error init matrix_es')) RETURN
-    if(present(data_handler)) then
-      call this%updateW()
-    else
+    If(CheckF(info, 'mlf_maes_init: Error init matrix_es')) RETURN
+    If(PRESENT(data_handler)) Then
+      CALL this%updateW()
+    Else
       info = this%reinit_X(params%X0, funW = funW, alphacovIn = alphacovIn)
-    endif
+    Endif
   End Function mlf_maes_init
 
   Integer Function mlf_cmaes_init(this, funW, alphacovIn, covEvery, data_handler, params) result(info)
@@ -212,30 +212,30 @@ Contains
     class(mlf_data_handler), intent(inout), optional :: data_handler
     integer :: lambda
     type(mlf_step_numFields) :: numFields
-    call numFields%initFields(nIPar = 1, nRsc = 2, nIVar =1)
+    CALL numFields%initFields(nIPar = 1, nRsc = 2, nIVar =1)
     info = mlf_matrix_es_obj_init(this, numFields, data_handler, params)
-    if(CheckF(info, 'mlf_cmaes_init: Error init matrix_es')) RETURN
-    lambda = size(this%Z, 2); ND = size(this%Z, 1)
+    If(CheckF(info, 'mlf_cmaes_init: Error init matrix_es')) RETURN
+    lambda = SIZE(this%Z, 2); ND = SIZE(this%Z, 1)
     CND = ND
     info = this%add_rmatrix(numFields, CND, this%C, C_CHAR_"C", &
       data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
     info = this%add_rarray(numFields, ND, this%pc, C_CHAR_"pc", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
-    call this%addIVar(numFields, this%lastCov, "lastCov")
-    call this%addIPar(numFields, this%covEvery, "covEvery")
-    if(present(data_handler)) then
-      call this%updateW()
+    CALL this%addIVar(numFields, this%lastCov, "lastCov")
+    CALL this%addIPar(numFields, this%covEvery, "covEvery")
+    If(PRESENT(data_handler)) Then
+      CALL this%updateW()
       this%cp = (this%mueff/ND+4.0D0)/(2.0D0*this%mueff/ND+ND+4d0)
-    else
-      this%covEvery = MAX(CEILING(ND/REAL(lambda, kind=8)),1)
-      if(present(covEvery)) this%covEvery = covEvery
+    Else
+      this%covEvery = MAX(CEILING(ND/REAL(lambda, KIND=8)),1)
+      If(PRESENT(covEvery)) this%covEvery = covEvery
       this%lastCov = 0
       info = this%reinit_X(params%X0, funW = funW, alphacovIn = alphacovIn)
-      if(CheckF(info, 'mlf_cmaes_init: Error reinit_X')) RETURN
-    endif
+      If(CheckF(info, 'mlf_cmaes_init: Error reinit_X')) RETURN
+    Endif
   End Function mlf_cmaes_init
 
-  Function mlf_cmaes_objcreate(ismaes, data_handler, params, funW, alphacovIn, covevery) result(obj)
+  Function mlf_cmaes_objcreate(ismaes, data_handler, params, funW, alphacovIn, covevery) Result(obj)
     type(mlf_maes_obj), pointer :: mthis
     type(mlf_cmaes_obj), pointer :: cthis
     class(mlf_optim_param), intent(inout) :: params
@@ -246,113 +246,113 @@ Contains
     class(mlf_data_handler), intent(inout), optional :: data_handler
     logical, intent(in) :: ismaes
     integer :: ret
-    if(ismaes) then
-      allocate(mthis)
+    If(ismaes) Then
+      ALLOCATE(mthis)
       ret = mthis%init(funW, alphacovIn, data_handler, params)
-      if(ret<0) then
-        deallocate(mthis)
-      else
+      If(ret<0) Then
+        DEALLOCATE(mthis)
+      Else
         obj => mthis
-      endif
-    else
-      allocate(cthis)
+      Endif
+    Else
+      ALLOCATE(cthis)
       ret = cthis%init(funW, alphacovIn, covEvery, data_handler, params)
-      if(ret<0) then
-        deallocate(cthis)
-      else
+      If(ret<0) Then
+        DEALLOCATE(cthis)
+      Else
         obj => cthis
-      endif
-    endif
+      Endif
+    Endif
   End Function mlf_cmaes_objcreate
 
-  integer Function mlf_cmaes_reinit_X(this, X0, sigma0, funW, alphacovIn) result(info)
+  Integer Function mlf_cmaes_reinit_X(this, X0, sigma0, funW, alphacovIn) Result(info)
     class(mlf_cmaes_obj), intent(inout), target :: this
     class(mlf_weight_fun), optional, intent(in) :: funW
     real(c_double), intent(in), optional :: X0(:), sigma0, alphacovIn
     integer ND
     info = mlf_matrix_es_obj_reinit_X(this, X0, sigma0, funW, alphacovIn)
-    if(CheckF(info, 'mlf_cmaes_reinit_X: Error init matrix_es_obj')) RETURN
-    ND = size(this%Z, 1)
-    call IdentityMatrix(this%C)
+    If(CheckF(info, 'mlf_cmaes_reinit_X: Error init matrix_es_obj')) RETURN
+    ND = SIZE(this%Z, 1)
+    CALL IdentityMatrix(this%C)
     this%pc = 0
     this%cp = (this%mueff/ND+4.0D0)/(2.0D0*this%mueff/ND+ND+4d0)
   End Function mlf_cmaes_reinit_X
 
-  real(c_double) Function mlf_matrix_es_obj_updateY(this, Y, idMin) result(Ymin)
+  Real(c_double) Function mlf_matrix_es_obj_updateY(this, Y, idMin) Result(Ymin)
     class(mlf_matrix_es_obj), intent(inout), target :: this
     real(c_double), intent(in) :: Y(:,:)
     integer, intent(out), optional :: idMin
     integer :: lambda, ND, info
-    lambda = size(this%Z,2); ND = size(this%Z,1)
-    Associate(mu=> this%mu, idx => this%idx, D => this%D, Z => this%Z, Dw => this%Dw, &
+    lambda = SIZE(this%Z,2); ND = SIZE(this%Z,1)
+    ASSOCIATE(mu=> this%mu, idx => this%idx, D => this%D, Z => this%Z, Dw => this%Dw, &
         W => this%W, sigma => this%sigma, mueff => this%mueff, c1 => this%c1, cs => this%cs, &
         cw => this%cw, ps => this%ps, dsigma => this%dsigma, chiN => this%chiN)
       ! Sort idx by the value Y
-      call QSortIdx(Y, idx)
+      CALL QSortIdx(Y, idx)
       Ymin = Y(1, idx(1))
-      if(present(idMin)) idMin = idx(1)
+      If(PRESENT(idMin)) idMin = idx(1)
       ! Select the best values of D and Z
       D(:,:mu) = D(:,idx(:mu))
       Z(:,:mu) = Z(:,idx(:mu))
       ! Compute <d>_w
-      Dw = matmul(D(:,:mu), W)
+      Dw = MATMUL(D(:,:mu), W)
       this%X0 = this%X0 + sigma*Dw
       ! Update the value of ps using previous value and <Z>_w
-      ps = (1d0-cs)*ps + sqrt(mueff*cs*(2d0-cs))*matmul(Z(:,:mu), W)
+      ps = (1d0-cs)*ps + SQRT(mueff*cs*(2d0-cs))*MATMUL(Z(:,:mu), W)
 
       info = this%updateMatrix()
-      if(CheckF(info, 'mlf_matrix_es_obj_updateY: Error updateMatrix')) RETURN
+      If(CheckF(info, 'mlf_matrix_es_obj_updateY: Error updateMatrix')) RETURN
 
       ! Evaluate new sigma
-      sigma = sigma*exp(cs/dsigma*(norm2(ps)/chiN-1d0))
-    End Associate
+      sigma = sigma*EXP(cs/dsigma*(NORM2(ps)/chiN-1d0))
+    END ASSOCIATE
   End Function mlf_matrix_es_obj_updateY
 
-  Integer Function mlf_maes_updateMatrix(this) result(info)
+  Integer Function mlf_maes_updateMatrix(this) Result(info)
     class(mlf_maes_obj), intent(inout), target :: this
     integer :: ND, i
-    info = 0; ND = size(this%Z,1)
-    Associate(mu=> this%mu, Z => this%Z, Dw => this%Dw, ps => this%ps, &
+    info = 0; ND = SIZE(this%Z,1)
+    ASSOCIATE(mu=> this%mu, Z => this%Z, Dw => this%Dw, ps => this%ps, &
         W => this%W, c1 => this%c1, cw => this%cw, DM => this%DM)
       ! Compute DM <d*d^T>_w
       ! The computaion is more precise using a zero matrix
       DM = 0
-      do i = mu,1,-1
-        call TensorAddVectDown(ND, Z(:,i), DM, 0.5*cw*W(i)) ! Using only lower half is ~40% faster
-      end do
-      call TensorAddVectDown(ND, ps, DM, 0.5*c1)
-      forall(i = 1:ND) DM(i,i) = DM(i,i)+(1.0d0-0.5*(c1+cw))
-      call SymmetrizeMatrix(DM)
-      this%M = matmul(this%M, DM)
-    End Associate
+      Do i = mu,1,-1
+        CALL TensorAddVectDown(ND, Z(:,i), DM, 0.5*cw*W(i)) ! Using only lower half is ~40% faster
+      End Do
+      CALL TensorAddVectDown(ND, ps, DM, 0.5*c1)
+      FORALL(i = 1:ND) DM(i,i) = DM(i,i)+(1.0d0-0.5*(c1+cw))
+      CALL SymmetrizeMatrix(DM)
+      this%M = MATMUL(this%M, DM)
+    END ASSOCIATE
   End Function mlf_maes_updateMatrix
 
   Integer Function mlf_cmaes_updateMatrix(this) result(info)
     class(mlf_cmaes_obj), intent(inout), target :: this
     integer :: ND, i
-    info = 0; ND = size(this%Z,1)
-    Associate(mu=> this%mu, D => this%D, Dw => this%Dw, &
+    info = 0; ND = SIZE(this%Z,1)
+    ASSOCIATE(mu=> this%mu, D => this%D, Dw => this%Dw, &
         W => this%W, mueff => this%mueff, c1 => this%c1, C => this%C, &
         cw => this%cw, cp => this%cp, pc => this%pc, DM => this%DM)
       ! Update p using <d>_w
-      pc = (1d0-cp)*pc + sqrt(mueff*cp*(2d0-cp))*Dw
+      pc = (1d0-cp)*pc + SQRT(mueff*cp*(2d0-cp))*Dw
       ! Compute DM <d*d^T>_w
       ! The computaion is more precise using a zero matrix
       DM = 0
-      do i = 1,mu
-        call TensorAddVectDown(ND, D(:,i), DM, cw*W(i)) ! Using only lower half is ~40% faster
-      end do
-      call TensorAddVectDown(ND, pc, DM, c1) ! Add rank one update
-      call SymmetrizeMatrix(DM)
+      Do i = 1,mu
+        CALL TensorAddVectDown(ND, D(:,i), DM, cw*W(i)) ! Using only lower half is ~40% faster
+      End Do
+      CALL TensorAddVectDown(ND, pc, DM, c1) ! Add rank one update
+      CALL SymmetrizeMatrix(DM)
       ! Update covariance matrix
       C = (1.0d0-c1-cw)*C + DM
       this%lastCov = this%lastCov + 1
-      if(this%lastCov >= this%covEvery) then
+      If(this%lastCov >= this%covEvery) Then
         info = SqrtSymMatrix(C, this%M)
-        if(CheckF(info, "mlf_cmaes_updateMatrix: error SqrtSymMatrix")) RETURN
+        If(CheckF(info, "mlf_cmaes_updateMatrix: error SqrtSymMatrix")) RETURN
         this%lastCov = 0
-      endif
-    End Associate
+      Endif
+    END ASSOCIATE
   End Function mlf_cmaes_updateMatrix
 
 End Module mlf_cmaes

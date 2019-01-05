@@ -87,47 +87,47 @@ Module mlf_optim
   End Interface
 Contains
   integer Function mlf_optim_init(this, numFields, data_handler, params) &
-      result(info)
+      Result(info)
     class(mlf_optim_obj), intent(inout), target :: this
     class(mlf_step_numFields), intent(inout) :: numFields
     class(mlf_data_handler), intent(inout), optional :: data_handler
     class(mlf_optim_param), intent(inout) :: params
     integer(c_int64_t) :: nD, nLambdaND(2)
     info = -1
-    if(.NOT. ASSOCIATED(params%fun)) RETURN
+    If(.NOT. ASSOCIATED(params%fun)) RETURN
     this%fun => params%fun
     nD = this%fun%nD
-    call numFields%addFields(nIPar = 1, nRPar = 1, nRsc = 2, nIVar = 1, nRVar = 2)
+    CALL numFields%addFields(nIPar = 1, nRPar = 1, nRsc = 2, nIVar = 1, nRVar = 2)
     info = mlf_step_obj_init(this, numFields, data_handler)
-    if(info < 0) RETURN
-    call this%addIVar(numFields, this%nevalFun, "nevalFun")
-    call this%addIPar(numFields, this%nevalFunMax, "nevalFunMax")
-    call this%addRVar(numFields, this%minFun, "minFun")
-    call this%addRVar(numFields, this%sigma, "sigma")
-    call this%addRPar(numFields, this%targetFun, "targetFun")
+    If(info < 0) RETURN
+    CALL this%addIVar(numFields, this%nevalFun, "nevalFun")
+    CALL this%addIPar(numFields, this%nevalFunMax, "nevalFunMax")
+    CALL this%addRVar(numFields, this%minFun, "minFun")
+    CALL this%addRVar(numFields, this%sigma, "sigma")
+    CALL this%addRPar(numFields, this%targetFun, "targetFun")
     this%targetFun = params%targetFun
     this%sigma0 = params%sigma
     this%lambda = params%lambda
     this%nevalFunMax = params%nevalFunMax
     info = this%add_rarray(numFields, nD, this%minX, C_CHAR_"minX", &
       data_handler = data_handler, fixed_dims = [.TRUE.])
-    if(info < 0) RETURN
-    nLambdaND = [ND, int(this%lambda, kind=c_int64_t)]
+    If(info < 0) RETURN
+    nLambdaND = [ND, INT(this%lambda, KIND=c_int64_t)]
     info = this%add_rmatrix(numFields, nLambdaND, this%X, C_CHAR_"X", &
       data_handler = data_handler, fixed_dims = [.TRUE., .TRUE.])
-    this%lambda = int(nLambdaND(2), kind=4)
-    if(params%mu <0 .AND. this%lambda > 0) then
+    this%lambda = INT(nLambdaND(2), KIND=4)
+    If(params%mu <0 .AND. this%lambda > 0) Then
       this%mu = MAX(this%lambda/2, MIN(this%lambda, 2))
-    else
+    Else
       this%mu = params%mu
-    endif
+    Endif
     ALLOCATE(this%Y(this%fun%nY,params%lambda), this%idx(params%lambda))
-    if(this%fun%nC>0) ALLOCATE(this%Csr(this%fun%nC, params%lambda))
-    if(associated(params%XMin)) ALLOCATE(this%XInitMin, source=params%XMin)
-    if(associated(params%XMax)) ALLOCATE(this%XInitMax, source=params%XMax)
+    If(this%fun%nC>0) ALLOCATE(this%Csr(this%fun%nC, params%lambda))
+    If(ASSOCIATED(params%XMin)) ALLOCATE(this%XInitMin, source=params%XMin)
+    If(ASSOCIATED(params%XMax)) ALLOCATE(this%XInitMax, source=params%XMax)
   End Function mlf_optim_init
 
-  integer Function mlf_optim_reinit(this) result(info)
+  integer Function mlf_optim_reinit(this) Result(info)
     class(mlf_optim_obj), intent(inout), target :: this
     info = mlf_step_obj_reinit(this)
     this%minFun = HUGE(this%targetFun)
@@ -139,20 +139,20 @@ Contains
     class(mlf_optim_obj), intent(inout), target :: this
     integer(c_int64_t), optional :: nevalFunMax
     real(c_double), optional :: targetFun
-    if(present(targetFun)) this%targetFun = targetFun
-    if(present(nevalFunMax)) this%nevalFunMax = nevalFunMax
+    If(present(targetFun)) this%targetFun = targetFun
+    If(present(nevalFunMax)) this%nevalFunMax = nevalFunMax
   End Subroutine mlf_optim_constraints
 
   integer Function mlf_optim_stopCond(this) result(info)
     class(mlf_optim_obj), intent(inout), target :: this
-    if(this%minFun < this%targetFun) then
+    If(this%minFun < this%targetFun) Then
       info = 1
       RETURN
-    endif
-    if(this%nevalFun > this%nevalFunMax) then
+    Endif
+    If(this%nevalFun > this%nevalFunMax) Then
       info = 1
       RETURN
-    endif
+    Endif
     info = 0
   End Function mlf_optim_stopCond
 
@@ -170,61 +170,61 @@ Contains
     ALLOCATE(VU(lambda))
     LIter: Do i=1,niter0
       info = this%stopCond()
-      if(info /= 0) EXIT LIter
+      If(info /= 0) EXIT LIter
       info = this%genX()
-      if(info<0) EXIT LIter
-      if(allocated(this%Csr)) then
+      If(info<0) EXIT LIter
+      If(ALLOCATED(this%Csr)) Then
         info = this%fun%constraints(this%X, this%Csr)
-        if(info<0) EXIT LIter
-        VU = any(this%Csr>0, dim = 1)
-        nR = count(VU)
-        if(nR == lambda .OR. (nR == lambda-1 .AND. nR > 2)) then
+        If(info<0) EXIT LIter
+        VU = ANY(this%Csr>0, DIM = 1)
+        nR = COUNT(VU)
+        If(nR == lambda .OR. (nR == lambda-1 .AND. nR > 2)) Then
           minC = this%updateY(this%Csr)
           CYCLE LIter
-        endif
-        if(nR > 0) then
+        Endif
+        If(nR > 0) Then
           this%idx = [(j, j=1,lambda)]
-          this%idx(:nR) = pack(this%idx, VU)
+          this%idx(:nR) = PACK(this%idx, VU)
           LConst: Do While(nR>0)
             info = this%genX(this%idx(:nR))
             if(info<0) EXIT LIter
             info = this%fun%constraints(this%X(:,this%idx(:nR)), this%Csr(:,:nR))
             if(info<0) EXIT LIter
-            VU(:nR) = any(this%Csr(:,:nR)>0, dim = 1)
-            nR2 = count(VU(:nR))
+            VU(:nR) = ANY(this%Csr(:,:nR)>0, DIM = 1)
+            nR2 = COUNT(VU(:nR))
             if(nR2 == 0) EXIT LConst
-            this%idx(:nR2) = pack(this%idx(:nR), VU(:nR))
+            this%idx(:nR2) = PACK(this%idx(:nR), VU(:nR))
             nR = nR2
           End Do LConst
-        endif
-      endif
+        Endif
+      Endif
       info = this%fun%eval(this%X, this%Y)
-      if(info<0) EXIT LIter
-      WHERE(ieee_is_nan(this%Y)) this%Y = huge(0d0) 
+      If(info<0) EXIT LIter
+      WHERE(ieee_is_nan(this%Y)) this%Y = HUGE(0d0) 
       minV = this%updateY(this%Y, idMin)
-      if(idMin<0) then
+      If(idMin<0) Then
         info = idMin
         EXIT LIter
-      endif
-      if(minV < this%minFun) then
+      Endif
+      If(minV < this%minFun) Then
         this%minFun = minV
         this%minX = this%X(:,idMin)
-      endif
+      Endif
       this%nevalFun = this%nevalFun + lambda
-      if(present(niter)) niter = i
+      If(PRESENT(niter)) niter = i
     End Do LIter
   End Function mlf_optim_stepF
 
   Subroutine mlf_optim_startpoint(this, X)
     class(mlf_optim_obj), intent(inout), target :: this
     real(c_double), intent(out) :: X(:)
-    if(allocated(this%XInitMin) .AND. allocated(this%XInitMax)) then
-      call random_number(X)
+    If(ALLOCATED(this%XInitMin) .AND. ALLOCATED(this%XInitMax)) Then
+      CALL RANDOM_NUMBER(X)
       X = this%XInitMin+X*this%XInitMax
-    else
-      call randN(X)
+    Else
+      CALL randN(X)
       X = this%sigma0*X
-    endif
+    Endif
   End Subroutine mlf_optim_startpoint
 
   Subroutine mlf_optim_setparams(p, fun, lambda, mu, XMin, XMax, X0, nevalFunMax, sigma, targetFun)
@@ -237,14 +237,14 @@ Contains
     real(c_double), optional, target :: XMin(:), XMax(:), X0(:)
     p%fun => fun
     p%lambda = lambda
-    call SetIf(p%mu, -1, mu)
-    call SetIf(p%nevalFunMax, HUGE(p%nevalFunMax), nevalFunMax)
-    call SetIf(p%sigma, 1d0, sigma)
-    call SetIf(p%targetFun, 1d0, targetFun)
+    CALL SetIf(p%mu, -1, mu)
+    CALL SetIf(p%nevalFunMax, HUGE(p%nevalFunMax), nevalFunMax)
+    CALL SetIf(p%sigma, 1d0, sigma)
+    CALL SetIf(p%targetFun, 1d0, targetFun)
     p%XMin => NULL(); p%XMax => NULL(); p%X0 => NULL()
-    if(present(XMin)) p%XMin => XMin
-    if(present(XMax)) p%XMax => XMax
-    if(present(X0)) p%X0 => X0
+    If(PRESENT(XMin)) p%XMin => XMin
+    If(PRESENT(XMax)) p%XMax => XMax
+    If(PRESENT(X0)) p%X0 => X0
   End Subroutine mlf_optim_setparams
 End module mlf_optim
 

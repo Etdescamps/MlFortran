@@ -34,7 +34,7 @@ Module mlf_utils
   PRIVATE
 
   Public :: Xchange, QSortIdx, QSort, Mean, PrintMatrix, mlf_countcl, mlf_reversecl, SetIf
-  Public :: InitOrDefault, FirstEltVal, PresentAndTrue
+  Public :: InitOrDefault, FirstEltVal, PresentAndTrue, OutsideBounds
   Public :: mlf_reverseid, mlf_cumulativefromvect, mlf_di_search, mlf_printmatrix_c, mlf_isSorted
 
   Interface FirstEltVal
@@ -81,6 +81,17 @@ Module mlf_utils
   End Interface InitOrDefault
   real(c_double), public, parameter :: mlf_PI = acos(-1d0)
 Contains
+  Real(c_double) Function OutsideBounds(X, XMin, XMax) Result(cstr)
+    real(c_double), intent(in) :: X, XMin, XMax
+    If(X < XMin) Then
+      cstr = XMin - X
+    Else If(X > XMax) Then
+      cstr = XMax - X
+    Else
+      cstr = 0
+    Endif
+  End Function OutsideBounds
+
   Logical Function PresentAndTrue(x) Result(y)
     logical, optional :: x
     y = .FALSE.

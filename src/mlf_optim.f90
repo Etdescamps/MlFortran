@@ -76,6 +76,7 @@ Module mlf_optim
       class(mlf_optim_obj), intent(inout), target :: this
       integer(c_int), intent(in), optional :: ids(:) ! Regenerates selected ids
     End Function mlf_genX
+
     Function mlf_updateY(this, Y, idMin)
       Use iso_c_binding
       import :: mlf_optim_obj
@@ -86,7 +87,7 @@ Module mlf_optim
     End Function mlf_updateY
   End Interface
 Contains
-  integer Function mlf_optim_init(this, numFields, data_handler, params) &
+  Integer Function mlf_optim_init(this, numFields, data_handler, params) &
       Result(info)
     class(mlf_optim_obj), intent(inout), target :: this
     class(mlf_step_numFields), intent(inout) :: numFields

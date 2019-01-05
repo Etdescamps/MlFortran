@@ -101,13 +101,13 @@ Module mlf_supervised_model
       real(c_double), intent(out) :: Y(:)
     End Function mlf_vectResults
 
-    Integer Function mlf_experience_run(this, experiment, X, Y)
+    Integer Function mlf_experience_run(this, experiment, X, Y, cstr)
       Use iso_c_binding
       import :: mlf_experience_runner, mlf_model_experiment
       class(mlf_experience_runner), intent(inout), target :: this
       class(mlf_model_experiment), intent(in), target :: experiment
       real(c_double), intent(in) :: X(:)
-      real(c_double), intent(out) :: Y(:)
+      real(c_double), intent(out) :: Y(:), cstr
     End Function mlf_experience_run
 
     Integer(8) Function mlf_real_get_nparameters(this)
@@ -115,11 +115,12 @@ Module mlf_supervised_model
       class(mlf_model_real_parameters), intent(inout), target :: this
     End Function mlf_real_get_nparameters
 
-    Integer Function mlf_real_parameters_set(this, X)
+    Function mlf_real_parameters_set(this, X)
       Use iso_c_binding
       import :: mlf_model_real_parameters
       class(mlf_model_real_parameters), intent(inout), target :: this
       real(c_double), intent(in) :: X(:)
+      real(c_double) :: mlf_real_parameters_set
     End Function mlf_real_parameters_set
 
     Integer Function mlf_model_setupModel(this, param, experiment)
@@ -138,15 +139,18 @@ Contains
     info = -1 ! You shall reimplement this function to get results
   End Function mlf_experience_dummy_results
 
-  Integer Function mlf_local_runExp(this, experiment, X, Y) Result(info)
+  Integer Function mlf_local_runExp(this, experiment, X, Y, cstr) Result(info)
     class(mlf_local_experience_runner), intent(inout), target :: this
     class(mlf_model_experiment), intent(in), target :: experiment
     real(c_double), intent(in) :: X(:)
-    real(c_double), intent(out) :: Y(:)
+    real(c_double), intent(out) :: Y(:), cstr
     integer(8) :: iMax
     iMax = HUGE(iMax) ! Stop when finished
-    info = this%params%set(X)
-    If(info < 0) RETURN
+    cstr = this%params%set(X)
+    If(cstr /= 0d0) Then
+      info = MIN(FLOOR(cstr), 0)
+      RETURN
+    Endif
     info = this%model%reinit()
     If(info < 0) RETURN
     info = this%model%setupModel(this%params, experiment)

@@ -73,12 +73,12 @@ Contains
     N = 2
   End Function test_kmc_parameters_getNParameters
 
-  Integer Function test_kmc_parameters_set(this, X) Result(info)
+  Real(c_double) Function test_kmc_parameters_set(this, X) Result(cstr)
     class(test_kmc_parameters), intent(inout), target :: this
     real(c_double), intent(in) :: X(:)
     this%Alpha = X(1)
     this%Beta  = X(2)
-    info = 0
+    cstr = 0
   End Function test_kmc_parameters_set
 
   Integer Function kmc_ode_fun(this, t, X, F) Result(info)

@@ -1,4 +1,4 @@
-! Copyright (c) 2017-2018 Etienne Descamps
+! Copyright (c) 2017-2019 Etienne Descamps
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without modification,
@@ -51,6 +51,8 @@ Module mlf_utils
     module procedure mlf_xchangeInt
     module procedure mlf_xchangeInt64
     module procedure mlf_xchangeDouble
+    module procedure mlf_xchangeComplex4
+    module procedure mlf_xchangeComplex8
     module procedure mlf_xchangeFloat
   End Interface Xchange
   Interface QSortIdx
@@ -233,6 +235,23 @@ Contains
     a = b
     b = k
   End Subroutine mlf_xchangeFloat
+
+  Pure Elemental Subroutine mlf_xchangeComplex4(a,b)
+    complex(kind = 4), intent(inout) :: a,b
+    complex(kind = 4) :: k
+    k = a
+    a = b
+    b = k
+  End Subroutine mlf_xchangeComplex4
+
+  Pure Elemental Subroutine mlf_xchangeComplex8(a,b)
+    complex(kind = 8), intent(inout) :: a,b
+    complex(kind = 8) :: k
+    k = a
+    a = b
+    b = k
+  End Subroutine mlf_xchangeComplex8
+
 
   ! Test function written to test QSort function
   Pure Logical Function mlf_isSorted(Y) result(T)

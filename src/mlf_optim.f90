@@ -70,7 +70,7 @@ Module mlf_optim
   End Type mlf_optim_obj
 
   Abstract Interface
-    integer Function mlf_genX(this, ids)
+    Integer Function mlf_genX(this, ids)
       Use iso_c_binding
       import :: mlf_optim_obj
       class(mlf_optim_obj), intent(inout), target :: this

@@ -217,6 +217,8 @@ Contains
  10 info = -1
     WRITE (error_unit, *) "ODE45 findRoot error: h/dt=", (t-this%t0)/dt, " t0=", this%t0, &
       " ids:", ids(:N), " nIds:", ids(:K)
+    WRITE (error_unit, *) "t0: ", this%t0, this%X0
+    WRITE (error_unit, *) "t: ", this%t, this%X
   End Function ODE45FindRoot
 
   Real(c_double) Function FindNewtonRalphson(t0, A0, A, V) &
@@ -353,20 +355,21 @@ Contains
     END ASSOCIATE
   End Subroutine mlf_ode45_denseEvaluation
 
-  real(c_double) Function ODE45DeltaFun(this, hMax) result(hopt)
+  Integer Function ODE45DeltaFun(this, hMax, hOpt) Result(info)
     class(mlf_ode45_obj), intent(inout) :: this
     real(c_double), intent(in) :: hMax
+    real(c_double), intent(out) :: hOpt
     real(c_double) :: d0, d1, d2, dM, h0, h1, hCstr
-    integer :: info, i
-    hopt = -1
+    integer :: i
+    info = -1
     hCstr = hMax
     If(this%lastErr <= 0) Then
       ! Starting Step Size as described in II.4 from Hairer and Wanner
       ! Evaluate the norm of |f(x_0,y_0)| and |y_0| using sc_i
       ASSOCIATE(at => this%atoli, rt => this%rtoli, SC => this%K(:,2))
         SC = at+rt*ABS(this%X)
-        d0 = norm2(this%X(:)/SC)
-        d1 = norm2(this%K(:,1)/SC)
+        d0 = NORM2(this%X(:)/SC)
+        d1 = NORM2(this%K(:,1)/SC)
       END ASSOCIATE
       ! Do a first guess on hopt
       If(d0 <= 1d-5 .OR. d1 <= 1d-5) Then
@@ -384,20 +387,21 @@ Contains
         hCstr = h0
       End Do
       If(info /= 0) RETURN
-      d2 = norm2(this%K(:,2)-this%K(:,1))/h0
-      dM = max(d1,d2)
+      d2 = NORM2(this%K(:,2)-this%K(:,1))/h0
+      dM = MAX(d1,d2)
       If(dM<1d-15) then
-        h1 = max(1d-6, h0*1e-3)
+        h1 = MAX(1d-6, h0*1e-3)
       Else
         h1 = (0.01d0/dM)**(1d0/5d0)
       Endif
-      hopt = min(100d0*h0, h1)
+      hopt = MIN(100d0*h0, h1)
     Else
-      hopt = this%lastTheta*min(this%facMax, max(this%facMin, &
+      info = 0
+      hopt = this%lastTheta*MIN(this%facMax, MAX(this%facMin, &
         this%fac*(1d0/this%lastErr)**(1d0/5d0)))
     Endif
-    hopt = min(hopt, hCstr)
-    this%lastTheta = hopt
+    hOpt = MIN(hopt, hCstr)
+    this%lastTheta = hOpt
   End Function ODE45DeltaFun
 
   ! Dichotomous search of the point where the hard constraints is triggered
@@ -445,15 +449,7 @@ Contains
       hMax = MIN(this%hMax, this%tMax-this%t)
       X0 = X
       info = fun%eval(t, X, K(:,1))
-      If(info < 0) RETURN
-      If(info == 1) Then
-        info = mlf_ODE_StopTime
-        RETURN
-      Endif
-      If(info > 1) Then
-        info = mlf_ODE_HardCstr
-        RETURN
-      Endif
+      If(info /= 0) GOTO 20
       this%nFun = this%nFun + 1
       Select Type(fun)
       Class is (mlf_ode_funCstr)
@@ -461,7 +457,7 @@ Contains
       End Select
       Do While(i < niter0)
         this%t0 = t
-        h = ODE45DeltaFun(this, hMax)
+        info = ODE45DeltaFun(this, hMax, h)
         If(t+h >= this%tMax) h = this%tMax-t
         If(h<0) GOTO 12
         info = fun%eval(t+DOPRI5_C(2)*h, X0+h*DOPRI5_A2*K(:,1), K(:,2))
@@ -542,12 +538,26 @@ Contains
     If(PRESENT(niter)) niter = i
     If(info < 0) info = 0
     RETURN
- 12 WRITE (error_unit, *) "h negative ", h, this%t0, this%X0
+    ! Handle the case when 
+ 20 Select Case(info)
+    Case(1)
+      info = mlf_ODE_StopTime
+    Case(2:)
+      info = mlf_ODE_HardCstr
+    Case(:-1)
+      WRITE (error_unit, *) "Error evaluating at start t:", this%t0
+      WRITE (error_unit, *) this%X0
+    End Select
     RETURN
- 11 WRITE (error_unit, *) "OdeEval error ", this%t0, this%X0
+ 12 WRITE (error_unit, *) "h negative ", i
+    WRITE (error_unit, *) this%t0, this%X0
+    RETURN
+ 11 WRITE (error_unit, *) "OdeEval error ", i
+    WRITE (error_unit, *) this%t0, this%X0
     RETURN
  10 info = -1
-    WRITE (error_unit, *) "Error with hardconstraint: ", this%t0, this%X0
+    WRITE (error_unit, *) "Error with hardconstraint: ", i
+    WRITE (error_unit, *) this%t0, this%X0
   End Function mlf_ode45_stepFun
 End Module mlf_ode45
 

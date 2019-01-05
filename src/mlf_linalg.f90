@@ -48,41 +48,40 @@ Module mlf_linalg
   End Interface SolveMatrix
 Contains
    Integer Function DecompMatrixDouble(A, IP) Result(K)
-    real(8), intent(inout) :: A(:,:)
+    real(c_double), intent(inout) :: A(:,:)
     integer, intent(out) :: IP(:)
     integer :: N, M, J
-    real(8) :: T
+    real(c_double) :: T
+    logical :: P
     N = SIZE(A,2)
-    IP(N) = 1
+    IP(N) = 0
+    P = .FALSE.
     Do K = 1, N-1
       M = K - 1 + MAXLOC(ABS(A(K:,K)), DIM = 1)
       IP(K) = M
       If(M /= K) Then
-        IP(N) = -IP(N)
+        P = .NOT. P
         T = A(M,K); A(M,K) = A(K,K); A(K,K) = T ! Swap A(K,K) and A(M,K)
       Endif
-      If(A(K,K) == 0d0) Then
-        IP(N) = 0; RETURN
-      Endif
+      If(A(K,K) == 0d0) RETURN
       A(K+1:,K) = -A(K+1:,K)/A(K,K)
       Do J = K+1, N
         T = A(M,J); A(M,J) = A(K,J); A(K,J) = T ! Swap A(M,J) and A(K,J)
         If(A(K,J) /= 0d0) A(K+1:,J) = A(K+1:,J)+A(K+1:,K)*A(K,J)
       End Do
     End Do
-    If(A(N,N) == 0d0) Then
-      IP(N) = 0
-    Else
+    If(A(N,N) /= 0d0) Then
       K = 0
+      IP(N) = MERGE(-1, 1, P)
     Endif
   End Function DecompMatrixDouble
 
   Subroutine SolveMatrixDouble(A, B, IP)
-    real(8), intent(in) :: A(:,:)
-    real(8), intent(inout) :: B(:)
+    real(c_double), intent(in) :: A(:,:)
+    real(c_double), intent(inout) :: B(:)
     integer, intent(in) :: IP(:)
     integer :: K, N, M
-    real(8) :: T
+    real(c_double) :: T
     N = SIZE(A,2)
     Do K = 1, N-1
       M = IP(K)
@@ -101,28 +100,27 @@ Contains
     integer, intent(out) :: IP(:)
     integer :: N, M, J
     complex(KIND = 8) :: T
+    logical :: P
     N = SIZE(A,2)
-    IP(N) = 1
+    IP(N) = 0
+    P = .FALSE.
     Do K = 1, N-1
       M = K - 1 + MAXLOC(ABS(A(K:,K)), DIM = 1)
       IP(K) = M
       If(M /= K) Then
-        IP(N) = -IP(N)
+        P = .NOT. P
         T = A(M,K); A(M,K) = A(K,K); A(K,K) = T ! Swap A(K,K) and A(M,K)
       Endif
-      If(ABS(A(K,K)) == 0d0) Then
-        IP(N) = 0; RETURN
-      Endif
+      If(ABS(A(K,K)) == 0d0) RETURN
       A(K+1:,K) = -A(K+1:,K)/A(K,K)
       Do J = K+1, N
         T = A(M,J); A(M,J) = A(K,J); A(K,J) = T ! Swap A(M,J) and A(K,J)
         If(A(K,J) /= 0d0) A(K+1:,J) = A(K+1:,J)+A(K+1:,K)*A(K,J)
       End Do
     End Do
-    If(ABS(A(N,N)) == 0d0) Then
-      IP(N) = 0
-    Else
+    If(ABS(A(N,N)) > 0d0) Then
       K = 0
+      IP(N) = MERGE(-1, 1, P)
     Endif
   End Function DecompMatrixComplex
 

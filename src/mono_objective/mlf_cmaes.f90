@@ -278,10 +278,9 @@ Contains
     this%cp = (this%mueff/ND+4.0D0)/(2.0D0*this%mueff/ND+ND+4d0)
   End Function mlf_cmaes_reinit_X
 
-  Real(c_double) Function mlf_matrix_es_obj_updateY(this, Y, idMin) Result(Ymin)
+  Integer Function mlf_matrix_es_obj_updateY(this, Y) Result(idMin)
     class(mlf_matrix_es_obj), intent(inout), target :: this
     real(c_double), intent(in) :: Y(:,:)
-    integer, intent(out), optional :: idMin
     integer :: lambda, ND, info
     lambda = SIZE(this%Z,2); ND = SIZE(this%Z,1)
     ASSOCIATE(mu=> this%mu, idx => this%idx, D => this%D, Z => this%Z, Dw => this%Dw, &
@@ -289,8 +288,7 @@ Contains
         cw => this%cw, ps => this%ps, dsigma => this%dsigma, chiN => this%chiN)
       ! Sort idx by the value Y
       CALL QSortIdx(Y, idx)
-      Ymin = Y(1, idx(1))
-      If(PRESENT(idMin)) idMin = idx(1)
+      idMin = idx(1)
       ! Select the best values of D and Z
       D(:,:mu) = D(:,idx(:mu))
       Z(:,:mu) = Z(:,idx(:mu))
@@ -301,8 +299,10 @@ Contains
       ps = (1d0-cs)*ps + SQRT(mueff*cs*(2d0-cs))*MATMUL(Z(:,:mu), W)
 
       info = this%updateMatrix()
-      If(CheckF(info, 'mlf_matrix_es_obj_updateY: Error updateMatrix')) RETURN
-
+      If(CheckF(info, 'mlf_matrix_es_obj_updateY: Error updateMatrix')) Then
+        idMin = info
+        RETURN
+      Endif
       ! Evaluate new sigma
       sigma = sigma*EXP(cs/dsigma*(NORM2(ps)/chiN-1d0))
     END ASSOCIATE

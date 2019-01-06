@@ -78,13 +78,15 @@ void mlf_randN(double *v, int N);
 void mlf_printMat(double *M, int nL, int nC);
 
 // Objective function type used for multi/mono objective optimisation
-typedef int (*mlf_objective_fun)(const double *x, double *y, int nD, int nY, int lambda, void *ptr);
+typedef double (*mlf_objective_fun)(const double *x, double *y, int nD, int nY, int lambda, void *ptr);
 
 typedef struct {
-  int nDimIn, nDimCstr, nDimOut;
+  int nDimIn;
+  int nDimOut;
+  int nDimCstr;
 } MLF_OBJFUNINFO;
 
-MLF_OBJ *mlf_objfunction(mlf_objective_fun f, void *ptr, mlf_objective_fun cstr, MLF_OBJFUNINFO *info);
+MLF_OBJ *mlf_objfunction(mlf_objective_fun f, void *ptr, MLF_OBJFUNINFO *info);
 
 // Basis function type used for dimension reduction
 typedef int (*mlf_basis_fun)(const double *x, const double *rpar, double *y, int nX, int nPar, int sPar, void *ptr);

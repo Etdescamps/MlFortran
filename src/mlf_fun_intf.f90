@@ -1,4 +1,4 @@
-! Copyright (c) 2017-2018 Etienne Descamps
+! Copyright (c) 2017-2019 Etienne Descamps
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without modification,
@@ -37,24 +37,27 @@ Module mlf_fun_intf
  
   Public :: c_objfunction, c_basisfunction
   Type, bind(C) :: mlf_objfuninfo
-    integer(c_int) :: nDimIn, nDimCstr, nDimOut
+    integer(c_int) :: nDimIn
+    integer(c_int) :: nDimOut
+    integer(c_int) :: nDimCstr
   End Type mlf_objfuninfo
 
   ! Function handler ((multi/mono) objective fitness function)
   Type, Public, Abstract, Extends(mlf_obj) :: mlf_objective_fun
-    integer :: nD, nC, nY
+    ! Input nD parameter and output nC constraints and nY objectives
+    ! Optimisation methods (mono-objectives) tends to use the lexicographic order
+    ! So the first elements will be prioretary to the other elements in the objective vector
+    integer :: nD, nY, nC
   Contains
     procedure (mlf_obj_eval), deferred :: eval
-    procedure (mlf_obj_eval), deferred :: constraints
   End Type mlf_objective_fun
 
   ! C function wrapper
   Type, Public, Extends(mlf_objective_fun) :: mlf_objective_fun_c
     procedure (mlf_obj_eval_c), nopass, pointer :: evalC => NULL()
-    procedure (mlf_obj_eval_c), nopass, pointer :: constraintsC => NULL()
     type(c_ptr) :: ptr
   Contains
-    procedure :: eval => mlf_obj_c_eval, constraints => mlf_obj_c_constraints
+    procedure :: eval => mlf_obj_c_eval
   End Type mlf_objective_fun_c
 
   ! Function handler for basis functions
@@ -231,7 +234,7 @@ Module mlf_fun_intf
     Function mlf_obj_eval_c(X, Y, ND, NY, lambda, ptr) bind(C)
       Use iso_c_binding
       integer(c_int), intent(in), value :: ND, NY, lambda
-      integer(c_int) :: mlf_obj_eval_c
+      real(c_double) :: mlf_obj_eval_c
       type(c_ptr), value :: ptr, X, Y
     End Function mlf_obj_eval_c
 
@@ -598,38 +601,21 @@ Contains
     info = this%evalC(C_LOC(X), C_LOC(Y), ND, nY, lambda, this%ptr)
   End Function mlf_obj_c_eval
 
-  Integer Function mlf_obj_c_constraints(this, X, Y) result(info)
-    class(mlf_objective_fun_c), intent(in), target :: this
-    real(c_double), intent(in), target :: X(:,:)
-    real(c_double), intent(inout), target :: Y(:,:)
-    integer(c_int) :: ND, NY, lambda
-    If(ASSOCIATED(this%constraintsC)) Then
-      lambda = size(X,2)
-      ND = size(X,1)
-      NY = size(Y,1)
-      info = this%constraintsC(C_LOC(X), C_LOC(Y), ND, nY, lambda, this%ptr)
-    Else
-      info = mlf_OK
-      Y=0
-    Endif
-  End Function mlf_obj_c_constraints
-
-  type(c_ptr) Function c_objfunction(cfun, cptr, ccst, funinfo) bind(C, name="mlf_objfunction")
+  Type(c_ptr) Function c_objfunction(cfun, cptr, funinfo) bind(C, name="mlf_objfunction")
     type(c_ptr), value :: cptr
     type(mlf_objfuninfo) :: funinfo
-    type(c_funptr), value :: cfun, ccst
+    type(c_funptr), value :: cfun
     type(mlf_objective_fun_c), pointer :: x
     class (*), pointer :: obj
     ALLOCATE(x)
     x%ptr = cptr
     x%nD = funinfo%nDimIn; x%nY = funinfo%nDimOut; x%nC = funinfo%nDimCstr
     If(C_ASSOCIATED(cfun)) call C_F_PROCPOINTER(cfun, x%evalC)
-    If(C_ASSOCIATED(ccst)) call C_F_PROCPOINTER(ccst, x%constraintsC)
     obj => x
     c_objfunction = c_allocate(obj)
   End Function c_objfunction
 
-  type(c_ptr) Function c_basisfunction(cfun, cptr) bind(C, name="mlf_basisfunction")
+  Type(c_ptr) Function c_basisfunction(cfun, cptr) bind(C, name="mlf_basisfunction")
     type(c_ptr), value :: cptr
     type(c_funptr), value :: cfun
     type(mlf_basis_fun_c), pointer :: x

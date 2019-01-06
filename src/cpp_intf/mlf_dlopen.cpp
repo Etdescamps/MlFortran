@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017-2018 Etienne Descamps
+ * Copyright (c) 2017-2019 Etienne Descamps
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -72,18 +72,17 @@ namespace MlFortran {
     mlf_getinfo_fun finfo = dl.getSymOrNull<mlf_getinfo_fun>(funPrefix+"_getinfo");
     if(finit)
       data = finit(fileName.c_str());
-    void *info = nullptr;
+    const void *info = nullptr;
     if(finfo) {
       for(int i=mlf_NAME; i <= mlf_FIELDS; i++)
         description[i] = (char *) finfo(data, i);
-      finfo(data, mlf_FUNINFO);
+      info = finfo(data, mlf_FUNINFO);
     }
     switch(typeFun) {
       case MlfLibraryFunType::OptimFun:
         {
           mlf_objective_fun fobj = dl.getSym<mlf_objective_fun>(funPrefix+"_objfun");
-          mlf_objective_fun fcstr = dl.getSymOrNull<mlf_objective_fun>(funPrefix+"_cstrfun");
-          MLF_OBJFUNINFO nfo = { nIn, -1, nOut};
+          MLF_OBJFUNINFO nfo = { nIn, nOut, -1};
           if(info) {
             // Get default values of the model
             nfo = *(MLF_OBJFUNINFO*) info;
@@ -93,9 +92,11 @@ namespace MlFortran {
             if(nOut>0)
               nfo.nDimOut = nOut;
           }
-          if(nfo.nDimOut<0) // Not initialised number of output dimensions
+          if(nfo.nDimOut < 0) // Not initialised number of output dimensions
             nfo.nDimOut = 1;
-          object = mlf_objfunction(fobj, data, fcstr, &nfo);
+          if(nfo.nDimCstr < 0)
+            nfo.nDimCstr = 0;
+          object = mlf_objfunction(fobj, data, &nfo);
         }
         break;
       case MlfLibraryFunType::BasisFun:

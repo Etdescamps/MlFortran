@@ -79,7 +79,7 @@ Module mlf_utils
     module procedure mlf_initOrDefault_double
     module procedure mlf_initOrDefault_int64
   End Interface InitOrDefault
-  real(c_double), public, parameter :: mlf_PI = acos(-1d0)
+  real(c_double), public, parameter :: mlf_PI = ACOS(-1d0)
 Contains
   Real(c_double) Function OutsideBounds(X, XMin, XMax) Result(cstr)
     real(c_double), intent(in) :: X, XMin, XMax

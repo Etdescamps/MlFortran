@@ -126,7 +126,7 @@ Contains
     If(ASSOCIATED(params%XMax)) ALLOCATE(this%XInitMax, source=params%XMax)
   End Function mlf_optim_init
 
-  integer Function mlf_optim_reinit(this) Result(info)
+  Integer Function mlf_optim_reinit(this) Result(info)
     class(mlf_optim_obj), intent(inout), target :: this
     info = mlf_step_obj_reinit(this)
     this%minFun = HUGE(this%targetFun)
@@ -142,7 +142,7 @@ Contains
     If(PRESENT(nevalFunMax)) this%nevalFunMax = nevalFunMax
   End Subroutine mlf_optim_constraints
 
-  integer Function mlf_optim_stopCond(this) result(info)
+  Integer Function mlf_optim_stopCond(this) Result(info)
     class(mlf_optim_obj), intent(inout), target :: this
     If(this%minFun < this%targetFun) Then
       info = 1
@@ -155,7 +155,7 @@ Contains
     info = 0
   End Function mlf_optim_stopCond
 
-  Integer Function mlf_optim_stepF(this, niter) result(info)
+  Integer Function mlf_optim_stepF(this, niter) Result(info)
     class(mlf_optim_obj), intent(inout), target :: this
     integer(kind=8), intent(inout), optional :: niter
     integer(kind=8) :: i, niter0

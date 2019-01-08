@@ -40,6 +40,7 @@ Module mlf_histogram
     procedure :: init     => mlf_histogram_int_init
     procedure :: get      => mlf_histogram_int_get
     procedure :: addPoint => mlf_histogram_int_addPoint
+    procedure :: addVect  => mlf_histogram_int_addVect
   End Type mlf_histogram_int
 Contains
   Integer Function mlf_histogram_int_init(this, X) Result(info)
@@ -74,10 +75,31 @@ Contains
     info = 0
   End Function mlf_histogram_int_get
 
+  Subroutine mlf_histogram_int_addVect(this, X)
+    class(mlf_histogram_int), intent(inout) :: this
+    real(c_double), intent(in) :: X(:)
+    integer :: i, j
+    real(c_double) :: V
+    j = 1; V = this%X(j)
+    Do i = 1,SIZE(X)
+      Do While(X(i) >= V)
+        If(j >= SIZE(this%X)) Then
+          V = HUGE(1d0)
+          EXIT
+        Else
+          j = j+1
+          V = this%X(j)
+        Endif
+      End Do
+      this%V(j) = this%V(j) + 1
+      this%W(j) = this%W(j) + X(i)
+    End Do
+  End Subroutine mlf_histogram_int_addVect
+
   Subroutine mlf_histogram_int_addPoint(this, x, N)
     class(mlf_histogram_int), intent(inout) :: this
     real(c_double), intent(in) :: x
-    integer(c_int64_t), intent(in) :: N
+    integer(c_int64_t), intent(in), optional :: N
     integer :: i
     If(x < this%X(1)) Then
       i = 1
@@ -85,8 +107,13 @@ Contains
       i = mlf_di_search(this%X, x) + 1
     Endif
     ASSOCIATE(V => this%V, W => this%W)
-      V(i) = V(i) + N
-      W(i) = W(i) + N*x
+      If(PRESENT(N)) Then
+        V(i) = V(i) + N
+        W(i) = W(i) + N*x
+      Else
+        V(i) = V(i) + 1
+        W(i) = W(i) + x
+      Endif
     END ASSOCIATE
   End Subroutine mlf_histogram_int_addPoint
 End Module mlf_histogram

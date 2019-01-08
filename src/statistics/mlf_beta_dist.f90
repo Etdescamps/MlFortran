@@ -31,9 +31,111 @@ Module mlf_beta_dist
   Use iso_c_binding
   Use mlf_utils
   Use mlf_stat_fun
+  Use mlf_poly
   IMPLICIT NONE
   PRIVATE
+
+  Public :: mlf_beta_maxlikelihood
+  Public :: LogBetaFunction, BetaFunction
+  Public :: IncompleteBeta, InverseIncompleteBeta
+
 Contains
+  Elemental Real(c_double) Function LogBetaFunction(a, b) Result(y)
+    real(c_double), intent(in) :: a, b
+    y = LOG_GAMMA(a)+LOG_GAMMA(b)-LOG_GAMMA(a+b)
+  End Function LogBetaFunction
+
+  Elemental Real(c_double) Function BetaFunction(a, b) Result(y)
+    real(c_double), intent(in) :: a, b
+    y = EXP(LogBetaFunction(a, b))
+  End Function BetaFunction
+
+  Elemental Real(c_double) Function InverseIncompleteBeta(a, b, y) Result(x)
+    real(c_double), intent(in) :: a, b, y
+    real(c_double) :: F, dx, V
+    integer, parameter :: nMax = 30
+    integer :: i
+    If(y <= 0 .OR. y >= 1) Then
+      If(y == 0) Then
+        x = 0
+      Else If(y == 1) Then
+        x = 1
+      Else
+        x = IEEE_VALUE(y, IEEE_QUIET_NAN)
+      Endif
+      RETURN
+    Endif
+    F = EXP(-LogBetaFunction(a,b))
+    ! Evaluate first at y = x
+    x = y
+    Do i = 1, nMax
+      V = IncompleteBeta(a, b, x) - y
+      If(V == 0) RETURN
+      dx = F*x**(a-1d0)*(1d0-x)**(b-1d0)
+      If(V < 0) Then
+        ! Root is located between x and 1
+        x = x+(1d0-x)*(1d0-FindRoot2DInterp(1d0-y, V, -dx/(1d0-x)))
+      Else
+        ! Root is located between 0 and x
+        x = x*FindRoot2DInterp(-y, V, dx/x)
+      Endif
+      If(ABS(V) < 1e-20) RETURN
+    End Do
+  End Function InverseIncompleteBeta
+
+  Elemental Real(c_double) Function IncompleteBeta(a, b, x) Result(y)
+    real(c_double), intent(in) :: a, b, x
+    real(c_double) :: F
+    If(x <= 0 .OR. x >= 1) Then
+      If(x == 0) Then
+        y = 0
+      Else If(x == 1) Then
+        y = 1
+      Else
+        y = IEEE_VALUE(y, IEEE_QUIET_NAN)
+      Endif
+      RETURN
+    Endif
+    F = EXP(a*LOG(x)+b*LOG(1d0-x)-LogBetaFunction(a,b))
+    If(x <= (a+1d0)/(a+b+2d0)) Then
+      y = F*BCF(a,b,x)
+    Else
+      y = 1d0-F*BCF(a,b,x)
+    Endif
+  Contains
+    Pure Real(c_double) Function BCF(a, b, x) Result(y)
+      real(c_double), intent(in) :: a, b, x
+      integer, parameter :: nMax = 200
+      integer :: i
+      real(c_double) :: num, c, d
+      real(c_double), parameter :: tinyX = 1d-30, eps = 1d-10
+      y = 2d0; c = 2d0; d = 1d0
+      Do i=1,nMax
+        ! Proceed two iterations of the Lentz's algorithm for
+        ! the evaluation of continued fractions
+        ! Odd iteration
+        num = -((a+i)*(a+b+i)*x)/((a+2d0*i)*(a+2d0*i+1))
+        d = 1d0 + num*d
+        If(ABS(d) < tinyX) d = tinyX
+        d = 1d0/d
+        c = 1d0+num/c
+        If(ABS(c) < tinyX) c = tinyX
+        y = y*c*d
+        ! Even iteration
+        num = (i*(b-i)*x)/((a+2d0*i-1d0)*(a+2d0*i))
+        d = 1d0 + num*d
+        If(ABS(d) < tinyX) d = tinyX
+        d = 1d0/d
+        c = 1d0+num/c
+        If(ABS(c) < tinyX) c = tinyX
+        y = y*c*d
+        If(ABS(1d0-c*d) < eps) RETURN
+      End Do
+      ! Error: has not converge after nMax iterations
+      y = IEEE_VALUE(y, IEEE_QUIET_NAN)
+    End Function BCF
+  End Function IncompleteBeta
+
   Integer Function mlf_beta_maxlikelihood(X, a, b, alpha, beta) Result(info)
     real(c_double), intent(in) :: X(:), a, b
     real(c_double), intent(out) :: alpha, beta

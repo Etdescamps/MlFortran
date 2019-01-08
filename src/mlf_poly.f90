@@ -35,21 +35,40 @@ Module mlf_poly
   PRIVATE
 
   Public :: mlf_solve4DPoly, mlf_rootsPoly, mlf_polyFromRoots, mlf_polyVal
+  Public :: FindRoot2DInterp
 
-CONTAINS
+Contains
 
-  Integer Function ZRootsQuadratic(R, b, c, eps) result(nr)
+  Elemental Real(c_double) Function FindRoot2DInterp(x0, x1, dx1) Result(y)
+    ! Evaluate the root of the 2nd order polynomial f with:
+    ! f(0) = x0; f(1) = x1; f'(1) = dx1
+    real(c_double), intent(in) :: x0, x1, dx1
+    real(c_double) :: a, b, z
+    a = dx1 - x1 + x0
+    If(a == 0) Then
+      ! 1D interpolation (ignore derivate at 1)
+      y = x0/(x0-x1)
+      RETURN
+    Endif
+    b = 1d0 - 0.5d0*dx1/a
+    z = SQRT(b**2-x0/a)
+    y = b + z ! Choose the root closer to one (if < 1)
+    If(y < 1d0) RETURN
+    y = b - z
+  End Function FindRoot2DInterp
+
+  Integer Function ZRootsQuadratic(R, b, c, eps) Result(nr)
     complex(c_double), intent(in) :: b, c
     complex(c_double), intent(out) :: R(:)
     real(c_double), intent(in) :: eps
     complex(c_double) :: delta
     nr = 0
     delta = 0.25d0*b**2-c
-    if(abs(delta) < eps*abs(c)) then
+    If(abs(delta) < eps*abs(c)) Then
       R(1) = -0.5d0*b
       nr = 1
       RETURN
-    endif
+    Endif
     delta = sqrt(delta)
     R(1) = -0.5d0*b-delta
     R(2) = -0.5d0*b+delta

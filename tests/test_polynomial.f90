@@ -15,7 +15,17 @@ program test_polynomial
   call test_poly([-1d0, 0d0, 0d0, 1d0])
   call test_poly([1d0, 0d0, 1d0])
   call test_poly([1d0, -3d0, 2d0, -6d0, 1d0])
+  call test_2DInterp(1d0, -0.5d0, 0.5d0)
+  call test_2DInterp(10d0, -0.1d0, 0.8d0)
+  call test_2DInterp(-1d0, -10d0, 0.2d0)
+  call test_2DInterp(0.5d0, 0.2d0, 2d0)
 contains
+  Subroutine test_2DInterp(a, r0, r1)
+    real(c_double), intent(in) :: a, r0, r1
+    real(c_double) :: x
+    x = FindRoot2DInterp(a*r0*r1, a*(1d0-r0)*(1d0-r1), a*(2d0-r0-r1))
+    PRINT *, a, r0, r1, x
+  End Subroutine test_2DInterp
   Subroutine test_root(R)
     real(c_double), intent(in) :: R(:)
     real(c_double) :: P(size(R)+1), Q(size(R))

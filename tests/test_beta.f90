@@ -38,13 +38,34 @@ Program test_beta
   integer :: info
   type(mlf_hdf5_file) :: h5f
   info = mlf_init()
-  info = h5f%createFile("test_beta.h5")
-  CALL test_random(h5f, "a2b2", 2d0, 2d0, 1024, 1024)
-  CALL test_random(h5f, "a0.2b1.2", 0.2d0, 1.2d0, 1024, 1024)
-  CALL test_random(h5f, "a0.5b0.7", 0.5d0, 0.7d0, 1024, 1024)
-  CALL h5f%finalize()
+  !info = h5f%createFile("test_beta.h5")
+  !CALL test_random(h5f, "a2b2", 2d0, 2d0, 1024, 1024)
+  !CALL test_random(h5f, "a0.2b1.2", 0.2d0, 1.2d0, 1024, 1024)
+  !CALL test_random(h5f, "a0.5b0.7", 0.5d0, 0.7d0, 1024, 1024)
+  !CALL h5f%finalize()
+  CALL test_likelihood(10000000, 2d0, 2d0)
+  CALL test_likelihood(10000000, 5d0, 1.5d0)
+  CALL test_likelihood(10000000, 2d0, 0.5d0)
+  CALL test_likelihood(10000000, 0.3d0, 0.6d0)
   info = mlf_quit()
 Contains
+  Subroutine test_likelihood(N, alpha, beta)
+    real(c_double), intent(in) :: alpha, beta
+    integer, intent(in) :: N
+    real(c_double), allocatable :: X(:)
+    real(c_double) :: a0, b0
+    integer :: i, info
+    ALLOCATE(X(N))
+    Do i = 1, N
+      Do
+        X(i) = RandomBeta(alpha,beta)
+        If(X(i) /= 0d0 .AND. X(i) /= 1d0) EXIT
+      End Do
+    End Do
+    info = mlf_beta_maxlikelihood(X, a0, b0)
+    PRINT *, alpha, a0, beta, b0
+  End Subroutine test_likelihood
+
   Subroutine test_random(h5f, rname, a, b, k, N)
     class(mlf_hdf5_file), intent(inout) :: h5f
     character(len=*), intent(in) :: rname

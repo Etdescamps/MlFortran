@@ -48,13 +48,13 @@ Contains
     real(c_double), intent(in) :: alpha
     real(c_double), intent(in), optional :: theta
     real(c_double) :: r, Xr(2)
-    real(c_double) :: c, d, v, w, eps, p
+    real(c_double) :: c, d, v, w, p
     If(alpha == 1d0) Then
       ! Exponential sampling
       CALL RANDOM_NUMBER(r)
       y = -LOG(1d0-r)
     Else If(alpha > 1d0) Then
-      ! Use Marsaglia's method
+      ! Use Marsaglia's method from 'A Simple Method for Generating Gamma Variables'
       d = alpha-1d0/3d0
       c = 1d0/SQRT(9*d)
       Do

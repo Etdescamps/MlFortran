@@ -174,7 +174,9 @@ Contains
     real(c_double), intent(out) :: alpha, beta
     real(c_double) :: invAB, lGa, lGb, mu, var, invN, u
     real(c_double) :: dX(2), psi(3), psi2(3), haa, hab, hbb
-    real(c_double) :: a0, b0
+    real(c_double) :: a0, b0, da, db
+    integer, parameter :: nMax = 100
+    real(c_double), parameter :: eps = 1d-9
     integer :: N, i
     info = -1
     N = SIZE(X)
@@ -208,7 +210,7 @@ Contains
       beta  = 0.5d0*(1d0+EXP(lGb)*u)
     Endif
     ! Do a few iteration of the Newton's methods using the Hessian matrix
-    Do i = 1, 4
+    Do i = 1, nMax
       ! Compute psi and psi'
       psi  = Digamma([alpha, beta, alpha+beta])
       psi2 = Trigamma([alpha, beta, alpha+beta])
@@ -221,8 +223,11 @@ Contains
       If(u == 0d0) RETURN
       u = 1d0/u
       ! Apply a Newton step on [alpha beta]
-      alpha = alpha -u*(hbb*dX(1)-hab*dX(2))
-      beta = alpha -u*(haa*dX(2)-hab*dX(1))
+      da = -u*(hbb*dX(1)-hab*dX(2))
+      db = -u*(haa*dX(2)-hab*dX(1))
+      alpha = MAX(0d0, alpha + da)
+      beta = MAX(0d0, beta + db)
+      If(ABS(da) < eps*alpha .AND. ABS(db) < eps*beta) EXIT
     End Do
     info = 0
   End Function mlf_beta_maxlikelihood

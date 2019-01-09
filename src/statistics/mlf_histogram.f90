@@ -37,22 +37,45 @@ Module mlf_histogram
     real(c_double), allocatable :: X(:), W(:)
     integer(c_int64_t), allocatable :: V(:)
   Contains
-    procedure :: init     => mlf_histogram_int_init
+    procedure :: mlf_histogram_int_init_withX, mlf_histogram_int_init_abN
     procedure :: get      => mlf_histogram_int_get
     procedure :: addPoint => mlf_histogram_int_addPoint
-    procedure :: addVect  => mlf_histogram_int_addVect
+    procedure :: addVectSorted  => mlf_histogram_int_addVectSorted
+    generic :: init => mlf_histogram_int_init_withX, mlf_histogram_int_init_abN
   End Type mlf_histogram_int
 Contains
-  Integer Function mlf_histogram_int_init(this, X) Result(info)
+
+  Integer Function mlf_histogram_int_init_abN(this, a, b, N, with_W) Result(info)
+    class(mlf_histogram_int), intent(inout) :: this
+    real(c_double), intent(in) :: a, b
+    logical, intent(in), optional :: with_W
+    integer, intent(in) :: N
+    integer :: i
+    info = 0
+    ALLOCATE(this%X(N), this%V(N+1))
+    FORALL(i=1:N) this%X(i) = a+(b-a)*REAL(i-1,8)/REAL(N-1,8)
+    this%V = 0
+    If(PresentAndTrue(with_W)) Then
+      ALLOCATE(this%W(N+1))
+      this%W = 0
+    Endif
+  End Function mlf_histogram_int_init_abN
+
+  Integer Function mlf_histogram_int_init_withX(this, X, with_W) Result(info)
     class(mlf_histogram_int), intent(inout) :: this
     real(c_double), intent(in) :: X(:)
+    logical, intent(in), optional :: with_W
     integer :: N
     N = SIZE(X)
     info = 0
     this%X = X
-    ALLOCATE(this%V(N+1), this%W(N+1))
-    this%V = 0; this%W = 0
-  End Function mlf_histogram_int_init
+    ALLOCATE(this%V(N+1))
+    this%V = 0
+    If(PresentAndTrue(with_W)) Then
+      ALLOCATE(this%W(N+1))
+      this%W = 0
+    Endif
+  End Function mlf_histogram_int_init_withX
 
   Integer Function mlf_histogram_int_get(this, W, X) Result(info)
     class(mlf_histogram_int), intent(inout) :: this
@@ -70,12 +93,12 @@ Contains
       X(1) = this%X(1)
       X(2:N-1) = 0.5d0*(this%X(1:N-2)+this%X(2:N-1))
       X(N) = this%X(N-1)
-      Where(this%V /= 0) X = this%W/this%V
+      If(ALLOCATED(this%W)) Where(this%V /= 0) X = this%W/this%V
     Endif
     info = 0
   End Function mlf_histogram_int_get
 
-  Subroutine mlf_histogram_int_addVect(this, X)
+  Subroutine mlf_histogram_int_addVectSorted(this, X)
     class(mlf_histogram_int), intent(inout) :: this
     real(c_double), intent(in) :: X(:)
     integer :: i, j
@@ -92,9 +115,9 @@ Contains
         Endif
       End Do
       this%V(j) = this%V(j) + 1
-      this%W(j) = this%W(j) + X(i)
+      If(ALLOCATED(this%W)) this%W(j) = this%W(j) + X(i)
     End Do
-  End Subroutine mlf_histogram_int_addVect
+  End Subroutine mlf_histogram_int_addVectSorted
 
   Subroutine mlf_histogram_int_addPoint(this, x, N)
     class(mlf_histogram_int), intent(inout) :: this
@@ -109,10 +132,10 @@ Contains
     ASSOCIATE(V => this%V, W => this%W)
       If(PRESENT(N)) Then
         V(i) = V(i) + N
-        W(i) = W(i) + N*x
+        If(ALLOCATED(this%W)) W(i) = W(i) + N*x
       Else
         V(i) = V(i) + 1
-        W(i) = W(i) + x
+        If(ALLOCATED(this%W)) W(i) = W(i) + x
       Endif
     END ASSOCIATE
   End Subroutine mlf_histogram_int_addPoint

@@ -45,7 +45,7 @@ Contains
     real(c_double), intent(in) :: x0, x1, dx1
     real(c_double) :: a, b, z
     a = dx1 - x1 + x0
-    If(a == 0) Then
+    If(ABS(a) < 1d-4*ABS(dx1)) Then
       ! 1D interpolation (ignore derivate at 1)
       y = x0/(x0-x1)
       RETURN

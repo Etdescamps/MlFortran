@@ -30,16 +30,48 @@ Module mlf_beta_dist
   Use ieee_arithmetic
   Use iso_c_binding
   Use mlf_utils
-  Use mlf_stat_fun
+  Use mlf_gamma_dist
   Use mlf_poly
   IMPLICIT NONE
   PRIVATE
 
   Public :: mlf_beta_maxlikelihood
-  Public :: LogBetaFunction, BetaFunction
-  Public :: IncompleteBeta, InverseIncompleteBeta
+  Public :: LogBetaFunction, BetaFunction, RandomBeta
+  Public :: IncompleteBeta, InverseIncompleteBeta, BetaDensity
 
 Contains
+  Real(c_double) Function RandomBeta(a, b) Result(y)
+    real(c_double), intent(in) :: a, b
+    real(c_double) :: R(2), X(2), S
+    If(a <= 1d0 .AND. b <= 1d0) Then
+      ! Johnk's algorithm
+      S = HUGE(0d0)
+      Do While(S > 1d0)
+        CALL RANDOM_NUMBER(R)
+        X = R**(1d0/[a, b])
+        S = SUM(X)
+      End Do
+      If(S > 0) Then
+        y = X(1)/S
+      Else
+        X = LOG(R)/[a,b]
+        X = X - MAXVAL(X)
+        S = SUM(EXP(X))
+        y = EXP(X(1) - LOG(S))
+      Endif
+    Else
+      ! Use gamma distribution sampling
+      R(1) = RandomGamma(a)
+      R(2) = RandomGamma(b)
+      y = R(1)/SUM(R)
+    Endif
+  End Function RandomBeta
+
+  Elemental Real(c_double) Function BetaDensity(a, b, x) Result(y)
+    real(c_double), intent(in) :: a, b, x
+    y = x**(a-1)*(1-x)**(b-1)/BetaFunction(a,b)
+  End Function BetaDensity
+
   Elemental Real(c_double) Function LogBetaFunction(a, b) Result(y)
     real(c_double), intent(in) :: a, b
     y = LOG_GAMMA(a)+LOG_GAMMA(b)-LOG_GAMMA(a+b)
@@ -136,23 +168,33 @@ Contains
     End Function BCF
   End Function IncompleteBeta
 
-  Integer Function mlf_beta_maxlikelihood(X, a, b, alpha, beta) Result(info)
-    real(c_double), intent(in) :: X(:), a, b
+  Integer Function mlf_beta_maxlikelihood(X, alpha, beta, a, b) Result(info)
+    real(c_double), intent(in) :: X(:)
+    real(c_double), intent(in), optional :: a, b
     real(c_double), intent(out) :: alpha, beta
     real(c_double) :: invAB, lGa, lGb, mu, var, invN, u
     real(c_double) :: dX(2), psi(3), psi2(3), haa, hab, hbb
+    real(c_double) :: a0, b0
     integer :: N, i
     info = -1
     N = SIZE(X)
     invN = 1d0/(REAL(N, KIND=8))
-    invAB = 1d0/(b-a)
-    ! Compute the logarithm of the geometric mean of X-a and b-X
-    lGa = SUM(LOG((X-a)*invAB))*invN
-    lGb = SUM(LOG((b-X)*invAB))*invN
-    ! Compute mean and variance of X
     mu = SUM(X)*invN
-    var = SUM(((X-mu)*invAB)**2)/REAL(N-1,KIND=8)
-    mu = (mu-a)*invAB
+    If(PRESENT(a) .OR. PRESENT(b)) Then
+      CALL InitOrDefault(a0, a, 0d0)
+      CALL InitOrDefault(b0, b, 1d0)
+      invAB = 1d0/(b0-a0)
+      ! Compute the logarithm of the geometric mean of X-a and b-X
+      lGa = SUM(LOG((X-a0)*invAB))*invN
+      lGb = SUM(LOG((b0-X)*invAB))*invN
+      ! Compute mean and variance of X
+      var = SUM(((X-mu)*invAB)**2)/REAL(N-1,KIND=8)
+      mu = (mu-a0)*invAB
+    Else
+      lGa = SUM(LOG(X))*invN
+      lGb = SUM(LOG(1d0-X))*invN
+      var = SUM((X-mu)**2)/REAL(N-1,KIND=8)
+    Endif
     u = mu*(1-mu)
     If(var < u) Then
       ! Use the method of moments to estimate alpha and beta

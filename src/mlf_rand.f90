@@ -34,7 +34,7 @@ Module mlf_rand
   PRIVATE
 
   Public :: RandSign, RandN, RandD, mlf_rand_class, randPerm, randInt, mlf_randNArrayC
-  Public :: Rand3DSurf, RandFromIArr
+  Public :: Rand3DSurf, RandFromIArr, mlf_randN2
   
   Type, Public, Abstract :: mlf_1DRealSampler
   Contains

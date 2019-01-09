@@ -26,18 +26,77 @@
 ! NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 ! EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Module mlf_stat_fun
+Module mlf_gamma_dist
   Use ieee_arithmetic
   Use iso_c_binding
   Use mlf_utils
+  Use mlf_rand
   IMPLICIT NONE
   PRIVATE
 
-  Public :: Digamma, Trigamma
+  Public :: Digamma, Trigamma, RandomGamma, GammaDensity
 
   real(c_double), parameter :: m_gamma = 0.5772156649015328606d0 ! Euler-Maschenori constant
   real(c_double), parameter :: zeta2 = (mlf_PI**2)/6d0 ! Zeta(2)
 Contains
+  Elemental Real(c_double) Function GammaDensity(alpha, x) Result(y)
+    real(c_double), intent(in) :: alpha, x
+    y = x**(alpha-1)*EXP(-x-LOG_GAMMA(alpha))
+  End Function GammaDensity
+
+  Real(c_double) Function RandomGamma(alpha, theta) Result(y)
+    real(c_double), intent(in) :: alpha
+    real(c_double), intent(in), optional :: theta
+    real(c_double) :: r, Xr(2)
+    real(c_double) :: c, d, v, w, eps, p
+    If(alpha == 1d0) Then
+      ! Exponential sampling
+      CALL RANDOM_NUMBER(r)
+      y = -LOG(1d0-r)
+    Else If(alpha > 1d0) Then
+      ! Use Marsaglia's method
+      d = alpha-1d0/3d0
+      c = 1d0/SQRT(9*d)
+      Do
+        ! Genereate v =(1+cx)^3 with x normal and v > 0
+        Do
+          CALL mlf_randN2(Xr)
+          v = 1+c*Xr(1)
+          p = Xr(1)
+          If(v > 0) EXIT
+          v = 1+c*Xr(2)
+          p = Xr(2)
+          If(v > 0) EXIT
+        End Do
+        v = v**3
+        y = d * v
+        CALL RANDOM_NUMBER(r)
+        If(r < 1-0.331d0*p**4) EXIT
+        If(LOG(r) < 0.5d0*p**2+d*(1-v+LOG(v))) EXIT
+      End Do
+    Else ! alpha < 1d0
+      ! Use Dagpunar's method as presented in 'Principles of random variate generation'
+      d = 1d0-alpha
+      p = d/(d+alpha*EXP(-d))
+      Do
+        CALL RANDOM_NUMBER(r)
+        If(r > p) Then
+          y = d - LOG((1-r)/(1-p))
+          w = d*LOG(y/d)
+        Else
+          y = d*(r/p)**(1d0/alpha)
+          w = y
+        Endif
+        CALL RANDOM_NUMBER(r)
+        If(r > 0d0 .AND. r >= 1-w) Then
+          If(r*(w+1) >= 1 .OR. -LOG(r) <= w) CYCLE
+        Endif
+        EXIT
+      End Do
+    Endif
+    If(PRESENT(theta)) y = theta*y
+  End Function RandomGamma
+
   ! Clean versions of Digamma and Trigamma that are elemental and use NaN as an error instead
   ! of using a supplementar argument
   Elemental Real(c_double) Function Digamma(x) Result(y)
@@ -100,5 +159,5 @@ Contains
     r2 = r*r
     y = y + r * (1d0+0.5d0*r+r2*(B(1)+r2*(B(2)+r2*(B(3)+r2*B(4)))))
   End Function Trigamma
-End Module mlf_stat_fun
+End Module mlf_gamma_dist
 

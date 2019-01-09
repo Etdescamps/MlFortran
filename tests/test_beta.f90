@@ -38,17 +38,35 @@ Program test_beta
   integer :: info
   type(mlf_hdf5_file) :: h5f
   info = mlf_init()
-  !info = h5f%createFile("test_beta.h5")
+  info = h5f%createFile("test_beta.h5")
+  CALL test_incompleteBeta(h5f, 'a2b2', 2d0, 2d0)
+  CALL test_incompleteBeta(h5f, "a0.2b1.2", 0.2d0, 1.2d0)
+  CALL test_incompleteBeta(h5f, "a0.5b0.7", 0.5d0, 0.7d0)
   !CALL test_random(h5f, "a2b2", 2d0, 2d0, 1024, 1024)
   !CALL test_random(h5f, "a0.2b1.2", 0.2d0, 1.2d0, 1024, 1024)
   !CALL test_random(h5f, "a0.5b0.7", 0.5d0, 0.7d0, 1024, 1024)
-  !CALL h5f%finalize()
+  CALL h5f%finalize()
   CALL test_likelihood(10000000, 2d0, 2d0)
   CALL test_likelihood(10000000, 5d0, 1.5d0)
   CALL test_likelihood(10000000, 2d0, 0.5d0)
   CALL test_likelihood(10000000, 0.3d0, 0.6d0)
+  CALL test_likelihood(10000000, 60d0, 50d0)
   info = mlf_quit()
 Contains
+  Subroutine test_incompleteBeta(h5f, rname, alpha, beta)
+    class(mlf_hdf5_file), intent(inout) :: h5f
+    character(len=*), intent(in) :: rname
+    real(c_double), intent(in) :: alpha, beta
+    real(c_double), allocatable :: points(:,:)
+    integer, parameter :: N = 1000
+    integer :: i
+    ALLOCATE(points(3, N))
+    FORALL(i=1:N) points(1, i) = REAL(i-1,8)/REAL(N-1,8)
+    points(2, :) = IncompleteBeta(alpha, beta, points(1, :))
+    points(3, :) = InverseIncompleteBeta(alpha, beta, points(2, :))
+    info = h5f%pushData(points, rname)
+  End Subroutine test_incompleteBeta
+
   Subroutine test_likelihood(N, alpha, beta)
     real(c_double), intent(in) :: alpha, beta
     integer, intent(in) :: N

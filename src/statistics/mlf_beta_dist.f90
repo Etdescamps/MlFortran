@@ -129,10 +129,10 @@ Contains
       RETURN
     Endif
     F = EXP(a*LOG(x)+b*LOG(1d0-x)-LogBetaFunction(a,b))
-    If(x <= (a+1d0)/(a+b+2d0)) Then
-      y = F*BCF(a,b,x)
+    If(x < (a+1d0)/(a+b+2d0)) Then
+      y = F*BCF(a,b,x)/a
     Else
-      y = 1d0-F*BCF(a,b,x)
+      y = 1d0-F*BCF(b,a,1-x)/b
     Endif
   Contains
     Pure Real(c_double) Function BCF(a, b, x) Result(y)
@@ -141,12 +141,14 @@ Contains
       integer :: i
       real(c_double) :: num, c, d
       real(c_double), parameter :: tinyX = 1d-30, eps = 1d-10
-      y = 2d0; c = 2d0; d = 1d0
+      c = 1d0; d = MAX(1d0 - (a+b)*x/(a+1), tinyX)
+      d = 1d0/d
+      y = d
       Do i=1,nMax
         ! Proceed two iterations of the Lentz's algorithm for
         ! the evaluation of continued fractions
         ! Odd iteration
-        num = -((a+i)*(a+b+i)*x)/((a+2d0*i)*(a+2d0*i+1))
+        num = i*(b-i)*x/((a+2*i-1)*(a+2*i))
         d = 1d0 + num*d
         If(ABS(d) < tinyX) d = tinyX
         d = 1d0/d
@@ -154,7 +156,7 @@ Contains
         If(ABS(c) < tinyX) c = tinyX
         y = y*c*d
         ! Even iteration
-        num = (i*(b-i)*x)/((a+2d0*i-1d0)*(a+2d0*i))
+        num = -(a+i)*(a+b+i)*x/((a+2*i)*(a+2*i+1))
         d = 1d0 + num*d
         If(ABS(d) < tinyX) d = tinyX
         d = 1d0/d

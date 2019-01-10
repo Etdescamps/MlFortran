@@ -176,10 +176,10 @@ Contains
     integer :: i, nR
     eps = 1d-30*(MAX(ABS(y0), ABS(y1))/MAX(ABS(d0), ABS(d1)))
     a = d1 - 2*(y1-y0)
-    b = (d1 - d0) + 3*(y1-y0)
-    If(a == 0) Then
-      If(b == 0) Then
-        x = y0/(y1-y0)
+    b = 3*(y1-y0) - d1 - d0
+    If(ABS(a) < eps) Then
+      If(ABS(b) < 1d2*ABS(a)) Then
+        x = y0/(y0-y1)
         RETURN
       Endif
       nR = DRootsQuadratic(R, d0/b, y0/b, eps)

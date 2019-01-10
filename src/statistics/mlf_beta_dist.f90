@@ -82,11 +82,35 @@ Contains
     y = EXP(LogBetaFunction(a, b))
   End Function BetaFunction
 
-  Elemental Real(c_double) Function InverseIncompleteBeta(a, b, y) Result(x)
+  Elemental Real(c_double) Function FindRoot3DInverse(x, dx, y1, u) Result(y)
+    real(c_double), intent(in) :: x, dx, y1, u
+    real(c_double) :: z, beta
+    z = u/y1
+    If(dx*y1 < 1d-15*x) Then
+      ! Approximate the function as a quarter circle
+      y = SQRT(1-z**2)
+    Else
+      beta = x/(dx*y1)
+      y = z**2*((beta-2)*z+3-beta)
+    Endif
+  End Function
+
+  Elemental Real(c_double) Function Select3(u, vinf, veq, vsup) Result(x)
+    real(c_double), intent(in) :: u, vinf, veq, vsup
+    If(u < 0) Then
+      x = vinf
+    Else If(u > 0) Then
+      x = vsup
+    Else
+      x = veq
+    Endif
+  End Function Select3
+
+  Real(c_double) Function InverseIncompleteBeta(a, b, y) Result(x)
     real(c_double), intent(in) :: a, b, y
-    real(c_double) :: F, dx, V
-    integer, parameter :: nMax = 30
-    integer :: i
+    real(c_double) :: F, dx, V, xMin, xMax, vMin, vMax, dMin, dMax, d0, d1, ax
+    integer, parameter :: nMax = 20
+    integer :: i, lastMin, lastMax
     If(y <= 0 .OR. y >= 1) Then
       If(y == 0) Then
         x = 0
@@ -100,18 +124,30 @@ Contains
     F = EXP(-LogBetaFunction(a,b))
     ! Evaluate first at y = x
     x = y
+    xMin = 0d0; xMax = 1d0
+    vMin = -y; vMax = 1d0-y
+    dMin = 0d0; dMax = 0d0
+    If(a <= 1) dMin = F*(0.5d0*EPSILON(0d0))**(a-1d0)*(1d0-0.5d0*EPSILON(0d0))**(b-1d0)
+    If(.NOT. ieee_is_finite(dMin)) dMin = HUGE(1d0)
+    If(b <= 1) dMax = F*(0.5d0*EPSILON(0d0))**(b-1d0)*(1d0-0.5d0*EPSILON(0d0))**(a-1d0)
+    If(.NOT. ieee_is_finite(dMax)) dMax = HUGE(1d0)
+    lastMin = 0; lastMax = 0
     Do i = 1, nMax
+      If(lastMin-lastMax > 4) x = 0.5d0*(x+xMax)
+      If(lastMax-lastMin > 4) x = 0.5d0*(x+xMin)
       V = IncompleteBeta(a, b, x) - y
-      If(V == 0) RETURN
+      If(ABS(V) < MAX(1d-30, 1d-10*dx)) RETURN
       dx = F*x**(a-1d0)*(1d0-x)**(b-1d0)
       If(V < 0) Then
-        ! Root is located between x and 1
-        x = x+(1d0-x)*(1d0-FindRoot2DInterp(1d0-y, V, -dx/(1d0-x)))
+        xMin = x; vMin = V; dMin = dx
+        lastMin = i
       Else
-        ! Root is located between 0 and x
-        x = x*FindRoot2DInterp(-y, V, dx/x)
+        xMax = x; vMax = V; dMax = dx
+        lastMax = i
       Endif
-      If(ABS(V) < 1e-20) RETURN
+      d0 = MERGE(HUGE(1d0), dMin*(xMax-xMin), dMin == HUGE(1d0))
+      d1 = MERGE(HUGE(1d0), dMax*(xMax-xMin), dMax == HUGE(1d0))
+      x = xMin + (xMax-xMin)*FindRoot2PDerivative(vMin, d0, vMax, d1)
     End Do
   End Function InverseIncompleteBeta
 
@@ -140,7 +176,7 @@ Contains
       integer, parameter :: nMax = 200
       integer :: i
       real(c_double) :: num, c, d
-      real(c_double), parameter :: tinyX = 1d-30, eps = 1d-10
+      real(c_double), parameter :: tinyX = 1d-30, eps = 1d-15
       c = 1d0; d = MAX(1d0 - (a+b)*x/(a+1), tinyX)
       d = 1d0/d
       y = d

@@ -72,7 +72,7 @@ Module mlf_cfuns
       type(c_ptr), value :: s1
       integer(c_size_t) ::  c_strlen
     End Function c_strlen
-    Function c_cbrt(r) result(x) bind(C, name="cbrt")
+    Pure Function c_cbrt(r) result(x) bind(C, name="cbrt")
       Use iso_c_binding
       real(c_double), value :: r
       real(c_double) :: x

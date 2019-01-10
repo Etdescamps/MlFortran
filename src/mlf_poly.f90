@@ -175,8 +175,8 @@ Contains
     real(c_double) :: a, b, c, d, R(3), eps
     integer :: i, nR
     eps = 1d-30*(MAX(ABS(y0), ABS(y1))/MAX(ABS(d0), ABS(d1)))
-    a = d1 - 2*(y1-y0)
-    b = 3*(y1-y0) - d1 - d0
+    a = d1+d0 - 2*(y1-y0)
+    b = y1-y0-d0-a
     If(ABS(a) < eps) Then
       If(ABS(b) < 1d2*ABS(a)) Then
         x = y0/(y0-y1)
@@ -237,8 +237,8 @@ Contains
         ! Rotate, translate and distord the function in order to fit in the square [0;1]²
         m0 = dy/d0
         m1 = dy/d1
-        a = m1 - 2
-        b = 3 - m1 - m0
+        a = m1+m0 - 2
+        b = 1-m0-a
         t = -y0/dy
         ! x is the evaluation at p(y0/dy)
         x = t*(m0+t*(b+t*a))

@@ -250,9 +250,9 @@ Contains
     info = 0
   End Function MaxLikelihoodBetaPriorBeta
 
-  Integer Function MaxLikelihoodBeta(X, alpha, beta, a, b) Result(info)
+  Integer Function MaxLikelihoodBeta(X, alpha, beta, W, a, b) Result(info)
     real(c_double), intent(in) :: X(:)
-    real(c_double), intent(in), optional :: a, b
+    real(c_double), intent(in), optional :: a, b, W(:)
     real(c_double), intent(out) :: alpha, beta
     real(c_double) :: invAB, lGa, lGb, mu, var, invN, u
     real(c_double) :: dX(2), psi(3), psi2(3), haa, hab, hbb
@@ -262,18 +262,36 @@ Contains
     integer :: N, i
     info = -1
     N = SIZE(X)
-    invN = 1d0/(REAL(N, KIND=8))
-    mu = SUM(X)*invN
+    If(PRESENT(W)) Then
+      invN = SUM(W)
+      mu = SUM(W*X)*invN
+    Else
+      invN = 1d0/(REAL(N, KIND=8))
+      mu = SUM(X)*invN
+    Endif
     If(PRESENT(a) .OR. PRESENT(b)) Then
       CALL InitOrDefault(a0, a, 0d0)
       CALL InitOrDefault(b0, b, 1d0)
       invAB = 1d0/(b0-a0)
-      ! Compute the logarithm of the geometric mean of X-a and b-X
-      lGa = SUM(LOG((X-a0)*invAB))*invN
-      lGb = SUM(LOG((b0-X)*invAB))*invN
+      If(PRESENT(W)) Then
+        lGa = SUM(W*LOG((X-a0)*invAB))*invN
+        lGb = SUM(W*LOG((b0-X)*invAB))*invN
+      Else
+        ! Compute the logarithm of the geometric mean of X-a and b-X
+        lGa = SUM(LOG((X-a0)*invAB))*invN
+        lGb = SUM(LOG((b0-X)*invAB))*invN
+      Endif
       ! Compute mean and variance of X
-      var = SUM(((X-mu)*invAB)**2)/REAL(N-1,KIND=8)
+      If(PRESENT(W)) Then
+        var = SUM((W*(X-mu)*invAB)**2)*REAL(N,8)/(REAL(N-1,8)*SUM(W*W))
+      Else
+        var = SUM(((X-mu)*invAB)**2)/REAL(N-1,8)
+      Endif
       mu = (mu-a0)*invAB
+    Else If(PRESENT(W)) Then
+      lGa = SUM(W*LOG(X))*invN
+      lGb = SUM(W*LOG(1d0-X))*invN
+      var = SUM((W*(X-mu))**2)*REAL(N,8)/(REAL(N-1,8)*SUM(W*W))
     Else
       lGa = SUM(LOG(X))*invN
       lGb = SUM(LOG(1d0-X))*invN

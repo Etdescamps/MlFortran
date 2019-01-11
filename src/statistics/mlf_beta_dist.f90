@@ -233,10 +233,10 @@ Contains
       d2f = -(p_alpha-1)/y**2 - (p_beta-1)/(1-y)**2
       dY = 1/(alpha+beta)*[-y, 1-y]
       ! Compute the gradient dX and the hessian matrix H=[haa hab; hab hbb]
-      dX = [lGa, lGb] - psi(1:2) + psi(3) + df*dY
-      haa = psi2(3)-psi2(1) + d2f*dY(1)**2 + df*2*(1-y)/(alpha+beta)**2
-      hbb = psi2(3)-psi2(2) + d2f*dY(2)**2 + df*2*y/(alpha+beta)**2
-      hab = psi2(3) + d2f*dY(1)*dY(2) + df*(2-y)/(alpha+beta)**2
+      dX = [lGa, lGb] - psi(1:2) + psi(3) + df*dY*invN
+      haa = psi2(3)-psi2(1) + d2f*dY(1)**2 + df*2*(1-y)/(alpha+beta)**2*invN
+      hbb = psi2(3)-psi2(2) + d2f*dY(2)**2 + df*2*y/(alpha+beta)**2*invN
+      hab = psi2(3) + d2f*dY(1)*dY(2) + df*(2-y)/(alpha+beta)**2*invN
       u = haa*hbb-hab**2
       If(u == 0d0) RETURN
       u = 1d0/u

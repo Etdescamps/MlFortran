@@ -35,9 +35,9 @@ Module mlf_beta_dist
   IMPLICIT NONE
   PRIVATE
 
-  Public :: mlf_beta_maxlikelihood
   Public :: LogBetaFunction, BetaFunction, RandomBeta
   Public :: IncompleteBeta, InverseIncompleteBeta, BetaDensity
+  Public :: MaxLikelihoodBeta, MaxLikelihoodBetaPriorBeta
 
 Contains
   Real(c_double) Function RandomBeta(a, b) Result(y)
@@ -82,33 +82,9 @@ Contains
     y = EXP(LogBetaFunction(a, b))
   End Function BetaFunction
 
-  Elemental Real(c_double) Function FindRoot3DInverse(x, dx, y1, u) Result(y)
-    real(c_double), intent(in) :: x, dx, y1, u
-    real(c_double) :: z, beta
-    z = u/y1
-    If(dx*y1 < 1d-15*x) Then
-      ! Approximate the function as a quarter circle
-      y = SQRT(1-z**2)
-    Else
-      beta = x/(dx*y1)
-      y = z**2*((beta-2)*z+3-beta)
-    Endif
-  End Function
-
-  Elemental Real(c_double) Function Select3(u, vinf, veq, vsup) Result(x)
-    real(c_double), intent(in) :: u, vinf, veq, vsup
-    If(u < 0) Then
-      x = vinf
-    Else If(u > 0) Then
-      x = vsup
-    Else
-      x = veq
-    Endif
-  End Function Select3
-
   Real(c_double) Function InverseIncompleteBeta(a, b, y) Result(x)
     real(c_double), intent(in) :: a, b, y
-    real(c_double) :: F, dx, V, xMin, xMax, vMin, vMax, dMin, dMax, d0, d1, ax
+    real(c_double) :: F, dx, V, xMin, xMax, vMin, vMax, dMin, dMax, d0, d1
     integer, parameter :: nMax = 20
     integer :: i, lastMin, lastMax
     If(y <= 0 .OR. y >= 1) Then
@@ -206,7 +182,75 @@ Contains
     End Function BCF
   End Function IncompleteBeta
 
-  Integer Function mlf_beta_maxlikelihood(X, alpha, beta, a, b) Result(info)
+  Integer Function MaxLikelihoodBetaPriorBeta(X, alpha, beta, p_alpha, p_beta, a, b) Result(info)
+    real(c_double), intent(in) :: X(:), p_alpha, p_beta
+    real(c_double), intent(in), optional :: a, b
+    real(c_double), intent(out) :: alpha, beta
+    real(c_double) :: invAB, lGa, lGb, mu, var, invN, u
+    real(c_double) :: dX(2), psi(3), psi2(3), haa, hab, hbb
+    real(c_double) :: a0, b0, da, db, df, d2f, dY(2), y
+    integer, parameter :: nMax = 100
+    real(c_double), parameter :: eps = 1d-9
+    integer :: N, i
+    info = -1
+    N = SIZE(X)
+    invN = 1d0/(REAL(N, KIND=8))
+    mu = SUM(X)*invN
+    If(PRESENT(a) .OR. PRESENT(b)) Then
+      CALL InitOrDefault(a0, a, 0d0)
+      CALL InitOrDefault(b0, b, 1d0)
+      invAB = 1d0/(b0-a0)
+      ! Compute the logarithm of the geometric mean of X-a and b-X
+      lGa = SUM(LOG((X-a0)*invAB))*invN
+      lGb = SUM(LOG((b0-X)*invAB))*invN
+      ! Compute mean and variance of X
+      var = SUM(((X-mu)*invAB)**2)/REAL(N-1,KIND=8)
+      mu = (mu-a0)*invAB
+    Else
+      lGa = SUM(LOG(X))*invN
+      lGb = SUM(LOG(1d0-X))*invN
+      var = SUM((X-mu)**2)/REAL(N-1,KIND=8)
+    Endif
+    u = mu*(1-mu)
+    If(var < u) Then
+      ! Use the method of moments to estimate alpha and beta
+      u = u/var-1 ! positive
+      alpha = mu*u
+      beta = (1-mu)*u
+    Else
+      ! N.L. Johnson and S. Kotz estimation from Continous Univariate Distribution Vol. 2
+      u = 1d0/(1-EXP(lGa)-EXP(lGb))
+      alpha = 0.5d0*(1d0+EXP(lGa)*u)
+      beta  = 0.5d0*(1d0+EXP(lGb)*u)
+    Endif
+    ! Do a few iteration of the Newton's methods using the Hessian matrix
+    Do i = 1, nMax
+      ! Compute psi and psi'
+      psi  = Digamma([alpha, beta, alpha+beta])
+      psi2 = Trigamma([alpha, beta, alpha+beta])
+      y = alpha/(alpha+beta)
+      df = (p_alpha-1)/y - (p_beta-1)/(1-y)
+      d2f = -(p_alpha-1)/y**2 - (p_beta-1)/(1-y)**2
+      dY = 1/(alpha+beta)*[-y, 1-y]
+      ! Compute the gradient dX and the hessian matrix H=[haa hab; hab hbb]
+      dX = [lGa, lGb] - psi(1:2) + psi(3) + df*dY
+      haa = psi2(3)-psi2(1) + d2f*dY(1)**2 + df*2*(1-y)/(alpha+beta)**2
+      hbb = psi2(3)-psi2(2) + d2f*dY(2)**2 + df*2*y/(alpha+beta)**2
+      hab = psi2(3) + d2f*dY(1)*dY(2) + df*(2-y)/(alpha+beta)**2
+      u = haa*hbb-hab**2
+      If(u == 0d0) RETURN
+      u = 1d0/u
+      ! Apply a Newton step on [alpha beta]
+      da = -u*(hbb*dX(1)-hab*dX(2))
+      db = -u*(haa*dX(2)-hab*dX(1))
+      alpha = MAX(0d0, alpha + da)
+      beta = MAX(0d0, beta + db)
+      If(ABS(da) < eps*alpha .AND. ABS(db) < eps*beta) EXIT
+    End Do
+    info = 0
+  End Function MaxLikelihoodBetaPriorBeta
+
+  Integer Function MaxLikelihoodBeta(X, alpha, beta, a, b) Result(info)
     real(c_double), intent(in) :: X(:)
     real(c_double), intent(in), optional :: a, b
     real(c_double), intent(out) :: alpha, beta
@@ -268,6 +312,6 @@ Contains
       If(ABS(da) < eps*alpha .AND. ABS(db) < eps*beta) EXIT
     End Do
     info = 0
-  End Function mlf_beta_maxlikelihood
+  End Function MaxLikelihoodBeta
 End Module mlf_beta_dist
 

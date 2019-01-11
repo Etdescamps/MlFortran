@@ -84,7 +84,7 @@ Contains
         If(X(i) /= 0d0 .AND. X(i) /= 1d0) EXIT
       End Do
     End Do
-    info = mlf_beta_maxlikelihood(X, a0, b0)
+    info = MaxLikelihoodBeta(X, a0, b0)
     PRINT *, alpha, a0, beta, b0
   End Subroutine test_likelihood
 

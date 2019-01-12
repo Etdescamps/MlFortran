@@ -233,10 +233,10 @@ Contains
       d2f = -(p_alpha-1)/y**2 - (p_beta-1)/(1-y)**2
       dY = 1/(alpha+beta)*[-y, 1-y]
       ! Compute the gradient dX and the hessian matrix H=[haa hab; hab hbb]
-      dX = [lGa, lGb] - psi(1:2) + psi(3) + df*dY*invN
-      haa = psi2(3)-psi2(1) + d2f*dY(1)**2 + df*2*(1-y)/(alpha+beta)**2*invN
-      hbb = psi2(3)-psi2(2) + d2f*dY(2)**2 + df*2*y/(alpha+beta)**2*invN
-      hab = psi2(3) + d2f*dY(1)*dY(2) + df*(2-y)/(alpha+beta)**2*invN
+      dX = [lGa, lGb] - psi(1:2) + psi(3) + df*dY/N
+      haa = psi2(3)-psi2(1) + d2f*dY(1)**2 + df*2*(1-y)/(alpha+beta)**2/N
+      hbb = psi2(3)-psi2(2) + d2f*dY(2)**2 + df*2*y/(alpha+beta)**2/N
+      hab = psi2(3) + d2f*dY(1)*dY(2) + df*(2-y)/(alpha+beta)**2/N
       u = haa*hbb-hab**2
       If(u == 0d0) RETURN
       u = 1d0/u
@@ -258,12 +258,12 @@ Contains
     real(c_double) :: dX(2), psi(3), psi2(3), haa, hab, hbb
     real(c_double) :: a0, b0, da, db
     integer, parameter :: nMax = 100
-    real(c_double), parameter :: eps = 1d-9
+    real(c_double), parameter :: eps = 1d-12
     integer :: N, i
     info = -1
     N = SIZE(X)
     If(PRESENT(W)) Then
-      invN = SUM(W)
+      invN = 1d0/SUM(W)
       mu = SUM(W*X)*invN
     Else
       invN = 1d0/(REAL(N, KIND=8))
@@ -283,7 +283,7 @@ Contains
       Endif
       ! Compute mean and variance of X
       If(PRESENT(W)) Then
-        var = SUM((W*(X-mu)*invAB)**2)*REAL(N,8)/(REAL(N-1,8)*SUM(W*W))
+        var = SUM(W*((X-mu)*invAB)**2)*REAL(N,8)/REAL(N-1,8)*invN
       Else
         var = SUM(((X-mu)*invAB)**2)/REAL(N-1,8)
       Endif
@@ -291,7 +291,8 @@ Contains
     Else If(PRESENT(W)) Then
       lGa = SUM(W*LOG(X))*invN
       lGb = SUM(W*LOG(1d0-X))*invN
-      var = SUM((W*(X-mu))**2)*REAL(N,8)/(REAL(N-1,8)*SUM(W*W))
+      ! Unbiased weighted estimate of variance
+      var = SUM(W*(X-mu)**2)/(1/invN-SUM(W*W)*invN)
     Else
       lGa = SUM(LOG(X))*invN
       lGb = SUM(LOG(1d0-X))*invN
@@ -327,7 +328,8 @@ Contains
       db = -u*(haa*dX(2)-hab*dX(1))
       alpha = MAX(0d0, alpha + da)
       beta = MAX(0d0, beta + db)
-      If(ABS(da) < eps*alpha .AND. ABS(db) < eps*beta) EXIT
+      If(MAX(ABS(da), ABS(dX(1))) < eps*alpha .AND. &
+         MAX(ABS(db), ABS(dX(2))) < eps*beta) EXIT
     End Do
     info = 0
   End Function MaxLikelihoodBeta

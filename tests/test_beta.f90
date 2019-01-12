@@ -39,15 +39,15 @@ Program test_beta
   type(mlf_hdf5_file) :: h5f
   real(8) :: x
   info = mlf_init()
-  x = InverseIncompleteBeta(0.5d0, 0.7d0, 0.98d0)
-  info = h5f%createFile("test_beta.h5")
-  CALL test_incompleteBeta(h5f, 'a2b2', 2d0, 2d0)
-  CALL test_incompleteBeta(h5f, "a0.2b1.2", 0.2d0, 1.2d0)
-  CALL test_incompleteBeta(h5f, "a0.5b0.7", 0.5d0, 0.7d0)
+  !x = InverseIncompleteBeta(0.5d0, 0.7d0, 0.98d0)
+  !info = h5f%createFile("test_beta.h5")
+  !CALL test_incompleteBeta(h5f, 'a2b2', 2d0, 2d0)
+  !CALL test_incompleteBeta(h5f, "a0.2b1.2", 0.2d0, 1.2d0)
+  !CALL test_incompleteBeta(h5f, "a0.5b0.7", 0.5d0, 0.7d0)
   !CALL test_random(h5f, "a2b2", 2d0, 2d0, 1024, 1024)
   !CALL test_random(h5f, "a0.2b1.2", 0.2d0, 1.2d0, 1024, 1024)
   !CALL test_random(h5f, "a0.5b0.7", 0.5d0, 0.7d0, 1024, 1024)
-  CALL h5f%finalize()
+  !CALL h5f%finalize()
   CALL test_likelihood(10000000, 2d0, 2d0)
   CALL test_likelihood(10000000, 5d0, 1.5d0)
   CALL test_likelihood(10000000, 2d0, 0.5d0)
@@ -74,17 +74,19 @@ Contains
   Subroutine test_likelihood(N, alpha, beta)
     real(c_double), intent(in) :: alpha, beta
     integer, intent(in) :: N
-    real(c_double), allocatable :: X(:)
+    real(c_double), allocatable :: X(:), W(:)
     real(c_double) :: a0, b0
     integer :: i, info
-    ALLOCATE(X(N))
+    ALLOCATE(X(N), W(N))
     Do i = 1, N
       Do
         X(i) = RandomBeta(alpha,beta)
         If(X(i) /= 0d0 .AND. X(i) /= 1d0) EXIT
       End Do
     End Do
-    info = MaxLikelihoodBeta(X, a0, b0)
+    CALL RANDOM_NUMBER(W)
+    W = 1-W
+    info = MaxLikelihoodBeta(X, a0, b0, W)
     PRINT *, alpha, a0, beta, b0
   End Subroutine test_likelihood
 

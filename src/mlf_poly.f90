@@ -279,6 +279,7 @@ Contains
     Endif
     P2 = [1d0, 1d0] - 0.5d0*P2/NORM2(P2)
     ! Polynomial expressing y by t
+    ! I prefer to use Cadano's method (Newton-Raphson fail when derivative = 0)
     nR = mlf_rootsPoly([-z, 3*P1(2), 3*P2(2)-6*P1(2), 1-3*P2(2)+3*P1(2)], R, 1d-12)
     Do i = 1, nR
       t = R(i)

@@ -34,7 +34,8 @@ Module mlf_poly
   IMPLICIT NONE
   PRIVATE
 
-  Public :: mlf_solve4DPoly, mlf_rootsPoly, mlf_polyFromRoots, mlf_polyVal
+  Public :: mlf_solve4DPoly, mlf_rootsPoly, mlf_polyFromRoots
+  Public :: mlf_polyVal, mlf_polyValDer
   Public :: FindRoot2DInterp, FindRoot2PDerivative, FindRoot3Bezier
 
 Contains
@@ -418,33 +419,51 @@ Contains
     Endif
   End Function mlf_rootsPoly
 
-  real(c_double) Function mlf_solve4DPoly(t, a0, a1, a2, a3, a4) result(x)
+  Real(c_double) Function mlf_solve4DPoly(t, a0, a1, a2, a3, a4) Result(x)
     real(c_double), intent(in) :: t, a0, a1, a2, a3, a4
     real(c_double) :: R(4)
     integer :: nr, i, j
     nr = mlf_rootsPoly([a0, a1, a2, a3, a4], R, 1d-12)
     Do i=1,nr
-      if(R(i)>t) EXIT
+      If(R(i)>t) EXIT
     End Do
     Do j=i+1,nr
-      if(R(j)>t .AND. R(j)<R(i)) i = j
+      If(R(j)>t .AND. R(j)<R(i)) i = j
     End Do
-    if(i>0) then
+    If(i>0) Then
       x = R(i)
-    else
+    Else
       x = IEEE_VALUE(x, IEEE_QUIET_NAN)
-    endif
+    Endif
   End Function mlf_solve4DPoly
 
-  Pure real(c_double) Function mlf_polyVal(P, x) result(Y)
+  Pure Real(c_double) Function mlf_polyVal(P, x) Result(Y)
     real(c_double), intent(in) :: P(:), x
     integer :: N, i
-    N =size(P)
+    N = SIZE(P)
     Y = P(N)
     Do i=N-1,1,-1
       Y = x*Y+P(i)
     End Do
   End Function mlf_polyVal
+
+  Real(c_double) Function mlf_polyValDer(P, x, d) Result(Y)
+    real(c_double), intent(in) :: P(:), x
+    real(c_double), intent(out) :: d
+    integer :: N, i
+    N = SIZE(P)
+    If(N == 1) Then
+      Y = P(N)
+      d = 0
+      RETURN
+    Endif
+    Y = P(N)*x+P(N-1)
+    d = P(N)
+    Do i=N-3,1,-1
+      d = Y+d*x
+      Y = x*Y+P(i)
+    End Do
+  End Function mlf_polyValDer
 
   Subroutine mlf_polyFromRoots(R, P)
     real(c_double), intent(in) :: R(:)
@@ -467,7 +486,5 @@ Contains
     End Do
     P(N+1) = 1d0
   End Subroutine mlf_polyFromRoots
-
-
 End Module mlf_poly
 

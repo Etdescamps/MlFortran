@@ -246,23 +246,26 @@ Contains
     Endif
   End Function FindRoot2PDerivative
 
-  ! Find root of the function using a Bézier's approximation
+  ! Find root of the function using a cubic Bézier's approximation
+  ! (Method more stable with vertical curves than a polynomial approximation)
   ! The function is such as f(0) = 0, f(1) = 1, df/dx(0) = d1, df/dx(1) = d2
   ! Return an x such as f(x) = z
   Real(c_double) Function FindRoot3Bezier(d1, d2, z) Result(x)
     real(c_double), intent(in) :: d1, d2, z
-    real(c_double) :: P1(2), P2(2), R(3), y, t, A(4)
+    real(c_double) :: P1(2), P2(2), R(3), t
     integer :: i, nR
     ! Use Newton-Raphson step if z is too close to the edges
     If(z < 1d-2*MIN(d1,1d0)) Then
       x = z/d1
-      RETURN
+      If(x < 0.3d0) RETURN
     Else If(z > 1-1d-2*MIN(d2,1d0)) Then
       x = 1-(1-z)/d2
-      RETURN
+      If(x > 0.7d0) RETURN
     Endif
     ! P0 = [0,0] and P3 = [1,1]
     ! Compute the remaining two points P1 and P2 of this cubic Bézier curve
+    ! so these two points are at distance 1 of respectivly P0 and P3
+    ! and they match the derivatives of f
     If(d1 <= 1d0) Then
       P1 = [1d0, d1]
     Else
@@ -283,7 +286,8 @@ Contains
     End Do
     ! Deduce the value of x using t
     x = t*(3*(1-t)*((1-t)*P1(1)+t*P2(1))+t*t)
-    x = MIN(MAX(x, z*1d-8), 1-(1-z)*1d-8)
+    ! Avoid x too close to the edge that can stuck the root finding
+    x = MIN(MAX(x, z*1d-6), 1-(1-z)*1d-6)
   End Function FindRoot3Bezier
 
   ! Roots of a depressed quartic using Ferrari's method

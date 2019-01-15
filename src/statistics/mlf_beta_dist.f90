@@ -112,8 +112,13 @@ Contains
       If(lastMin-lastMax > 4) x = 0.5d0*(x+xMax)
       If(lastMax-lastMin > 4) x = 0.5d0*(x+xMin)
       V = IncompleteBeta(a, b, x) - y
-      If(ABS(V) < MAX(1d-30, 1d-10*dx)) RETURN
+      If(ABS(V) < 1d-30) RETURN
       dx = F*x**(a-1d0)*(1d0-x)**(b-1d0)
+      If(ABS(V) < 1d-10*dx) Then
+        ! Proceed a last Newton Raphson step before returning
+        x = x -V/dx
+        RETURN
+      Endif
       If(V < 0) Then
         xMin = x; vMin = V; dMin = dx
         lastMin = i
@@ -123,7 +128,8 @@ Contains
       Endif
       d0 = MERGE(HUGE(1d0), dMin*(xMax-xMin), dMin == HUGE(1d0))
       d1 = MERGE(HUGE(1d0), dMax*(xMax-xMin), dMax == HUGE(1d0))
-      x = xMin + (xMax-xMin)*FindRoot2PDerivative(vMin, d0, vMax, d1)
+      !x = xMin + (xMax-xMin)*FindRoot2PDerivative(vMin, d0, vMax, d1)
+      x = xMin + (xMax-xMin)*FindRoot3Bezier(d0/(vMax-vMin), d1/(vMax-vMin), -vMin/(vMax-vMin))
     End Do
   End Function InverseIncompleteBeta
 

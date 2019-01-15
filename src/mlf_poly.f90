@@ -35,7 +35,7 @@ Module mlf_poly
   PRIVATE
 
   Public :: mlf_solve4DPoly, mlf_rootsPoly, mlf_polyFromRoots, mlf_polyVal
-  Public :: FindRoot2DInterp, FindRoot2PDerivative
+  Public :: FindRoot2DInterp, FindRoot2PDerivative, FindRoot3Bezier
 
 Contains
 
@@ -246,45 +246,85 @@ Contains
     Endif
   End Function FindRoot2PDerivative
 
+  ! Find root of the function using a Bézier's approximation
+  ! The function is such as f(0) = 0, f(1) = 1, df/dx(0) = d1, df/dx(1) = d2
+  ! Return an x such as f(x) = z
+  Real(c_double) Function FindRoot3Bezier(d1, d2, z) Result(x)
+    real(c_double), intent(in) :: d1, d2, z
+    real(c_double) :: P1(2), P2(2), R(3), y, t, A(4)
+    integer :: i, nR
+    ! Use Newton-Raphson step if z is too close to the edges
+    If(z < 1d-2*MIN(d1,1d0)) Then
+      x = z/d1
+      RETURN
+    Else If(z > 1-1d-2*MIN(d2,1d0)) Then
+      x = 1-(1-z)/d2
+      RETURN
+    Endif
+    ! P0 = [0,0] and P3 = [1,1]
+    ! Compute the remaining two points P1 and P2 of this cubic Bézier curve
+    If(d1 <= 1d0) Then
+      P1 = [1d0, d1]
+    Else
+      P1 = [1d0/d1, 1d0]
+    Endif
+    P1 = 0.5d0*P1/NORM2(P1)
+    If(d2 <= 1d0) Then
+      P2 = [1d0, d2]
+    Else
+      P2 = [1d0/d2, 1d0]
+    Endif
+    P2 = [1d0, 1d0] - 0.5d0*P2/NORM2(P2)
+    ! Polynomial expressing y by t
+    nR = mlf_rootsPoly([-z, 3*P1(2), 3*P2(2)-6*P1(2), 1-3*P2(2)+3*P1(2)], R, 1d-12)
+    Do i = 1, nR
+      t = R(i)
+      If(R(i) >= 0d0 .AND. R(i) <= 1d0) EXIT
+    End Do
+    ! Deduce the value of x using t
+    x = t*(3*(1-t)*((1-t)*P1(1)+t*P2(1))+t*t)
+    x = MIN(MAX(x, z*1d-8), 1-(1-z)*1d-8)
+  End Function FindRoot3Bezier
+
   ! Roots of a depressed quartic using Ferrari's method
   ! TODO: Debug!!
   ! Method too unstable for actual computation! Use DRootsCompanion instead
-  Integer Function DRootsFerrari(A, p, q, r, eps) result(nr)
+  Integer Function DRootsFerrari(A, p, q, r, eps) Result(nr)
     real(c_double), intent(in) :: p, q, r, eps
     real(c_double), intent(out) :: A(:)
     real(c_double) :: u, v, mv, R2(3), m
     integer :: i, j
     nr = 0
-    mv = max(abs(p), abs(q), abs(r))
-    if(abs(q) < eps*mv) then
+    mv = MAX(ABS(p), ABS(q), ABS(r))
+    If(ABS(q) < eps*mv) Then
       ! Solve x**4+p*x**2+r=0
       j = DRootsQuadratic(R2, p, r, eps)
       Do i=1,j
-        if(R2(i) < eps*mv) CYCLE
-        if(R2(i) < eps*mv) then
+        If(R2(i) < eps*mv) CYCLE
+        If(R2(i) < eps*mv) Then
           nr = nr+1
           A(nr) = 0d0
-        else
+        Else
           nr = nr+2
-          u = sqrt(R2(i))
+          u = SQRT(R2(i))
           A(nr-1:nr) = [-u, u]
-        endif
+        Endif
       End Do
       RETURN
-    endif
+    Endif
     ASSOCIATE(b => p, c => (0.25d0*p**2-r), d => (1d0/8d0*q**2))
       ! Equation P(x)=x^3+b*x^2+c*x+d is transformed in depressed form:
       ! x is replaced by z = x+b/3, so the equation has the form z^3+p*z+q
       j = DRootsCardano(R2, c-(b**2)/3d0, b/27d0*(2d0*b**2-9d0*c)+d, eps)
       R2(1:j) = R2(1:j) - b/3d0 ! x = z-b/3
     END ASSOCIATE
-    m = Maxval(R2(1:j))
-    if(m<-1d-12*mv) RETURN ! No solutions
-    if(m<1d-12*mv) then ! Shall not happen (q /= 0)
+    m = MAXVAL(R2(1:j))
+    If(m<-1d-12*mv) RETURN ! No solutions
+    If(m<1d-12*mv) Then ! Shall not happen (q /= 0)
       nr = DRootsQuadratic(A, 0d0, 0.5d0*p, eps)
       RETURN
-    endif
-    u = sqrt(2d0*m)
+    Endif
+    u = SQRT(2d0*m)
     v = 0.5d0*q/u
     nr = DRootsQuadratic(A, u, 0.5d0*p+m-v, eps)
     nr = nr + DRootsQuadratic(A(nr+1:), -u, 0.5d0*p+m+v, eps)
@@ -320,17 +360,17 @@ Contains
     real(c_double), intent(out) :: R(:)
     real(c_double) :: delta
     integer :: N
-    N = size(A)
+    N = SIZE(A)
     nr = 0
-    select case (N)
-      case(0)
+    Select Case (N)
+      Case(0)
         RETURN
-      case(1)
+      Case(1)
         R(1) = -A(1)
         nr = 1
-      case(2) ! Solve analytically the second order equation
+      Case(2) ! Solve analytically the second order equation
         nr = DRootsQuadratic(R, A(2), A(1), eps)
-      case(3) ! Use Cardano's method for 3rd order equations
+      Case(3) ! Use Cardano's method for 3rd order equations
         ASSOCIATE(b => A(3), c => A(2), d => A(1))
           ! Equation P(x)=x^3+b*x^2+c*x+d is transformed in depressed form:
           ! x is replaced by z = x+b/3, so the equation has the form z^3+p*z+q
@@ -344,33 +384,33 @@ Contains
       !      e-3d0/256d0*b**4-0.25*b*d+1d0/16d0*b**2*c)
       !    R(1:nr) = R(1:nr) - b/4d0
       !  END ASSOCIATE
-      case default
-      ! Use companion matrix to determine polynomial
-      nr = DRootsCompanion(A, R, eps)
-    end select
+      Case Default
+        ! Use companion matrix to determine polynomial
+        nr = DRootsCompanion(A, R, eps)
+    End Select
   End Function DRootsPoly
 
   ! Interface for rootsPoly, check if the top coefficent of A can be negleted
-  Integer Function mlf_rootsPoly(A, R, eps) result(nr)
+  Integer Function mlf_rootsPoly(A, R, eps) Result(nr)
     real(c_double), intent(in) :: A(:), eps
     real(c_double), intent(out) :: R(:)
     real(c_double) :: m
     integer :: i, j, N
-    m = maxval(abs(A))
-    N = size(A)
+    m = MAXVAL(ABS(A))
+    N = SIZE(A)
     nr = 0
     ! Remove head and tail null elements
     Do i=N,1,-1
-      if(abs(A(i)) > m*eps) EXIT
+      If(ABS(A(i)) > m*eps) EXIT
     End Do
     Do j=1,i ! Simplify by X if a_j = 0 (from X^j)
-      if(abs(A(j)) > abs(A(i))*eps) EXIT
+      If(ABS(A(j)) > ABS(A(i))*eps) EXIT
     End Do
-    if(i>1) nr = DRootsPoly(A(j:i-1)/A(i), R, eps)
-    if(j>1) then ! If there is null element at tail -> X=0 is a solution
+    If(i>1) nr = DRootsPoly(A(j:i-1)/A(i), R, eps)
+    If(j>1) Then ! If there is null element at tail -> X=0 is a solution
       nr = nr +1
       R(nr) = 0d0
-    endif
+    Endif
   End Function mlf_rootsPoly
 
   real(c_double) Function mlf_solve4DPoly(t, a0, a1, a2, a3, a4) result(x)

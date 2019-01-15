@@ -26,7 +26,7 @@ if(OpenMP_FOUND)
 else(OpenMP_FOUND)
   message("OpenMP not found")
 endif(OpenMP_FOUND)
-#find_package(Boost 1.54 REQUIRED)
+find_package(Boost 1.54 REQUIRED)
 
 include_directories(include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src)

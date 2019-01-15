@@ -1,4 +1,4 @@
-! Copyright (c) 2017-2018 Etienne Descamps
+! Copyright (c) 2017-2019 Etienne Descamps
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without modification,
@@ -37,9 +37,7 @@ Module mlf_poly
   Public :: mlf_solve4DPoly, mlf_rootsPoly, mlf_polyFromRoots
   Public :: mlf_polyVal, mlf_polyValDer
   Public :: FindRoot2DInterp, FindRoot2PDerivative, FindRoot3Bezier
-
 Contains
-
   Elemental Real(c_double) Function FindRoot2DInterp(x0, x1, dx1) Result(y)
     ! Evaluate the root of the 2nd order polynomial f with:
     ! f(0) = x0; f(1) = x1; f'(1) = dx1
@@ -94,7 +92,7 @@ Contains
       R(2:3) = [a, -a]
       RETURN
     Endif
-    If(abs(p)<eps) Then
+    If(ABS(p)<eps) Then
       nr = 3
       a = p**(1d0/3d0)
       R(1:3) = [a, a*j, a*j*j]

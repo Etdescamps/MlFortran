@@ -36,47 +36,65 @@ Module mlf_cfuns
   Public :: mlf_stringFromC, c_cbrt
 
   Interface
-    Subroutine c_qsort(V, idSorted, N, ND, L, mu) bind(C, name="mlf_qsort")
+    Subroutine c_qsort(V, idSorted, N, ND, L, mu) Bind(C, NAME="mlf_qsort")
       Use iso_c_binding
       real(c_double), intent(in),dimension(*) :: V
       integer(c_int), intent(out),dimension(*) :: idSorted
       integer(c_int), value :: N, ND, L, mu
     End Subroutine c_qsort
-    Subroutine c_qsort_neg(V, idSorted, N, ND, L, mu) bind(C, name="mlf_qsort_neg")
+
+    Subroutine c_qsort_neg(V, idSorted, N, ND, L, mu) Bind(C, NAME="mlf_qsort_neg")
       Use iso_c_binding
       real(c_double), intent(in),dimension(*) :: V
       integer(c_int), intent(out),dimension(*) :: idSorted
       integer(c_int), value :: N, ND, L, mu
     End Subroutine c_qsort_neg
-    Function c_qsort_unify(V, idSorted, N, ND, L, mu) bind(C, name="mlf_qsort_unify")
+
+    Function c_qsort_unify(V, idSorted, N, ND, L, mu) Bind(C, NAME="mlf_qsort_unify")
       Use iso_c_binding
       real(c_double), intent(in),dimension(*) :: V
       integer(c_int), intent(out),dimension(*) :: idSorted
       integer(c_int), value :: N, ND, L, mu
       integer(c_int) :: c_qsort_unify
     End Function c_qsort_unify
-    Function c_memcpy(dest, src, n) bind(C, name="memcpy")
+
+    Function c_memcpy(dest, src, n) Bind(C, NAME="memcpy")
       Use iso_c_binding
       type(c_ptr), value :: src, dest
       integer(c_size_t), value :: n
       type(c_ptr) :: c_memcpy
     End Function c_memcpy
-    Function c_strncmp(s1, s2, n) bind(C, name="strncmp")
+
+    Function c_strncmp(s1, s2, n) Bind(C, NAME="strncmp")
       Use iso_c_binding
       type(c_ptr), value :: s1, s2
       integer(c_size_t), value :: n
       integer(c_int) ::  c_strncmp
     End Function c_strncmp
-    Function c_strlen(s1) bind(C, name="strlen")
+
+    Function c_strlen(s1) Bind(C, NAME="strlen")
       Use iso_c_binding
       type(c_ptr), value :: s1
       integer(c_size_t) ::  c_strlen
     End Function c_strlen
-    Pure Function c_cbrt(r) result(x) bind(C, name="cbrt")
+
+    Pure Function c_cbrt(r) Result(x) Bind(C, NAME="cbrt")
       Use iso_c_binding
       real(c_double), value :: r
       real(c_double) :: x
     End Function c_cbrt
+
+    Function c_erf(r) Result(x) Bind(C, NAME="cpp_erf")
+      Use iso_c_binding
+      real(c_double), value :: r
+      real(c_double) :: x
+    End Function c_erf
+
+    Function c_erf_inv(r) Result(x) Bind(C, NAME="cpp_erf_inv")
+      Use iso_c_binding
+      real(c_double), value :: r
+      real(c_double) :: x
+    End Function c_erf_inv
   End Interface
 Contains
   Subroutine mlf_stringFromC(cptr, string)

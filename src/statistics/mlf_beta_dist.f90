@@ -127,10 +127,10 @@ Contains
         xMax = x; vMax = V; dMax = dx
         lastMax = i
       Endif
-      d0 = MERGE(HUGE(1d0), dMin*(xMax-xMin), dMin == HUGE(1d0))
-      d1 = MERGE(HUGE(1d0), dMax*(xMax-xMin), dMax == HUGE(1d0))
+      d0 = MERGE(HUGE(1d0), dMin*(xMax-xMin)/(vMax-vMin), dMin == HUGE(1d0))
+      d1 = MERGE(HUGE(1d0), dMax*(xMax-xMin)/(vMax-vMin), dMax == HUGE(1d0))
       !x = xMin + (xMax-xMin)*FindRoot2PDerivative(vMin, d0, vMax, d1)
-      x = xMin + (xMax-xMin)*FindRoot3Bezier(d0/(vMax-vMin), d1/(vMax-vMin), -vMin/(vMax-vMin))
+      x = xMin + (xMax-xMin)*FindRoot3Bezier(d0, d1, -vMin/(vMax-vMin))
     End Do
   End Function InverseIncompleteBeta
 
@@ -167,9 +167,9 @@ Contains
       vMin = M0(2)-Z; vMax = M1(2)-Z
       dMin = M0(3); dMax = M1(3)
       Do k = 1, nMax
-        d0 = MERGE(HUGE(1d0), dMin*(xMax-xMin), dMin == HUGE(1d0))
-        d1 = MERGE(HUGE(1d0), dMax*(xMax-xMin), dMax == HUGE(1d0))
-        t = xMin + (xMax-xMin)*FindRoot3Bezier(d0/(vMax-vMin), d1/(vMax-vMin), -vMin/(vMax-vMin))
+        d0 = MERGE(HUGE(1d0), dMin*(xMax-xMin)/(vMax-vMin), dMin == HUGE(1d0))
+        d1 = MERGE(HUGE(1d0), dMax*(xMax-xMin)/(vMax-vMin), dMax == HUGE(1d0))
+        t = xMin + (xMax-xMin)*FindRoot3Bezier(d0, d1, -vMin/(vMax-vMin))
         If(lastMin-lastMax > 4) t = 0.5d0*(t+xMax)
         If(lastMax-lastMin > 4) t = 0.5d0*(t+xMin)
         V = IncompleteBeta(a, b, t) - Z

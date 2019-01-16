@@ -37,6 +37,7 @@ Module mlf_beta_dist
 
   Public :: LogBetaFunction, BetaFunction, RandomBeta
   Public :: IncompleteBeta, InverseIncompleteBeta, BetaDensity
+  Public :: IncompleteBetaInterval
   Public :: MaxLikelihoodBeta, MaxLikelihoodBetaPriorBeta
 
 Contains
@@ -132,6 +133,62 @@ Contains
       x = xMin + (xMax-xMin)*FindRoot3Bezier(d0/(vMax-vMin), d1/(vMax-vMin), -vMin/(vMax-vMin))
     End Do
   End Function InverseIncompleteBeta
+
+  Subroutine IncompleteBetaInterval(a, b, X)
+    real(c_double), intent(in)  :: a, b
+    real(c_double), intent(out) :: X(:)
+    real(c_double) :: Y(SIZE(X)), DY(SIZE(X)), V, F, dx
+    real(c_double) :: M0(3), M1(3), d0, d1, t, Z
+    real(c_double) :: xMin, xMax, vMin, vMax, dMin, dMax
+    integer :: i, j, k, N, lastMin, lastMax
+    integer, parameter :: nMax = 10
+    N = SIZE(X)
+    X = [(REAL(i-1, 8)/REAL(N-1, 8), i=1,N)]
+    X(1) = EPSILON(1d0)
+    X(N) = 1d0 - EPSILON(1d0)
+    Y = IncompleteBeta(a, b, X)
+    Y(1) = 0d0; Y(N) = 1d0
+    F = EXP(-LogBetaFunction(a,b))
+    DY = F*X**(a-1d0)*(1d0-X)**(b-1d0)
+    WHERE(.NOT. IEEE_IS_FINITE(DY)) DY = HUGE(1d0)
+    j = 1
+    M0 = [0d0, 0d0, DY(1)]
+    M1 = [X(1), Y(1), DY(1)]
+    X(1) = 0d0; X(N) = 1d0
+    Do i = 2, N-1
+      Z = X(i)
+      Do While(Z > Y(j))
+        j = j+1
+        M0 = M1
+        M1 = [REAL(j-1, 8)/REAL(N-1, 8), Y(j), DY(j)]
+      End Do
+      lastMin = 0; lastMax = 0
+      xMin = M0(1); xMax = M1(1)
+      vMin = M0(2)-Z; vMax = M1(2)-Z
+      dMin = M0(3); dMax = M1(3)
+      Do k = 1, nMax
+        d0 = MERGE(HUGE(1d0), dMin*(xMax-xMin), dMin == HUGE(1d0))
+        d1 = MERGE(HUGE(1d0), dMax*(xMax-xMin), dMax == HUGE(1d0))
+        t = xMin + (xMax-xMin)*FindRoot3Bezier(d0/(vMax-vMin), d1/(vMax-vMin), -vMin/(vMax-vMin))
+        If(lastMin-lastMax > 4) t = 0.5d0*(t+xMax)
+        If(lastMax-lastMin > 4) t = 0.5d0*(t+xMin)
+        V = IncompleteBeta(a, b, t) - Z
+        dx = F*t**(a-1d0)*(1d0-t)**(b-1d0)
+        If(ABS(V) < MIN(1d-10*dx, 1d-20)) EXIT
+        If(V < 0) Then
+          xMin = t; vMin = V; dMin = dx
+          lastMin = i
+        Else
+          xMax = t; vMax = V; dMax = dx
+          lastMax = i
+        Endif
+      End Do
+      M0 = [t, V+Z, dx]
+      ! Proceed a last Newton Raphson step before returning
+      If(k <= nMax) t = t - V/dx
+      X(i) = t
+    End Do
+  End Subroutine IncompleteBetaInterval
 
   Elemental Real(c_double) Function IncompleteBeta(a, b, x) Result(y)
     real(c_double), intent(in) :: a, b, x

@@ -41,9 +41,12 @@ Program test_beta
   info = mlf_init()
   x = InverseIncompleteBeta(0.5d0, 0.7d0, 0.98d0)
   info = h5f%createFile("test_beta.h5")
-  CALL test_incompleteBeta(h5f, 'a2b2', 2d0, 2d0)
-  CALL test_incompleteBeta(h5f, "a0.2b1.2", 0.2d0, 1.2d0)
-  CALL test_incompleteBeta(h5f, "a0.5b0.7", 0.5d0, 0.7d0)
+  CALL test_incompleteIntervalBeta(h5f, 'a2b2', 2d0, 2d0)
+  CALL test_incompleteIntervalBeta(h5f, "a0.2b1.2", 0.2d0, 1.2d0)
+  CALL test_incompleteIntervalBeta(h5f, "a0.5b0.7", 0.5d0, 0.7d0)
+  !CALL test_incompleteBeta(h5f, 'a2b2', 2d0, 2d0)
+  !CALL test_incompleteBeta(h5f, "a0.2b1.2", 0.2d0, 1.2d0)
+  !CALL test_incompleteBeta(h5f, "a0.5b0.7", 0.5d0, 0.7d0)
   !CALL test_random(h5f, "a2b2", 2d0, 2d0, 1024, 1024)
   !CALL test_random(h5f, "a0.2b1.2", 0.2d0, 1.2d0, 1024, 1024)
   !CALL test_random(h5f, "a0.5b0.7", 0.5d0, 0.7d0, 1024, 1024)
@@ -70,6 +73,20 @@ Contains
     End Do
     info = h5f%pushData(points, rname)
   End Subroutine test_incompleteBeta
+
+  Subroutine test_incompleteIntervalBeta(h5f, rname, alpha, beta)
+    class(mlf_hdf5_file), intent(inout) :: h5f
+    character(len=*), intent(in) :: rname
+    real(c_double), intent(in) :: alpha, beta
+    real(c_double), allocatable :: points(:,:)
+    integer, parameter :: N = 1000
+    integer :: i
+    ALLOCATE(points(2, N))
+    CALL IncompleteBetaInterval(alpha, beta, points(1,:))
+    points(2, :) = IncompleteBeta(alpha, beta, points(1, :))
+    info = h5f%pushData(points, rname)
+  End Subroutine test_incompleteIntervalBeta
+
 
   Subroutine test_likelihood(N, alpha, beta)
     real(c_double), intent(in) :: alpha, beta

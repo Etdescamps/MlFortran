@@ -82,7 +82,7 @@ Contains
     integer, parameter :: N = 1000
     integer :: i
     ALLOCATE(points(2, N))
-    CALL IncompleteBetaInterval(alpha, beta, points(1,:))
+    CALL InverseIncompleteBetaInterval(alpha, beta, points(1,:))
     points(2, :) = IncompleteBeta(alpha, beta, points(1, :))
     info = h5f%pushData(points, rname)
   End Subroutine test_incompleteIntervalBeta

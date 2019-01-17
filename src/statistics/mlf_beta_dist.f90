@@ -32,6 +32,7 @@ Module mlf_beta_dist
   Use mlf_utils
   Use mlf_gamma_dist
   Use mlf_poly
+  Use mlf_distribution
   IMPLICIT NONE
   PRIVATE
 
@@ -40,7 +41,46 @@ Module mlf_beta_dist
   Public :: InverseIncompleteBetaInterval, IntegrateIncompleteBeta
   Public :: MaxLikelihoodBeta, MaxLikelihoodBetaPriorBeta
 
+  Type, Public, Extends(mlf_distributionWithPrior_type) :: mlf_beta_distribution
+    real(c_double) :: alpha, beta, a = 0d0, b = 1d0
+  Contains
+    procedure :: fitWithData => Beta_fitWithData
+    procedure :: fitWithDataWithPrior => Beta_fitWithDataWithPrior
+    procedure :: inverseInterval => Beta_inverseInterval
+    procedure :: integrateIncomplete => Beta_integrateIncomplete
+  End Type mlf_beta_distribution
 Contains
+  Integer Function Beta_fitWithData(this, Points, W) Result(info)
+    class(mlf_beta_distribution), intent(inout) :: this
+    real(c_double), intent(in) :: Points(:,:)
+    real(c_double), intent(in), optional :: W(:)
+    info = MaxLikelihoodBeta(Points(1,:), this%alpha, this%beta, W, this%a, this%b)
+  End Function Beta_fitWithData
+
+  Integer Function Beta_fitWithDataWithPrior(this, Points, prior) Result(info)
+    class(mlf_beta_distribution), intent(inout) :: this
+    real(c_double), intent(in) :: Points(:,:)
+    class(mlf_distribution_abstract), intent(in) :: prior
+    info = -1
+    Select Type(prior)
+    Class is (mlf_beta_distribution)
+      info = MaxLikelihoodBetaPriorBeta(Points(1,:), this%alpha, this%beta, &
+        prior%alpha, prior%beta, this%a, this%b)
+    End Select
+  End Function Beta_fitWithDataWithPrior
+
+  Subroutine Beta_inverseInterval(this, X)
+    class(mlf_beta_distribution), intent(in) :: this
+    real(c_double), intent(out) :: X(:)
+    CALL InverseIncompleteBetaInterval(this%alpha, this%beta, X)
+  End Subroutine Beta_inverseInterval
+
+  Real(c_double) Function Beta_integrateIncomplete(this, X, z) Result(y)
+    class(mlf_beta_distribution), intent(in) :: this
+    real(c_double), intent(in) :: X(:), z
+    y = IntegrateIncompleteBeta(X, this%alpha, this%beta, z)
+  End Function Beta_integrateIncomplete
+
   Real(c_double) Function RandomBeta(a, b) Result(y)
     real(c_double), intent(in) :: a, b
     real(c_double) :: R(2), X(2), S
@@ -199,8 +239,8 @@ Contains
     real(c_double), parameter :: icoeff(3) =  [3d0/8d0, 7d0/6d0, 23d0/24d0]
     integer :: N
     N = SIZE(X)
-    y = SUM(IC(X(4:N-3))) + DOT_PRODUCT(icoeff, IC(X(1:3))) &
-      + DOT_PRODUCT(icoeff(3:1:-1), IC(X(N-2:N)))
+    y = (SUM(IC(X(4:N-3))) + DOT_PRODUCT(icoeff, IC(X(1:3))) &
+       + DOT_PRODUCT(icoeff(3:1:-1), IC(X(N-2:N))))/REAL(N, 8)
   Contains
     Elemental Real(c_double) Function IC(t) Result(r)
       real(c_double), intent(in) :: t

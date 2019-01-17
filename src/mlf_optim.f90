@@ -51,7 +51,7 @@ Module mlf_optim
     procedure :: init => mlf_optim_setparams
   End Type mlf_optim_param
   
-  Type, Public, abstract, extends(mlf_step_obj) :: mlf_optim_obj
+  Type, Public, Abstract, Extends(mlf_step_obj) :: mlf_optim_obj
     class(mlf_objective_fun), pointer :: fun
     integer(c_int64_t), pointer :: nevalFun, nevalFunMax
     real(c_double), pointer :: minFun, targetFun, sigma, X(:,:), minX(:)

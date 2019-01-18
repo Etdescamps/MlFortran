@@ -101,7 +101,7 @@ Contains
     class(mlf_beta_distribution), intent(in) :: this
     real(c_double), intent(in) :: x
     If(x >= this%a .AND. x <= this%b) Then
-      y = IncompleteBeta(this%alpha, this%beta, (x-this%a)/(this%b-this%a))
+      y = BetaDensity(this%alpha, this%beta, (x-this%a)/(this%b-this%a))/(this%b-this%a)
     Else
       y = 0
     Endif

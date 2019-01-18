@@ -39,7 +39,7 @@ Program test_beta
   type(mlf_hdf5_file) :: h5f
   real(8) :: x
   info = mlf_init()
-  x = InverseIncompleteBeta(0.5d0, 0.7d0, 0.98d0)
+  x = QuantileBeta(0.5d0, 0.7d0, 0.98d0)
   info = h5f%createFile("test_beta.h5")
   CALL test_incompleteIntervalBeta(h5f, 'a2b2', 2d0, 2d0)
   CALL test_incompleteIntervalBeta(h5f, "a0.2b1.2", 0.2d0, 1.2d0)
@@ -69,7 +69,7 @@ Contains
     FORALL(i=1:N) points(1, i) = REAL(i-1,8)/REAL(N-1,8)
     points(2, :) = IncompleteBeta(alpha, beta, points(1, :))
     Do i = 1,N
-      points(3, i) = InverseIncompleteBeta(alpha, beta, points(2, i))
+      points(3, i) = QuantileBeta(alpha, beta, points(2, i))
     End Do
     info = h5f%pushData(points, rname)
   End Subroutine test_incompleteBeta
@@ -82,11 +82,10 @@ Contains
     integer, parameter :: N = 1000
     integer :: i
     ALLOCATE(points(2, N))
-    CALL InverseIncompleteBetaInterval(alpha, beta, points(1,:))
+    CALL QuantileTableBeta(alpha, beta, points(1,:))
     points(2, :) = IncompleteBeta(alpha, beta, points(1, :))
     info = h5f%pushData(points, rname)
   End Subroutine test_incompleteIntervalBeta
-
 
   Subroutine test_likelihood(N, alpha, beta)
     real(c_double), intent(in) :: alpha, beta

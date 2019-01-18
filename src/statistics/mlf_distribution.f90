@@ -40,11 +40,16 @@ Module mlf_distribution
   Type, Public, Abstract, Extends(mlf_distribution_abstract) :: mlf_distribution_type
   Contains
     procedure(mlf_distribution_fitWithData), deferred :: fitWithData
-    procedure(mlf_distribution_inverseInterval), deferred :: inverseInterval
-    procedure(mlf_distribution_integrateIncomplete), deferred :: integrateIncomplete
   End Type mlf_distribution_type
 
-  Type, Public, Abstract, Extends(mlf_distribution_type) :: mlf_distributionWithPrior_type
+  Type, Public, Abstract, Extends(mlf_distribution_type) :: mlf_distributionWithInverse_type
+  Contains
+    procedure(mlf_distribution_quantile), deferred :: quantile
+    procedure :: quantileTable => mlf_distribution_quantileTable
+    procedure(mlf_distribution_integrateIncomplete), deferred :: integrateIncomplete
+  End Type mlf_distributionWithInverse_type
+
+  Type, Public, Abstract, Extends(mlf_distributionWithInverse_type) :: mlf_distributionWithPrior_type
   Contains
     procedure(mlf_distribution_fitWithDataWithPrior), deferred :: fitWithDataWithPrior
   End Type mlf_distributionWithPrior_type
@@ -66,20 +71,30 @@ Module mlf_distribution
       class(mlf_distribution_abstract), intent(in) :: prior
     End Function mlf_distribution_fitWithDataWithPrior
 
-    Subroutine mlf_distribution_inverseInterval(this, X)
+    Function mlf_distribution_quantile(this, y) Result(x)
       Use iso_c_binding
-      import :: mlf_distribution_type
-      class(mlf_distribution_type), intent(in) :: this
-      real(c_double), intent(out) :: X(:)
-    End Subroutine mlf_distribution_inverseInterval
+      import :: mlf_distributionWithInverse_type
+      class(mlf_distributionWithInverse_type), intent(in) :: this
+      real(c_double), intent(in) :: y
+      real(c_double) :: x
+    End Function mlf_distribution_quantile
 
     Function mlf_distribution_integrateIncomplete(this, X, z) Result(y)
       Use iso_c_binding
-      import :: mlf_distribution_type
-      class(mlf_distribution_type), intent(in) :: this
+      import :: mlf_distributionWithInverse_type
+      class(mlf_distributionWithInverse_type), intent(in) :: this
       real(c_double), intent(in) :: X(:), z
       real(c_double) :: y
     End Function mlf_distribution_integrateIncomplete
   End Interface
+Contains
+  Subroutine mlf_distribution_quantileTable(this, X)
+    class(mlf_distributionWithInverse_type), intent(in) :: this
+    real(c_double), intent(out) :: X(:)
+    integer :: i
+    Do i= 1,SIZE(X)
+      X(i) = this%quantile(REAL(i-1,8)/REAL(SIZE(X)-1,8))
+    End Do
+  End Subroutine mlf_distribution_quantileTable
 End Module mlf_distribution
 

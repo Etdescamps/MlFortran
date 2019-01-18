@@ -42,14 +42,20 @@ Module mlf_distribution
     procedure(mlf_distribution_fitWithData), deferred :: fitWithData
   End Type mlf_distribution_type
 
-  Type, Public, Abstract, Extends(mlf_distribution_type) :: mlf_distributionWithInverse_type
+  Type, Public, Abstract, Extends(mlf_distribution_type) :: mlf_distributionWithCDF_type
+  Contains
+    procedure(mlf_distribution_computeCDF), deferred :: computeCDF
+    procedure(mlf_distribution_computeCDF), deferred :: computePDF
+    procedure :: integrateIncomplete => mlf_distribution_integrateIncomplete
+  End Type mlf_distributionWithCDF_type
+
+  Type, Public, Abstract, Extends(mlf_distributionWithCDF_type) :: mlf_distributionWithQuantile_type
   Contains
     procedure(mlf_distribution_quantile), deferred :: quantile
     procedure :: quantileTable => mlf_distribution_quantileTable
-    procedure(mlf_distribution_integrateIncomplete), deferred :: integrateIncomplete
-  End Type mlf_distributionWithInverse_type
+  End Type mlf_distributionWithQuantile_type
 
-  Type, Public, Abstract, Extends(mlf_distributionWithInverse_type) :: mlf_distributionWithPrior_type
+  Type, Public, Abstract, Extends(mlf_distributionWithQuantile_type) :: mlf_distributionWithPrior_type
   Contains
     procedure(mlf_distribution_fitWithDataWithPrior), deferred :: fitWithDataWithPrior
   End Type mlf_distributionWithPrior_type
@@ -73,28 +79,71 @@ Module mlf_distribution
 
     Function mlf_distribution_quantile(this, y) Result(x)
       Use iso_c_binding
-      import :: mlf_distributionWithInverse_type
-      class(mlf_distributionWithInverse_type), intent(in) :: this
+      import :: mlf_distributionWithQuantile_type
+      class(mlf_distributionWithQuantile_type), intent(in) :: this
       real(c_double), intent(in) :: y
       real(c_double) :: x
     End Function mlf_distribution_quantile
 
-    Function mlf_distribution_integrateIncomplete(this, X, z) Result(y)
+    Function mlf_distribution_computeCDF(this, x) Result(y)
       Use iso_c_binding
-      import :: mlf_distributionWithInverse_type
-      class(mlf_distributionWithInverse_type), intent(in) :: this
-      real(c_double), intent(in) :: X(:), z
+      import :: mlf_distributionWithCDF_type
+      class(mlf_distributionWithCDF_type), intent(in) :: this
+      real(c_double), intent(in) :: x
       real(c_double) :: y
-    End Function mlf_distribution_integrateIncomplete
+    End Function mlf_distribution_computeCDF
   End Interface
 Contains
   Subroutine mlf_distribution_quantileTable(this, X)
-    class(mlf_distributionWithInverse_type), intent(in) :: this
+    class(mlf_distributionWithQuantile_type), intent(in) :: this
     real(c_double), intent(out) :: X(:)
     integer :: i
     Do i= 1,SIZE(X)
       X(i) = this%quantile(REAL(i-1,8)/REAL(SIZE(X)-1,8))
     End Do
   End Subroutine mlf_distribution_quantileTable
+
+  Real(c_double) Function mlf_distribution_integrateIncomplete(this, X, z, dydz) Result(y)
+    class(mlf_distributionWithCDF_type), intent(in) :: this
+    real(c_double), intent(in) :: X(:), z
+    real(c_double), intent(out), optional :: dydz
+    real(c_double), parameter :: icoeff(3) =  [3d0/8d0, 7d0/6d0, 23d0/24d0]
+    integer :: i, N
+    N = SIZE(X)
+    y = DOT_PRODUCT(icoeff, [IC(X(1)), IC(X(2)), IC(X(3))])
+    Do i = 4, N-3
+      y = y + IC(X(i))
+    End Do
+    y = y + DOT_PRODUCT(icoeff, [IC(X(N)), IC(X(N-1)), IC(X(N-2))])
+    If(PRESENT(dydz)) Then
+      dydz = DOT_PRODUCT(icoeff, [ID(X(1)), ID(X(2)), ID(X(3))])
+      Do i = 4, N-3
+        dydz = dydz + ID(X(i))
+      End Do
+      dydz = dydz + DOT_PRODUCT(icoeff, [ID(X(N)), ID(X(N-1)), ID(X(N-2))])
+    Endif
+  Contains
+    Real(c_double) Function IC(t) Result(r)
+      real(c_double), intent(in) :: t
+      real(c_double) :: delta
+      delta = ABS(t-z)
+      If(delta == 0d0) Then
+        r = 0
+      Else
+        r = this%computeCDF(t+delta) - this%computeCDF(t-delta)
+      Endif
+    End Function IC
+    Real(c_double) Function ID(t) Result(r)
+      real(c_double), intent(in) :: t
+      real(c_double) :: delta
+      delta = ABS(t-z)
+      If(delta == 0d0) Then
+        r = 0
+      Else
+        r = SIGN(this%computePDF(t+delta) - this%computePDF(t-delta), t-z)
+      Endif
+    End Function ID
+  End Function mlf_distribution_integrateIncomplete
+
 End Module mlf_distribution
 

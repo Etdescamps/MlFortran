@@ -48,7 +48,8 @@ Module mlf_beta_dist
     procedure :: fitWithDataWithPrior => Beta_fitWithDataWithPrior
     procedure :: quantile => Beta_quantile
     procedure :: quantileTable => Beta_quantileTable
-    procedure :: integrateIncomplete => Beta_integrateIncomplete
+    procedure :: computeCDF => Beta_computeCDF
+    procedure :: computePDF => Beta_computePDF
   End Type mlf_beta_distribution
 Contains
   Integer Function Beta_fitWithData(this, Points, W) Result(info)
@@ -75,19 +76,36 @@ Contains
     class(mlf_beta_distribution), intent(in) :: this
     real(c_double), intent(out) :: X(:)
     CALL QuantileTableBeta(this%alpha, this%beta, X)
+    X = this%a + (this%b-this%a)*X
   End Subroutine Beta_quantileTable
 
   Real(c_double) Function Beta_quantile(this, y) Result(x)
     class(mlf_beta_distribution), intent(in) :: this
     real(c_double), intent(in) :: y
-    x = QuantileBeta(this%alpha, this%beta, y)
+    x = this%a + (this%b-this%a)*QuantileBeta(this%alpha, this%beta, y)
   End Function Beta_quantile
 
-  Real(c_double) Function Beta_integrateIncomplete(this, X, z) Result(y)
+  Real(c_double) Function Beta_computeCDF(this, x) Result(y)
     class(mlf_beta_distribution), intent(in) :: this
-    real(c_double), intent(in) :: X(:), z
-    y = IntegrateIncompleteBeta(X, this%alpha, this%beta, z)
-  End Function Beta_integrateIncomplete
+    real(c_double), intent(in) :: x
+    If(x <= this%a) Then
+      y = 0
+    Else If(x >= this%b) Then
+      y = 1
+    Else
+      y = IncompleteBeta(this%alpha, this%beta, (x-this%a)/(this%b-this%a))
+    Endif
+  End Function Beta_computeCDF
+
+  Real(c_double) Function Beta_computePDF(this, x) Result(y)
+    class(mlf_beta_distribution), intent(in) :: this
+    real(c_double), intent(in) :: x
+    If(x >= this%a .AND. x <= this%b) Then
+      y = IncompleteBeta(this%alpha, this%beta, (x-this%a)/(this%b-this%a))
+    Else
+      y = 0
+    Endif
+  End Function Beta_computePDF
 
   Real(c_double) Function RandomBeta(a, b) Result(y)
     real(c_double), intent(in) :: a, b

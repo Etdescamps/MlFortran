@@ -33,7 +33,7 @@ Module mlf_cfuns
 
   PRIVATE
   Public :: c_qsort, c_qsort_neg, c_qsort_unify, c_memcpy, c_strncmp, c_strlen
-  Public :: mlf_stringFromC, c_cbrt
+  Public :: mlf_stringFromC, c_cbrt, c_erf, c_erf_inv
 
   Interface
     Subroutine c_qsort(V, idSorted, N, ND, L, mu) Bind(C, NAME="mlf_qsort")

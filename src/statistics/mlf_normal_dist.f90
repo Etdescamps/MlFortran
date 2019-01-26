@@ -38,6 +38,7 @@ Module mlf_normal_dist
   Type, Public, Extends(mlf_distributionWithQuantile_type) :: mlf_normal_distribution
     real(c_double) :: mu, sigma
   Contains
+    procedure :: getStats => Normal_getStats
     procedure :: fitWithData => Normal_fitWithData
     procedure :: quantile => Normal_quantile
     procedure :: computeCDF => Normal_computeCDF
@@ -46,22 +47,36 @@ Module mlf_normal_dist
 
   Type, Public, Extends(mlf_normal_distribution) :: mlf_logNormal_distribution
   Contains
+    procedure :: getStats => logNormal_getStats
     procedure :: fitWithData => logNormal_fitWithData
     procedure :: quantile => logNormal_quantile
     procedure :: computeCDF => logNormal_computeCDF
     procedure :: computePDF => logNormal_computePDF
   End Type mlf_logNormal_distribution
 Contains
+  Real(c_double) Function Normal_getStats(this, statType) Result(y)
+    class(mlf_normal_distribution), intent(in) :: this
+    integer, intent(in) :: statType
+    ASSOCIATE(mu => this%mu, sigma => this%sigma)
+      Select Case(statType)
+      Case (mlf_dist_mode, mlf_dist_median, mlf_dist_mean)
+        y = mu
+      Case Default
+        y = IEEE_VALUE(y, IEEE_QUIET_NAN)
+      End Select
+    END ASSOCIATE
+  End Function Normal_getStats
+
   Integer Function Normal_fitWithData(this, Points, W) Result(info)
     class(mlf_normal_distribution), intent(inout) :: this
     real(c_double), intent(in) :: Points(:,:)
     real(c_double), intent(in), optional :: W(:)
     If(PRESENT(W)) Then
       this%mu = SUM(W*Points(1,:))/SUM(W)
-      this%sigma = SUM(W*(Points(1,:)-this%mu)**2)/(1/SUM(W)-SUM(W*W)*SUM(W))
+      this%sigma = SQRT(SUM(W*(Points(1,:)-this%mu)**2)/(1/SUM(W)-SUM(W*W)*SUM(W)))
     Else
       this%mu = SUM(Points(1,:))/SIZE(Points,2)
-      this%sigma = SUM((Points(1,:)-this%mu)**2/(SIZE(Points,2)-1d0))
+      this%sigma = SQRT(SUM((Points(1,:)-this%mu)**2)/(SIZE(Points,2)-1d0))
     Endif
     info = 0
   End Function Normal_fitWithData
@@ -75,7 +90,7 @@ Contains
   Real(c_double) Function Normal_computePDF(this, x) Result(y)
     class(mlf_normal_distribution), intent(in) :: this
     real(c_double), intent(in) :: x
-    y = 1d0/SQRT(2d0*mlf_PI*this%sigma)*EXP(-(x-this%mu)**2/(2*this%sigma**2))
+    y = 1d0/SQRT(2d0*mlf_PI*this%sigma**2)*EXP(-(x-this%mu)**2/(2*this%sigma**2))
   End Function Normal_computePDF
 
   Real(c_double) Function Normal_quantile(this, y) Result(x)
@@ -83,6 +98,24 @@ Contains
     real(c_double), intent(in) :: y
     x = this%mu - this%sigma*SQRT(2d0)*c_erf_inv(2*(1-y))
   End Function Normal_quantile
+
+  Real(c_double) Function logNormal_getStats(this, statType) Result(y)
+    class(mlf_logNormal_distribution), intent(in) :: this
+    integer, intent(in) :: statType
+    ASSOCIATE(mu => this%mu, sigma => this%sigma)
+      Select Case(statType)
+      Case (mlf_dist_mode)
+        y = EXP(mu-sigma**2)
+      Case (mlf_dist_median)
+        y = EXP(mu) 
+      Case (mlf_dist_mean)
+        y = EXP(mu+0.5d0*sigma**2)
+      Case Default
+        y = IEEE_VALUE(y, IEEE_QUIET_NAN)
+      End Select
+    END ASSOCIATE
+  End Function logNormal_getStats
+
 
   Real(c_double) Function logNormal_quantile(this, y) Result(x)
     class(mlf_logNormal_distribution), intent(in) :: this

@@ -34,12 +34,16 @@ Module mlf_distribution
   IMPLICIT NONE
   PRIVATE
 
+  Integer, Public, Parameter :: mlf_dist_mode = 1, mlf_dist_median = 2, mlf_dist_mean = 3
+  Integer, Public, Parameter :: mlf_dist_geom_mean = 4
+
   Type, Public, Abstract :: mlf_distribution_abstract
   End Type mlf_distribution_abstract
 
   Type, Public, Abstract, Extends(mlf_distribution_abstract) :: mlf_distribution_type
   Contains
     procedure(mlf_distribution_fitWithData), deferred :: fitWithData
+    procedure(mlf_distribution_getStats), deferred :: getStats
   End Type mlf_distribution_type
 
   Type, Public, Abstract, Extends(mlf_distribution_type) :: mlf_distributionWithCDF_type
@@ -69,6 +73,14 @@ Module mlf_distribution
       real(c_double), intent(in), optional :: W(:)
     End Function mlf_distribution_fitWithData
 
+    Function mlf_distribution_getStats(this, statType) Result(y)
+      Use iso_c_binding
+      import :: mlf_distribution_type
+      class(mlf_distribution_type), intent(in) :: this
+      integer, intent(in) :: statType
+      real(c_double) :: y
+    End Function mlf_distribution_getStats
+
     Integer Function mlf_distribution_fitWithDataWithPrior(this, Points, prior)
       Use iso_c_binding
       import :: mlf_distributionWithPrior_type, mlf_distribution_abstract
@@ -92,6 +104,7 @@ Module mlf_distribution
       real(c_double), intent(in) :: x
       real(c_double) :: y
     End Function mlf_distribution_computeCDF
+
   End Interface
 Contains
   Subroutine mlf_distribution_quantileTable(this, X)

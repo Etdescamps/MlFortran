@@ -44,6 +44,7 @@ Module mlf_beta_dist
   Type, Public, Extends(mlf_distributionWithPrior_type) :: mlf_beta_distribution
     real(c_double) :: alpha, beta, a = 0d0, b = 1d0
   Contains
+    procedure :: getStats => Beta_getStats
     procedure :: fitWithData => Beta_fitWithData
     procedure :: fitWithDataWithPrior => Beta_fitWithDataWithPrior
     procedure :: quantile => Beta_quantile
@@ -52,6 +53,26 @@ Module mlf_beta_dist
     procedure :: computePDF => Beta_computePDF
   End Type mlf_beta_distribution
 Contains
+
+  Real(c_double) Function Beta_getStats(this, statType) Result(y)
+    class(mlf_beta_distribution), intent(in) :: this
+    integer, intent(in) :: statType
+    ASSOCIATE(a => this%a, b => this%b, alpha => this%alpha, beta => this%beta)
+      Select Case(statType)
+      Case (mlf_dist_mode)
+        y = a + (b-a)*(alpha - 1d0)/(alpha + beta - 2d0)
+      Case (mlf_dist_median)
+        y = this%quantile(0.5d0)
+      Case (mlf_dist_mean)
+        y = a + (b-a)*alpha/(alpha+beta)
+      Case (mlf_dist_geom_mean)
+        y = Digamma(alpha)-Digamma(alpha+beta)
+      Case Default
+        y = IEEE_VALUE(y, IEEE_QUIET_NAN)
+      End Select
+    END ASSOCIATE
+  End Function Beta_getStats
+
   Integer Function Beta_fitWithData(this, Points, W) Result(info)
     class(mlf_beta_distribution), intent(inout) :: this
     real(c_double), intent(in) :: Points(:,:)

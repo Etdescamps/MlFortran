@@ -87,6 +87,7 @@ Contains
       mu = meanX
       lambda = meanS2/varX
       alpha = 2d0 + meanS2**2/varS2
+      beta = meanS2*(alpha-1)
     END ASSOCIATE
     info = 0
   End Function normalInverseGamma_fitWithData

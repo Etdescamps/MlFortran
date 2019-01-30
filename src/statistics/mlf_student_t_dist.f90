@@ -86,7 +86,7 @@ Contains
       Endif
       mu = meanX
       lambda = meanS2/varX
-      alpha = 2d0 + varS2/meanS2**2
+      alpha = 2d0 + meanS2**2/varS2
     END ASSOCIATE
     info = 0
   End Function normalInverseGamma_fitWithData

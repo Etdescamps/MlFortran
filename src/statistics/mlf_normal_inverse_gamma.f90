@@ -26,7 +26,7 @@
 ! NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 ! EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Module mlf_student_t_dist
+Module mlf_normal_inverse_gamma
   Use ieee_arithmetic
   Use iso_c_binding
   Use mlf_utils
@@ -42,6 +42,8 @@ Module mlf_student_t_dist
     procedure :: computeLogPDF => normalInverseGamma_computeLogPDF
     procedure :: fitWithData => normalInverseGamma_fitWithData
   End Type mlf_distribution_normalInverseGamma
+
+
 Contains
   Real(c_double) Function normalInverseGamma_computePDF(this, x) Result(y)
     class(mlf_distribution_normalInverseGamma), intent(in) :: this
@@ -91,5 +93,5 @@ Contains
     END ASSOCIATE
     info = 0
   End Function normalInverseGamma_fitWithData
-End Module mlf_student_t_dist
+End Module mlf_normal_inverse_gamma
 

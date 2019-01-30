@@ -51,6 +51,7 @@ Module mlf_beta_dist
     procedure :: quantileTable => Beta_quantileTable
     procedure :: computeCDF => Beta_computeCDF
     procedure :: computePDF => Beta_computePDF
+    procedure :: computeLogPDF => Beta_computeLogPDF
   End Type mlf_beta_distribution
 Contains
 
@@ -120,13 +121,24 @@ Contains
 
   Real(c_double) Function Beta_computePDF(this, x) Result(y)
     class(mlf_beta_distribution), intent(in) :: this
-    real(c_double), intent(in) :: x
-    If(x >= this%a .AND. x <= this%b) Then
-      y = BetaDensity(this%alpha, this%beta, (x-this%a)/(this%b-this%a))/(this%b-this%a)
+    real(c_double), intent(in) :: X(:)
+    If(X(1) >= this%a .AND. X(1) <= this%b) Then
+      y = BetaDensity(this%alpha, this%beta, (X(1)-this%a)/(this%b-this%a))/(this%b-this%a)
     Else
       y = 0
     Endif
   End Function Beta_computePDF
+
+  Real(c_double) Function Beta_computeLogPDF(this, x) Result(y)
+    class(mlf_beta_distribution), intent(in) :: this
+    real(c_double), intent(in) :: X(:)
+    If(X(1) >= this%a .AND. X(1) <= this%b) Then
+      y = LogBetaDensity(this%alpha, this%beta, (X(1)-this%a)/(this%b-this%a))-LOG(this%b-this%a)
+    Else
+      y = -HUGE(1d0)
+    Endif
+  End Function Beta_computeLogPDF
+
 
   Real(c_double) Function RandomBeta(a, b) Result(y)
     real(c_double), intent(in) :: a, b
@@ -159,6 +171,12 @@ Contains
     real(c_double), intent(in) :: a, b, x
     y = x**(a-1)*(1-x)**(b-1)/BetaFunction(a,b)
   End Function BetaDensity
+
+  Elemental Real(c_double) Function LogBetaDensity(a, b, x) Result(y)
+    real(c_double), intent(in) :: a, b, x
+    y = LOG(x)*(a-1)+LOG(1-x)*(b-1)-LogBetaFunction(a,b)
+  End Function LogBetaDensity
+
 
   Elemental Real(c_double) Function LogBetaFunction(a, b) Result(y)
     real(c_double), intent(in) :: a, b

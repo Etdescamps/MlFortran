@@ -43,6 +43,7 @@ Module mlf_normal_dist
     procedure :: quantile => Normal_quantile
     procedure :: computeCDF => Normal_computeCDF
     procedure :: computePDF => Normal_computePDF
+    procedure :: computeLogPDF => Normal_computeLogPDF
   End Type mlf_normal_distribution
 
   Type, Public, Extends(mlf_normal_distribution) :: mlf_logNormal_distribution
@@ -52,6 +53,7 @@ Module mlf_normal_dist
     procedure :: quantile => logNormal_quantile
     procedure :: computeCDF => logNormal_computeCDF
     procedure :: computePDF => logNormal_computePDF
+    procedure :: computeLogPDF => logNormal_computeLogPDF
   End Type mlf_logNormal_distribution
 Contains
   Real(c_double) Function Normal_getStats(this, statType) Result(y)
@@ -89,9 +91,15 @@ Contains
 
   Real(c_double) Function Normal_computePDF(this, x) Result(y)
     class(mlf_normal_distribution), intent(in) :: this
-    real(c_double), intent(in) :: x
-    y = 1d0/SQRT(2d0*mlf_PI*this%sigma**2)*EXP(-(x-this%mu)**2/(2*this%sigma**2))
+    real(c_double), intent(in) :: X(:)
+    y = 1d0/SQRT(2d0*mlf_PI*this%sigma**2)*EXP(-(X(1)-this%mu)**2/(2*this%sigma**2))
   End Function Normal_computePDF
+
+  Real(c_double) Function Normal_computeLogPDF(this, x) Result(y)
+    class(mlf_normal_distribution), intent(in) :: this
+    real(c_double), intent(in) :: X(:)
+    y = -0.5d0*LOG(2d0*mlf_PI*this%sigma**2)-(X(1)-this%mu)**2/(2*this%sigma**2)
+  End Function Normal_computeLogPDF
 
   Real(c_double) Function Normal_quantile(this, y) Result(x)
     class(mlf_normal_distribution), intent(in) :: this
@@ -138,8 +146,14 @@ Contains
 
   Real(c_double) Function logNormal_computePDF(this, x) Result(y)
     class(mlf_logNormal_distribution), intent(in) :: this
-    real(c_double), intent(in) :: x
-    y = 1d0/(x*this%sigma*SQRT(2d0*mlf_PI))*EXP(-(LOG(x)-this%mu)**2/(2*this%sigma**2))
+    real(c_double), intent(in) :: X(:)
+    y = 1d0/(X(1)*this%sigma*SQRT(2d0*mlf_PI))*EXP(-(LOG(X(1))-this%mu)**2/(2*this%sigma**2))
   End Function logNormal_computePDF
+
+  Real(c_double) Function logNormal_computeLogPDF(this, x) Result(y)
+    class(mlf_logNormal_distribution), intent(in) :: this
+    real(c_double), intent(in) :: X(:)
+    y = -LOG(X(1))-LOG(this%sigma)-0.5d0*LOG(2d0*mlf_PI)-(LOG(X(1))-this%mu)**2/(2*this%sigma**2)
+  End Function logNormal_computeLogPDF
 End Module mlf_normal_dist
 

@@ -43,13 +43,18 @@ Module mlf_distribution
   Type, Public, Abstract, Extends(mlf_distribution_abstract) :: mlf_distribution_type
   Contains
     procedure(mlf_distribution_fitWithData), deferred :: fitWithData
-    procedure(mlf_distribution_getStats), deferred :: getStats
+    procedure(mlf_distribution_computePDF), deferred :: computePDF
+    procedure(mlf_distribution_computePDF), deferred :: computeLogPDF
   End Type mlf_distribution_type
 
-  Type, Public, Abstract, Extends(mlf_distribution_type) :: mlf_distributionWithCDF_type
+  Type, Public, Abstract, Extends(mlf_distribution_type) :: mlf_distribution_univariate
+  Contains
+    procedure(mlf_distribution_getStats), deferred :: getStats
+  End Type mlf_distribution_univariate
+
+  Type, Public, Abstract, Extends(mlf_distribution_univariate) :: mlf_distributionWithCDF_type
   Contains
     procedure(mlf_distribution_computeCDF), deferred :: computeCDF
-    procedure(mlf_distribution_computeCDF), deferred :: computePDF
     procedure :: integrateIncomplete => mlf_distribution_integrateIncomplete
   End Type mlf_distributionWithCDF_type
 
@@ -73,10 +78,19 @@ Module mlf_distribution
       real(c_double), intent(in), optional :: W(:)
     End Function mlf_distribution_fitWithData
 
-    Function mlf_distribution_getStats(this, statType) Result(y)
+    Function mlf_distribution_computePDF(this, X) Result(y)
       Use iso_c_binding
       import :: mlf_distribution_type
       class(mlf_distribution_type), intent(in) :: this
+      real(c_double), intent(in) :: X(:)
+      real(c_double) :: y
+    End Function mlf_distribution_computePDF
+
+
+    Function mlf_distribution_getStats(this, statType) Result(y)
+      Use iso_c_binding
+      import :: mlf_distribution_univariate
+      class(mlf_distribution_univariate), intent(in) :: this
       integer, intent(in) :: statType
       real(c_double) :: y
     End Function mlf_distribution_getStats
@@ -153,7 +167,7 @@ Contains
       If(delta == 0d0) Then
         r = 0
       Else
-        r = SIGN(this%computePDF(t+delta) - this%computePDF(t-delta), t-z)
+        r = SIGN(this%computePDF([t+delta]) - this%computePDF([t-delta]), t-z)
       Endif
     End Function ID
   End Function mlf_distribution_integrateIncomplete

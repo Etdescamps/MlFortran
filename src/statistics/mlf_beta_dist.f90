@@ -76,18 +76,18 @@ Contains
 
   Integer Function Beta_fitWithData(this, Points, W) Result(info)
     class(mlf_beta_distribution), intent(inout) :: this
-    real(c_double), intent(in) :: Points(:,:)
+    real(c_double), intent(in) :: Points(:)
     real(c_double), intent(in), optional :: W(:)
-    info = MaxLikelihoodBeta(Points(1,:), this%alpha, this%beta, W, this%a, this%b)
+    info = MaxLikelihoodBeta(Points, this%alpha, this%beta, W, this%a, this%b)
   End Function Beta_fitWithData
 
   Integer Function Beta_fitWithDataWithPrior(this, Points, prior) Result(info)
     class(mlf_beta_distribution), intent(inout) :: this
-    real(c_double), intent(in) :: Points(:,:)
+    real(c_double), intent(in) :: Points(:)
     class(mlf_distribution_abstract), intent(in) :: prior
     Select Type(prior)
     Class is (mlf_beta_distribution)
-      info = MaxLikelihoodBetaPriorBeta(Points(1,:), this%alpha, this%beta, &
+      info = MaxLikelihoodBetaPriorBeta(Points, this%alpha, this%beta, &
         prior%alpha, prior%beta, this%a, this%b)
     Class Default
       info = -1
@@ -121,9 +121,9 @@ Contains
 
   Real(c_double) Function Beta_computePDF(this, x) Result(y)
     class(mlf_beta_distribution), intent(in) :: this
-    real(c_double), intent(in) :: X(:)
-    If(X(1) >= this%a .AND. X(1) <= this%b) Then
-      y = BetaDensity(this%alpha, this%beta, (X(1)-this%a)/(this%b-this%a))/(this%b-this%a)
+    real(c_double), intent(in) :: x 
+    If(x >= this%a .AND. x <= this%b) Then
+      y = BetaDensity(this%alpha, this%beta, (x-this%a)/(this%b-this%a))/(this%b-this%a)
     Else
       y = 0
     Endif
@@ -131,9 +131,9 @@ Contains
 
   Real(c_double) Function Beta_computeLogPDF(this, x) Result(y)
     class(mlf_beta_distribution), intent(in) :: this
-    real(c_double), intent(in) :: X(:)
-    If(X(1) >= this%a .AND. X(1) <= this%b) Then
-      y = LogBetaDensity(this%alpha, this%beta, (X(1)-this%a)/(this%b-this%a))-LOG(this%b-this%a)
+    real(c_double), intent(in) :: x
+    If(x >= this%a .AND. x <= this%b) Then
+      y = LogBetaDensity(this%alpha, this%beta, (x-this%a)/(this%b-this%a))-LOG(this%b-this%a)
     Else
       y = -HUGE(1d0)
     Endif

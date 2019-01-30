@@ -35,7 +35,7 @@ Module mlf_normal_inverse_gamma
   IMPLICIT NONE
   PRIVATE
 
-  Type, Public, Extends(mlf_distribution_type) :: mlf_distribution_normalInverseGamma
+  Type, Public, Extends(mlf_distribution_multivariate) :: mlf_distribution_normalInverseGamma
     real(c_double) :: mu, lambda, alpha, beta
   Contains
     procedure :: computePDF => normalInverseGamma_computePDF
@@ -43,6 +43,10 @@ Module mlf_normal_inverse_gamma
     procedure :: fitWithData => normalInverseGamma_fitWithData
   End Type mlf_distribution_normalInverseGamma
 
+  !Type, Public, Extends(mlf_distribution_univariate) :: mlf_posterior_normalInverseGamma
+  !  real(c_double) :: mu, lambda, alpha, beta
+  !Contains
+  !End Type mlf_posterior_normalInverseGamma
 
 Contains
   Real(c_double) Function normalInverseGamma_computePDF(this, x) Result(y)

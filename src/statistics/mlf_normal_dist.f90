@@ -71,14 +71,14 @@ Contains
 
   Integer Function Normal_fitWithData(this, Points, W) Result(info)
     class(mlf_normal_distribution), intent(inout) :: this
-    real(c_double), intent(in) :: Points(:,:)
+    real(c_double), intent(in) :: Points(:)
     real(c_double), intent(in), optional :: W(:)
     If(PRESENT(W)) Then
-      this%mu = SUM(W*Points(1,:))/SUM(W)
-      this%sigma = SQRT(SUM(W*(Points(1,:)-this%mu)**2)/(1/SUM(W)-SUM(W*W)*SUM(W)))
+      this%mu = SUM(W*Points)/SUM(W)
+      this%sigma = SQRT(SUM(W*(Points-this%mu)**2)/(1/SUM(W)-SUM(W*W)*SUM(W)))
     Else
-      this%mu = SUM(Points(1,:))/SIZE(Points,2)
-      this%sigma = SQRT(SUM((Points(1,:)-this%mu)**2)/(SIZE(Points,2)-1d0))
+      this%mu = SUM(Points)/SIZE(Points)
+      this%sigma = SQRT(SUM((Points-this%mu)**2)/(SIZE(Points)-1d0))
     Endif
     info = 0
   End Function Normal_fitWithData
@@ -91,14 +91,14 @@ Contains
 
   Real(c_double) Function Normal_computePDF(this, x) Result(y)
     class(mlf_normal_distribution), intent(in) :: this
-    real(c_double), intent(in) :: X(:)
-    y = 1d0/SQRT(2d0*mlf_PI*this%sigma**2)*EXP(-(X(1)-this%mu)**2/(2*this%sigma**2))
+    real(c_double), intent(in) :: x
+    y = 1d0/SQRT(2d0*mlf_PI*this%sigma**2)*EXP(-(x-this%mu)**2/(2*this%sigma**2))
   End Function Normal_computePDF
 
   Real(c_double) Function Normal_computeLogPDF(this, x) Result(y)
     class(mlf_normal_distribution), intent(in) :: this
-    real(c_double), intent(in) :: X(:)
-    y = -0.5d0*LOG(2d0*mlf_PI*this%sigma**2)-(X(1)-this%mu)**2/(2*this%sigma**2)
+    real(c_double), intent(in) :: x
+    y = -0.5d0*LOG(2d0*mlf_PI*this%sigma**2)-(x-this%mu)**2/(2*this%sigma**2)
   End Function Normal_computeLogPDF
 
   Real(c_double) Function Normal_quantile(this, y) Result(x)
@@ -133,7 +133,7 @@ Contains
 
   Integer Function logNormal_fitWithData(this, Points, W) Result(info)
     class(mlf_logNormal_distribution), intent(inout) :: this
-    real(c_double), intent(in) :: Points(:,:)
+    real(c_double), intent(in) :: Points(:)
     real(c_double), intent(in), optional :: W(:)
     info = Normal_fitWithData(this, LOG(Points), W)
   End Function logNormal_fitWithData
@@ -146,14 +146,14 @@ Contains
 
   Real(c_double) Function logNormal_computePDF(this, x) Result(y)
     class(mlf_logNormal_distribution), intent(in) :: this
-    real(c_double), intent(in) :: X(:)
-    y = 1d0/(X(1)*this%sigma*SQRT(2d0*mlf_PI))*EXP(-(LOG(X(1))-this%mu)**2/(2*this%sigma**2))
+    real(c_double), intent(in) :: x
+    y = 1d0/(x*this%sigma*SQRT(2d0*mlf_PI))*EXP(-(LOG(x)-this%mu)**2/(2*this%sigma**2))
   End Function logNormal_computePDF
 
   Real(c_double) Function logNormal_computeLogPDF(this, x) Result(y)
     class(mlf_logNormal_distribution), intent(in) :: this
-    real(c_double), intent(in) :: X(:)
-    y = -LOG(X(1))-LOG(this%sigma)-0.5d0*LOG(2d0*mlf_PI)-(LOG(X(1))-this%mu)**2/(2*this%sigma**2)
+    real(c_double), intent(in) :: x
+    y = -LOG(x)-LOG(this%sigma)-0.5d0*LOG(2d0*mlf_PI)-(LOG(x)-this%mu)**2/(2*this%sigma**2)
   End Function logNormal_computeLogPDF
 End Module mlf_normal_dist
 

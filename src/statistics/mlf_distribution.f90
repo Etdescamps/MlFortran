@@ -40,97 +40,131 @@ Module mlf_distribution
   Type, Public, Abstract :: mlf_distribution_abstract
   End Type mlf_distribution_abstract
 
-  Type, Public, Abstract, Extends(mlf_distribution_abstract) :: mlf_distribution_type
+  Type, Public, Abstract, Extends(mlf_distribution_abstract) :: mlf_distribution_multivariate
   Contains
-    procedure(mlf_distribution_fitWithData), deferred :: fitWithData
-    procedure(mlf_distribution_computePDF), deferred :: computePDF
-    procedure(mlf_distribution_computePDF), deferred :: computeLogPDF
-  End Type mlf_distribution_type
+    procedure(mlf_multivariate_fitWithData), deferred :: fitWithData
+    procedure(mlf_multivariate_computePDF), deferred :: computePDF
+    procedure :: computeLogPDF => mlf_multivariate_computeLogPDF
+  End Type mlf_distribution_multivariate
 
-  Type, Public, Abstract, Extends(mlf_distribution_type) :: mlf_distribution_univariate
+  Type, Public, Abstract, Extends(mlf_distribution_abstract) :: mlf_distribution_univariate
   Contains
-    procedure(mlf_distribution_getStats), deferred :: getStats
+    procedure(mlf_univariate_fitWithData), deferred :: fitWithData
+    procedure(mlf_univariate_computePDF), deferred :: computePDF
+    procedure :: computeLogPDF => mlf_univariate_computeLogPDF
+    procedure(mlf_univariate_getStats), deferred :: getStats
   End Type mlf_distribution_univariate
 
   Type, Public, Abstract, Extends(mlf_distribution_univariate) :: mlf_distributionWithCDF_type
   Contains
-    procedure(mlf_distribution_computeCDF), deferred :: computeCDF
-    procedure :: integrateIncomplete => mlf_distribution_integrateIncomplete
+    procedure(mlf_univariate_computeCDF), deferred :: computeCDF
+    procedure :: integrateIncomplete => mlf_univariate_integrateIncomplete
   End Type mlf_distributionWithCDF_type
 
   Type, Public, Abstract, Extends(mlf_distributionWithCDF_type) :: mlf_distributionWithQuantile_type
   Contains
-    procedure(mlf_distribution_quantile), deferred :: quantile
-    procedure :: quantileTable => mlf_distribution_quantileTable
+    procedure(mlf_univariate_quantile), deferred :: quantile
+    procedure :: quantileTable => mlf_univariate_quantileTable
   End Type mlf_distributionWithQuantile_type
 
   Type, Public, Abstract, Extends(mlf_distributionWithQuantile_type) :: mlf_distributionWithPrior_type
   Contains
-    procedure(mlf_distribution_fitWithDataWithPrior), deferred :: fitWithDataWithPrior
+    procedure(mlf_univariate_fitWithDataWithPrior), deferred :: fitWithDataWithPrior
   End Type mlf_distributionWithPrior_type
 
   Abstract Interface
-    Integer Function mlf_distribution_fitWithData(this, Points, W)
+    Integer Function mlf_multivariate_fitWithData(this, Points, W)
       Use iso_c_binding
-      import :: mlf_distribution_type
-      class(mlf_distribution_type), intent(inout) :: this
+      import :: mlf_distribution_multivariate
+      class(mlf_distribution_multivariate), intent(inout) :: this
       real(c_double), intent(in) :: Points(:,:)
       real(c_double), intent(in), optional :: W(:)
-    End Function mlf_distribution_fitWithData
+    End Function mlf_multivariate_fitWithData
 
-    Function mlf_distribution_computePDF(this, X) Result(y)
+    Integer Function mlf_univariate_fitWithData(this, Points, W)
       Use iso_c_binding
-      import :: mlf_distribution_type
-      class(mlf_distribution_type), intent(in) :: this
+      import :: mlf_distribution_univariate
+      class(mlf_distribution_univariate), intent(inout) :: this
+      real(c_double), intent(in) :: Points(:)
+      real(c_double), intent(in), optional :: W(:)
+    End Function mlf_univariate_fitWithData
+
+    Function mlf_multivariate_computePDF(this, X) Result(y)
+      Use iso_c_binding
+      import :: mlf_distribution_multivariate
+      class(mlf_distribution_multivariate), intent(in) :: this
       real(c_double), intent(in) :: X(:)
       real(c_double) :: y
-    End Function mlf_distribution_computePDF
+    End Function mlf_multivariate_computePDF
 
+    Function mlf_univariate_computePDF(this, x) Result(y)
+      Use iso_c_binding
+      import :: mlf_distribution_univariate
+      class(mlf_distribution_univariate), intent(in) :: this
+      real(c_double), intent(in) :: x
+      real(c_double) :: y
+    End Function mlf_univariate_computePDF
 
-    Function mlf_distribution_getStats(this, statType) Result(y)
+    Function mlf_univariate_getStats(this, statType) Result(y)
       Use iso_c_binding
       import :: mlf_distribution_univariate
       class(mlf_distribution_univariate), intent(in) :: this
       integer, intent(in) :: statType
       real(c_double) :: y
-    End Function mlf_distribution_getStats
+    End Function mlf_univariate_getStats
 
-    Integer Function mlf_distribution_fitWithDataWithPrior(this, Points, prior)
+    Integer Function mlf_univariate_fitWithDataWithPrior(this, Points, prior)
       Use iso_c_binding
       import :: mlf_distributionWithPrior_type, mlf_distribution_abstract
       class(mlf_distributionWithPrior_type), intent(inout) :: this
-      real(c_double), intent(in) :: Points(:,:)
+      real(c_double), intent(in) :: Points(:)
       class(mlf_distribution_abstract), intent(in) :: prior
-    End Function mlf_distribution_fitWithDataWithPrior
+    End Function mlf_univariate_fitWithDataWithPrior
 
-    Function mlf_distribution_quantile(this, y) Result(x)
+    Function mlf_univariate_quantile(this, y) Result(x)
       Use iso_c_binding
       import :: mlf_distributionWithQuantile_type
       class(mlf_distributionWithQuantile_type), intent(in) :: this
       real(c_double), intent(in) :: y
       real(c_double) :: x
-    End Function mlf_distribution_quantile
+    End Function mlf_univariate_quantile
 
-    Function mlf_distribution_computeCDF(this, x) Result(y)
+    Function mlf_univariate_computeCDF(this, x) Result(y)
       Use iso_c_binding
       import :: mlf_distributionWithCDF_type
       class(mlf_distributionWithCDF_type), intent(in) :: this
       real(c_double), intent(in) :: x
       real(c_double) :: y
-    End Function mlf_distribution_computeCDF
+    End Function mlf_univariate_computeCDF
 
   End Interface
 Contains
-  Subroutine mlf_distribution_quantileTable(this, X)
+  
+  Function mlf_multivariate_computeLogPDF(this, X) Result(y)
+    class(mlf_distribution_multivariate), intent(in) :: this
+    real(c_double), intent(in) :: X(:)
+    real(c_double) :: y
+    y = LOG(this%computePDF(X))
+  End Function mlf_multivariate_computeLogPDF
+
+  Function mlf_univariate_computeLogPDF(this, x) Result(y)
+    class(mlf_distribution_univariate), intent(in) :: this
+    real(c_double), intent(in) :: x
+    real(c_double) :: y
+    y = LOG(this%computePDF(X))
+  End Function mlf_univariate_computeLogPDF
+
+
+  Subroutine mlf_univariate_quantileTable(this, X)
     class(mlf_distributionWithQuantile_type), intent(in) :: this
     real(c_double), intent(out) :: X(:)
     integer :: i
     Do i= 1,SIZE(X)
       X(i) = this%quantile(REAL(i-1,8)/REAL(SIZE(X)-1,8))
     End Do
-  End Subroutine mlf_distribution_quantileTable
+  End Subroutine mlf_univariate_quantileTable
 
-  Real(c_double) Function mlf_distribution_integrateIncomplete(this, X, z, dydz) Result(y)
+  Real(c_double) Function mlf_univariate_integrateIncomplete(this, X, z, dydz) Result(y)
     class(mlf_distributionWithCDF_type), intent(in) :: this
     real(c_double), intent(in) :: X(:), z
     real(c_double), intent(out), optional :: dydz
@@ -167,10 +201,10 @@ Contains
       If(delta == 0d0) Then
         r = 0
       Else
-        r = SIGN(this%computePDF([t+delta]) - this%computePDF([t-delta]), t-z)
+        r = SIGN(this%computePDF(t+delta) - this%computePDF(t-delta), t-z)
       Endif
     End Function ID
-  End Function mlf_distribution_integrateIncomplete
+  End Function mlf_univariate_integrateIncomplete
 
 End Module mlf_distribution
 

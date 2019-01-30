@@ -68,7 +68,6 @@ Contains
     real(c_double), intent(in) :: Points(:,:)
     real(c_double), intent(in), optional :: W(:)
     real(c_double) :: meanX, meanS2, varX, varS2, rN, invSumN
-    info = -1
     ASSOCIATE(X => Points(1,:), sigma => Points(2,:), &
         mu => this%mu, lambda => this%lambda, alpha => this%alpha, beta => this%beta)
       rN = REAL(SIZE(X), 8)
@@ -89,6 +88,7 @@ Contains
       lambda = meanS2/varX
       alpha = 2d0 + varS2/meanS2**2
     END ASSOCIATE
+    info = 0
   End Function normalInverseGamma_fitWithData
 End Module mlf_student_t_dist
 

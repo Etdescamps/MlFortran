@@ -69,10 +69,11 @@ Contains
     END ASSOCIATE
   End Function Normal_getStats
 
-  Integer Function Normal_fitWithData(this, Points, W) Result(info)
+  Integer Function Normal_fitWithData(this, Points, W, prior) Result(info)
     class(mlf_normal_distribution), intent(inout) :: this
     real(c_double), intent(in) :: Points(:)
     real(c_double), intent(in), optional :: W(:)
+    class(mlf_distribution_abstract), optional, intent(in) :: prior
     If(PRESENT(W)) Then
       this%mu = SUM(W*Points)/SUM(W)
       this%sigma = SQRT(SUM(W*(Points-this%mu)**2)/(1/SUM(W)-SUM(W*W)*SUM(W)))
@@ -131,10 +132,11 @@ Contains
     x = EXP(this%mu - this%sigma*SQRT(2d0)*c_erf_inv(2*(1-y)))
   End Function logNormal_quantile
 
-  Integer Function logNormal_fitWithData(this, Points, W) Result(info)
+  Integer Function logNormal_fitWithData(this, Points, W, prior) Result(info)
     class(mlf_logNormal_distribution), intent(inout) :: this
     real(c_double), intent(in) :: Points(:)
     real(c_double), intent(in), optional :: W(:)
+    class(mlf_distribution_abstract), optional, intent(in) :: prior
     info = Normal_fitWithData(this, LOG(Points), W)
   End Function logNormal_fitWithData
 

@@ -41,12 +41,11 @@ Module mlf_beta_dist
   Public :: QuantileTableBeta, QuantileBeta
   Public :: MaxLikelihoodBeta, MaxLikelihoodBetaPriorBeta
 
-  Type, Public, Extends(mlf_distributionWithPrior_type) :: mlf_beta_distribution
+  Type, Public, Extends(mlf_distributionWithQuantile_type) :: mlf_beta_distribution
     real(c_double) :: alpha, beta, a = 0d0, b = 1d0
   Contains
     procedure :: getStats => Beta_getStats
     procedure :: fitWithData => Beta_fitWithData
-    procedure :: fitWithDataWithPrior => Beta_fitWithDataWithPrior
     procedure :: quantile => Beta_quantile
     procedure :: quantileTable => Beta_quantileTable
     procedure :: computeCDF => Beta_computeCDF
@@ -74,25 +73,23 @@ Contains
     END ASSOCIATE
   End Function Beta_getStats
 
-  Integer Function Beta_fitWithData(this, Points, W) Result(info)
+  Integer Function Beta_fitWithData(this, Points, W, prior) Result(info)
     class(mlf_beta_distribution), intent(inout) :: this
     real(c_double), intent(in) :: Points(:)
     real(c_double), intent(in), optional :: W(:)
-    info = MaxLikelihoodBeta(Points, this%alpha, this%beta, W, this%a, this%b)
+    class(mlf_distribution_abstract), optional, intent(in) :: prior
+    If(PRESENT(prior)) Then
+      Select Type(prior)
+      Class is (mlf_beta_distribution)
+        info = MaxLikelihoodBetaPriorBeta(Points, this%alpha, this%beta, &
+          prior%alpha, prior%beta, this%a, this%b)
+      Class Default
+        info = -1
+      End Select
+    Else
+      info = MaxLikelihoodBeta(Points, this%alpha, this%beta, W, this%a, this%b)
+    Endif
   End Function Beta_fitWithData
-
-  Integer Function Beta_fitWithDataWithPrior(this, Points, prior) Result(info)
-    class(mlf_beta_distribution), intent(inout) :: this
-    real(c_double), intent(in) :: Points(:)
-    class(mlf_distribution_abstract), intent(in) :: prior
-    Select Type(prior)
-    Class is (mlf_beta_distribution)
-      info = MaxLikelihoodBetaPriorBeta(Points, this%alpha, this%beta, &
-        prior%alpha, prior%beta, this%a, this%b)
-    Class Default
-      info = -1
-    End Select
-  End Function Beta_fitWithDataWithPrior
 
   Subroutine Beta_quantileTable(this, X)
     class(mlf_beta_distribution), intent(in) :: this

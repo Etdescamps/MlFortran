@@ -67,11 +67,6 @@ Module mlf_distribution
     procedure :: quantileTable => mlf_univariate_quantileTable
   End Type mlf_distributionWithQuantile_type
 
-  Type, Public, Abstract, Extends(mlf_distributionWithQuantile_type) :: mlf_distributionWithPrior_type
-  Contains
-    procedure(mlf_univariate_fitWithDataWithPrior), deferred :: fitWithDataWithPrior
-  End Type mlf_distributionWithPrior_type
-
   Abstract Interface
     Integer Function mlf_multivariate_fitWithData(this, Points, W)
       Use iso_c_binding
@@ -81,12 +76,13 @@ Module mlf_distribution
       real(c_double), intent(in), optional :: W(:)
     End Function mlf_multivariate_fitWithData
 
-    Integer Function mlf_univariate_fitWithData(this, Points, W)
+    Integer Function mlf_univariate_fitWithData(this, Points, W, prior)
       Use iso_c_binding
-      import :: mlf_distribution_univariate
+      import :: mlf_distribution_univariate, mlf_distribution_abstract
       class(mlf_distribution_univariate), intent(inout) :: this
       real(c_double), intent(in) :: Points(:)
       real(c_double), intent(in), optional :: W(:)
+      class(mlf_distribution_abstract), optional, intent(in) :: prior
     End Function mlf_univariate_fitWithData
 
     Function mlf_multivariate_computePDF(this, X) Result(y)
@@ -112,14 +108,6 @@ Module mlf_distribution
       integer, intent(in) :: statType
       real(c_double) :: y
     End Function mlf_univariate_getStats
-
-    Integer Function mlf_univariate_fitWithDataWithPrior(this, Points, prior)
-      Use iso_c_binding
-      import :: mlf_distributionWithPrior_type, mlf_distribution_abstract
-      class(mlf_distributionWithPrior_type), intent(inout) :: this
-      real(c_double), intent(in) :: Points(:)
-      class(mlf_distribution_abstract), intent(in) :: prior
-    End Function mlf_univariate_fitWithDataWithPrior
 
     Function mlf_univariate_quantile(this, y) Result(x)
       Use iso_c_binding

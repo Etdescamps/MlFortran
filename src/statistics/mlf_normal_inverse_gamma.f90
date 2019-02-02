@@ -69,10 +69,11 @@ Contains
     END ASSOCIATE
   End Function normalInverseGamma_computeLogPDF
 
-  Integer Function normalInverseGamma_fitWithData(this, Points, W) Result(info)
+  Integer Function normalInverseGamma_fitWithData(this, Points, W, prior) Result(info)
     class(mlf_distribution_normalInverseGamma), intent(inout) :: this
     real(c_double), intent(in) :: Points(:,:)
     real(c_double), intent(in), optional :: W(:)
+    class(mlf_distribution_abstract), optional, intent(in) :: prior
     real(c_double) :: meanX, meanS2, varX, varS2, rN, invSumN
     ASSOCIATE(X => Points(1,:), sigma => Points(2,:), &
         mu => this%mu, lambda => this%lambda, alpha => this%alpha, beta => this%beta)

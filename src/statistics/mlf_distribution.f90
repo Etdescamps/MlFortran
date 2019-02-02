@@ -68,12 +68,13 @@ Module mlf_distribution
   End Type mlf_distributionWithQuantile_type
 
   Abstract Interface
-    Integer Function mlf_multivariate_fitWithData(this, Points, W)
+    Integer Function mlf_multivariate_fitWithData(this, Points, W, prior)
       Use iso_c_binding
-      import :: mlf_distribution_multivariate
+      import :: mlf_distribution_multivariate, mlf_distribution_abstract
       class(mlf_distribution_multivariate), intent(inout) :: this
       real(c_double), intent(in) :: Points(:,:)
       real(c_double), intent(in), optional :: W(:)
+      class(mlf_distribution_abstract), optional, intent(in) :: prior
     End Function mlf_multivariate_fitWithData
 
     Integer Function mlf_univariate_fitWithData(this, Points, W, prior)

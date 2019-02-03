@@ -116,7 +116,7 @@ Contains
     Endif
   End Function Beta_computeCDF
 
-  Real(c_double) Function Beta_computePDF(this, x) Result(y)
+  Elemental Real(c_double) Function Beta_computePDF(this, x) Result(y)
     class(mlf_beta_distribution), intent(in) :: this
     real(c_double), intent(in) :: x 
     If(x >= this%a .AND. x <= this%b) Then
@@ -126,7 +126,7 @@ Contains
     Endif
   End Function Beta_computePDF
 
-  Real(c_double) Function Beta_computeLogPDF(this, x) Result(y)
+  Elemental Real(c_double) Function Beta_computeLogPDF(this, x) Result(y)
     class(mlf_beta_distribution), intent(in) :: this
     real(c_double), intent(in) :: x
     If(x >= this%a .AND. x <= this%b) Then
@@ -135,7 +135,6 @@ Contains
       y = -HUGE(1d0)
     Endif
   End Function Beta_computeLogPDF
-
 
   Real(c_double) Function RandomBeta(a, b) Result(y)
     real(c_double), intent(in) :: a, b

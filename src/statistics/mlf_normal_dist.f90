@@ -90,13 +90,13 @@ Contains
     y = 0.5d0*(1+c_erf((x-this%mu)/(this%sigma*SQRT(2d0))))
   End Function Normal_computeCDF
 
-  Real(c_double) Function Normal_computePDF(this, x) Result(y)
+  Elemental Real(c_double) Function Normal_computePDF(this, x) Result(y)
     class(mlf_normal_distribution), intent(in) :: this
     real(c_double), intent(in) :: x
     y = 1d0/SQRT(2d0*mlf_PI*this%sigma**2)*EXP(-(x-this%mu)**2/(2*this%sigma**2))
   End Function Normal_computePDF
 
-  Real(c_double) Function Normal_computeLogPDF(this, x) Result(y)
+  Elemental Real(c_double) Function Normal_computeLogPDF(this, x) Result(y)
     class(mlf_normal_distribution), intent(in) :: this
     real(c_double), intent(in) :: x
     y = -0.5d0*LOG(2d0*mlf_PI*this%sigma**2)-(x-this%mu)**2/(2*this%sigma**2)
@@ -146,13 +146,13 @@ Contains
     y = 0.5d0*(1+c_erf((LOG(x)-this%mu)/(this%sigma*SQRT(2d0))))
   End Function logNormal_computeCDF
 
-  Real(c_double) Function logNormal_computePDF(this, x) Result(y)
+  Elemental Real(c_double) Function logNormal_computePDF(this, x) Result(y)
     class(mlf_logNormal_distribution), intent(in) :: this
     real(c_double), intent(in) :: x
     y = 1d0/(x*this%sigma*SQRT(2d0*mlf_PI))*EXP(-(LOG(x)-this%mu)**2/(2*this%sigma**2))
   End Function logNormal_computePDF
 
-  Real(c_double) Function logNormal_computeLogPDF(this, x) Result(y)
+  Elemental Real(c_double) Function logNormal_computeLogPDF(this, x) Result(y)
     class(mlf_logNormal_distribution), intent(in) :: this
     real(c_double), intent(in) :: x
     y = -LOG(x)-LOG(this%sigma)-0.5d0*LOG(2d0*mlf_PI)-(LOG(x)-this%mu)**2/(2*this%sigma**2)

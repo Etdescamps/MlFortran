@@ -94,7 +94,7 @@ Module mlf_distribution
       real(c_double) :: y
     End Function mlf_multivariate_computePDF
 
-    Function mlf_univariate_computePDF(this, x) Result(y)
+    Elemental Function mlf_univariate_computePDF(this, x) Result(y)
       Use iso_c_binding
       import :: mlf_distribution_univariate
       class(mlf_distribution_univariate), intent(in) :: this
@@ -136,13 +136,12 @@ Contains
     y = LOG(this%computePDF(X))
   End Function mlf_multivariate_computeLogPDF
 
-  Function mlf_univariate_computeLogPDF(this, x) Result(y)
+  Elemental Function mlf_univariate_computeLogPDF(this, x) Result(y)
     class(mlf_distribution_univariate), intent(in) :: this
     real(c_double), intent(in) :: x
     real(c_double) :: y
     y = LOG(this%computePDF(X))
   End Function mlf_univariate_computeLogPDF
-
 
   Subroutine mlf_univariate_quantileTable(this, X)
     class(mlf_distributionWithQuantile_type), intent(in) :: this

@@ -57,9 +57,9 @@ Contains
     real(c_double), intent(in) :: x
     real(c_double) :: a, b, l
     ASSOCIATE(alpha => this%alpha, beta => this%beta, lambda => this%lambda, mu => this%mu)
-      a = alpha+0.5d0
+      a = alpha + 0.5d0
       l = lambda + 1d0
-      b = b + 0.5d0*lambda/(lambda+1)*(x-mu)**2
+      b = beta + 0.5d0*lambda/(lambda+1)*(x-mu)**2
       y = SQRT(lambda)*beta**alpha*GAMMA(a)/(SQRT(2d0*mlf_PI*l)*b**a*GAMMA(alpha))
     END ASSOCIATE
   End Function posterior_normalInverseGamma_computePDF
@@ -69,11 +69,11 @@ Contains
     real(c_double), intent(in) :: x
     real(c_double) :: a, b, l
     ASSOCIATE(alpha => this%alpha, beta => this%beta, lambda => this%lambda, mu => this%mu)
-      a = alpha+0.5d0
+      a = alpha + 0.5d0
       l = lambda + 1d0
-      b = b + 0.5d0*lambda/(lambda+1)*(x-mu)**2
-      y = 0.5d0*(LOG(lambda) - LOG(l) - LOG(2d0*mlf_PI)) + alpha*LOG(beta) - a*LOG(b) &
-        + LOG_GAMMA(a) - LOG_GAMMA(alpha)
+      b = beta + 0.5d0*lambda/(lambda+1)*(x-mu)**2
+      y = alpha*LOG(beta) - a*LOG(b) + LOG_GAMMA(a) - LOG_GAMMA(alpha) &
+        + 0.5d0*(LOG(lambda) - LOG(l) - LOG(2d0*mlf_PI))
     END ASSOCIATE
   End Function posterior_normalInverseGamma_computeLogPDF
 

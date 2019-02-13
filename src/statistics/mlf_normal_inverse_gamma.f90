@@ -38,6 +38,8 @@ Module mlf_normal_inverse_gamma
   Type, Public, Extends(mlf_distribution_multivariate) :: mlf_distribution_normalInverseGamma
     real(c_double) :: mu, lambda, alpha, beta
   Contains
+    procedure :: getParameters => normalInverseGamma_getParameters
+    procedure :: withParameters => normalInverseGamma_withParameters
     procedure :: computePDF => normalInverseGamma_computePDF
     procedure :: computeLogPDF => normalInverseGamma_computeLogPDF
     procedure :: fitWithData => normalInverseGamma_fitWithData
@@ -46,12 +48,42 @@ Module mlf_normal_inverse_gamma
   Type, Public, Extends(mlf_distribution_univariate) :: mlf_posterior_normalInverseGamma
     real(c_double) :: mu, lambda, alpha, beta
   Contains
+    procedure :: getParameters => posterior_normalInverseGamma_getParameters
+    procedure :: withParameters => posterior_normalInverseGamma_withParameters
     procedure :: fitWithData => posterior_normalInverseGamma_fitWithData
     procedure :: computePDF => posterior_normalInverseGamma_computePDF
     procedure :: computeLogPDF => posterior_normalInverseGamma_computeLogPDF
     procedure :: getStats => posterior_normalInverseGamma_getStats
   End Type mlf_posterior_normalInverseGamma
 Contains
+  Integer Function normalInverseGamma_getParameters(this, X) Result(info)
+    class(mlf_distribution_normalInverseGamma), intent(in) :: this
+    real(c_double), intent(out) :: X(:)
+    info = 0
+    X = [this%mu, this%lambda, this%alpha, this%beta]
+  End Function normalInverseGamma_getParameters
+
+  Integer Function normalInverseGamma_withParameters(this, X) Result(info)
+    class(mlf_distribution_normalInverseGamma), intent(inout) :: this
+    real(c_double), intent(in) :: X(:)
+    info = 0
+    this%mu = X(1); this%lambda = X(2); this%alpha = X(3); this%beta = X(4)
+  End Function normalInverseGamma_withParameters
+
+  Integer Function posterior_normalInverseGamma_getParameters(this, X) Result(info)
+    class(mlf_posterior_normalInverseGamma), intent(in) :: this
+    real(c_double), intent(out) :: X(:)
+    info = 0
+    X = [this%mu, this%lambda, this%alpha, this%beta]
+  End Function posterior_normalInverseGamma_getParameters
+
+  Integer Function posterior_normalInverseGamma_withParameters(this, X) Result(info)
+    class(mlf_posterior_normalInverseGamma), intent(inout) :: this
+    real(c_double), intent(in) :: X(:)
+    info = 0
+    this%mu = X(1); this%lambda = X(2); this%alpha = X(3); this%beta = X(4)
+  End Function posterior_normalInverseGamma_withParameters
+
   Elemental Real(c_double) Function posterior_normalInverseGamma_computePDF(this, x) Result(y)
     class(mlf_posterior_normalInverseGamma), intent(in) :: this
     real(c_double), intent(in) :: x
@@ -121,13 +153,13 @@ Contains
     END ASSOCIATE
   End Function normalInverseGamma_computePDF
 
-  Real(c_double) Function normalInverseGamma_computeLogPDF(this, x) Result(y)
+  Real(c_double) Function normalInverseGamma_computeLogPDF(this, X) Result(y)
     class(mlf_distribution_normalInverseGamma), intent(in) :: this
     real(c_double), intent(in) :: X(:)
     ASSOCIATE(z => X(1), sigma => X(2), mu => this%mu, lambda => this%lambda, &
         alpha => this%alpha, beta => this%beta)
-      y = 0.5d0*(LOG(lambda)-LOG(2d0*mlf_PI))-LOG(sigma)+alpha*LOG(beta)-LOG_GAMMA(alpha) &
-        - (2*alpha+2)*LOG(sigma) - (2d0*beta+lambda*(z-mu)**2)/(2d0*sigma**2)
+      y = 0.5d0*(LOG(lambda) - LOG(2d0*mlf_PI)) - LOG(sigma) + alpha*LOG(beta) - LOG_GAMMA(alpha) &
+        + (-2*alpha+2)*LOG(sigma) - (2d0*beta+lambda*(z-mu)**2)/(2d0*sigma**2)
     END ASSOCIATE
   End Function normalInverseGamma_computeLogPDF
 

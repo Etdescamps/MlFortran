@@ -38,6 +38,8 @@ Module mlf_normal_dist
   Type, Public, Extends(mlf_distributionWithQuantile_type) :: mlf_normal_distribution
     real(c_double) :: mu, sigma
   Contains
+    procedure :: getParameters => Normal_getParameters
+    procedure :: withParameters => Normal_withParameters
     procedure :: getStats => Normal_getStats
     procedure :: fitWithData => Normal_fitWithData
     procedure :: quantile => Normal_quantile
@@ -56,6 +58,20 @@ Module mlf_normal_dist
     procedure :: computeLogPDF => logNormal_computeLogPDF
   End Type mlf_logNormal_distribution
 Contains
+  Integer Function Normal_getParameters(this, X) Result(info)
+    class(mlf_normal_distribution), intent(in) :: this
+    real(c_double), intent(out) :: X(:)
+    info = 0
+    X = [this%mu, this%sigma]
+  End Function Normal_getParameters
+
+  Integer Function Normal_withParameters(this, X) Result(info)
+    class(mlf_normal_distribution), intent(inout) :: this
+    real(c_double), intent(in) :: X(:)
+    info = 0
+    this%mu = X(1); this%sigma = X(2)
+  End Function Normal_withParameters
+
   Real(c_double) Function Normal_getStats(this, statType) Result(y)
     class(mlf_normal_distribution), intent(in) :: this
     integer, intent(in) :: statType

@@ -44,6 +44,8 @@ Module mlf_beta_dist
   Type, Public, Extends(mlf_distributionWithQuantile_type) :: mlf_beta_distribution
     real(c_double) :: alpha, beta, a = 0d0, b = 1d0
   Contains
+    procedure :: getParameters => Beta_getParameters
+    procedure :: withParameters => Beta_withParameters
     procedure :: getStats => Beta_getStats
     procedure :: fitWithData => Beta_fitWithData
     procedure :: quantile => Beta_quantile
@@ -52,7 +54,47 @@ Module mlf_beta_dist
     procedure :: computePDF => Beta_computePDF
     procedure :: computeLogPDF => Beta_computeLogPDF
   End Type mlf_beta_distribution
+
+  Type, Public, Extends(mlf_distribution_multivariate) :: mlf_beta_prior
+    real(c_double) :: lambda, x0, y0
+  Contains
+    procedure :: getParameters => Beta_Prior_getParameters
+    procedure :: withParameters => Beta_Prior_withParameters
+    procedure :: fitWithData => Beta_Prior_fitWithData
+    procedure :: computePDF => Beta_Prior_computePDF
+    procedure :: computeLogPDF => Beta_Prior_computeLogPDF
+  End Type mlf_beta_prior
+
 Contains
+  Integer Function Beta_getParameters(this, X) Result(info)
+    class(mlf_beta_distribution), intent(in) :: this
+    real(c_double), intent(out) :: X(:)
+    info = 0
+    Select Case(SIZE(X))
+    Case(2)
+      X = [this%alpha, this%beta]
+    Case(4)
+      X = [this%alpha, this%beta, this%a, this%b]
+    Case Default
+      info = -1
+    End Select
+  End Function Beta_getParameters
+
+  Integer Function Beta_withParameters(this, X) Result(info)
+    class(mlf_beta_distribution), intent(inout) :: this
+    real(c_double), intent(in) :: X(:)
+    info = 0
+    Select Case(SIZE(X))
+    Case(2)
+      this%alpha = X(1); this%beta = X(2)
+      this%a = 0; this%b = 1
+    Case(4)
+      this%alpha = X(1); this%beta = X(2)
+      this%a = X(3); this%b = X(4)
+    Case Default
+      info = -1
+    End Select
+  End Function Beta_withParameters
 
   Real(c_double) Function Beta_getStats(this, statType) Result(y)
     class(mlf_beta_distribution), intent(in) :: this
@@ -135,6 +177,59 @@ Contains
       y = -HUGE(1d0)
     Endif
   End Function Beta_computeLogPDF
+
+  Integer Function Beta_Prior_getParameters(this, X) Result(info)
+    class(mlf_beta_prior), intent(in) :: this
+    real(c_double), intent(out) :: X(:)
+    X = [this%lambda, this%x0, this%y0]
+    info = 0
+  End Function Beta_Prior_getParameters
+
+  Integer Function Beta_Prior_withParameters(this, X) Result(info)
+    class(mlf_beta_prior), intent(inout) :: this
+    real(c_double), intent(in) :: X(:)
+    this%lambda = X(1)
+    this%x0     = X(2)
+    this%y0     = X(3)
+    info = 0
+  End Function Beta_Prior_withParameters
+
+  Real(c_double) Function Beta_Prior_computeLogPDF(this, X) Result(y)
+    class(mlf_beta_prior), intent(in) :: this
+    real(c_double), intent(in) :: X(:)
+    ASSOCIATE(x0 => this%x0, y0 => this%y0, lambda => this%lambda, &
+        alpha => X(1), beta => X(2))
+      y = lambda*(LOG_GAMMA(alpha+beta) - LOG_GAMMA(alpha) - LOG_GAMMA(beta)) &
+        + alpha*LOG(x0) + beta*LOG(y0)
+    END ASSOCIATE
+  End Function Beta_Prior_computeLogPDF
+
+  Real(c_double) Function Beta_Prior_computePDF(this, X) Result(y)
+    class(mlf_beta_prior), intent(in) :: this
+    real(c_double), intent(in) :: X(:)
+    y = EXP(this%computeLogPDF(X))
+  End Function Beta_Prior_computePDF
+
+  Integer Function Beta_Prior_fitWithData(this, Points, W, prior) Result(info)
+    class(mlf_beta_prior), intent(inout) :: this
+    real(c_double), intent(in) :: Points(:,:)
+    real(c_double), intent(in), optional :: W(:)
+    class(mlf_distribution_abstract), optional, intent(in) :: prior
+    real(c_double) :: sLG, sAlpha, sBeta
+    info = -1
+    sLG = 0; sAlpha = 0; sBeta = 0
+    If(PRESENT(W)) Then
+      sLG = SUM(W*(LOG_GAMMA(Points(1,:)+Points(2,:)) &
+                - LOG_GAMMA(Points(1,:)) - LOG_GAMMA(Points(2,:))))
+      sAlpha = SUM(W*Points(1,:))
+      sBeta = SUM(W*Points(2,:))
+    Else
+      sLG = SUM(LOG_GAMMA(Points(1,:)+Points(2,:)) &
+                - LOG_GAMMA(Points(1,:)) - LOG_GAMMA(Points(2,:)))
+      sAlpha = SUM(Points(1,:))
+      sBeta = SUM(Points(2,:))
+    Endif
+  End Function Beta_Prior_fitWithData
 
   Real(c_double) Function RandomBeta(a, b) Result(y)
     real(c_double), intent(in) :: a, b

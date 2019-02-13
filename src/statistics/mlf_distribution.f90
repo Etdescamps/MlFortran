@@ -38,6 +38,9 @@ Module mlf_distribution
   Integer, Public, Parameter :: mlf_dist_geom_mean = 4
 
   Type, Public, Abstract :: mlf_distribution_abstract
+  Contains
+    procedure(mlf_distribution_getParameters), deferred :: getParameters
+    procedure(mlf_distribution_withParameters), deferred :: withParameters
   End Type mlf_distribution_abstract
 
   Type, Public, Abstract, Extends(mlf_distribution_abstract) :: mlf_distribution_multivariate
@@ -68,6 +71,20 @@ Module mlf_distribution
   End Type mlf_distributionWithQuantile_type
 
   Abstract Interface
+    Integer Function mlf_distribution_getParameters(this, X)
+      Use iso_c_binding
+      import :: mlf_distribution_abstract
+      class(mlf_distribution_abstract), intent(in) :: this
+      real(c_double), intent(out) :: X(:)
+    End Function mlf_distribution_getParameters
+
+   Integer Function mlf_distribution_withParameters(this, X)
+      Use iso_c_binding
+      import :: mlf_distribution_abstract
+      class(mlf_distribution_abstract), intent(inout) :: this
+      real(c_double), intent(in) :: X(:)
+    End Function mlf_distribution_withParameters
+
     Integer Function mlf_multivariate_fitWithData(this, Points, W, prior)
       Use iso_c_binding
       import :: mlf_distribution_multivariate, mlf_distribution_abstract
@@ -125,10 +142,8 @@ Module mlf_distribution
       real(c_double), intent(in) :: x
       real(c_double) :: y
     End Function mlf_univariate_computeCDF
-
   End Interface
 Contains
-  
   Function mlf_multivariate_computeLogPDF(this, X) Result(y)
     class(mlf_distribution_multivariate), intent(in) :: this
     real(c_double), intent(in) :: X(:)

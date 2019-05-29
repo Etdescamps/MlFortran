@@ -34,10 +34,12 @@ Module mlf_gamma_dist
   IMPLICIT NONE
   PRIVATE
 
-  Public :: Digamma, Trigamma, RandomGamma, GammaDensity
+  Public :: Digamma, Trigamma, RandomGamma, GammaDensity, TetraGamma
 
   real(c_double), parameter :: m_gamma = 0.5772156649015328606d0 ! Euler-Maschenori constant
   real(c_double), parameter :: zeta2 = (mlf_PI**2)/6d0 ! Zeta(2)
+  real(c_double), parameter :: zeta3 = 1.2020569031595942853997d0 ! Apéry's constant (Zeta(3))
+  real(c_double), parameter :: zeta4 = (mlf_PI**4)/90d0 ! Zeta(4)
 Contains
   Elemental Real(c_double) Function GammaDensity(alpha, x) Result(y)
     real(c_double), intent(in) :: alpha, x
@@ -135,7 +137,7 @@ Contains
   Elemental Real(c_double) Function Trigamma(x) Result(y)
     ! Based on BE Schneider's Algorithms AS 121
     real(c_double), intent(in) :: x
-    real(c_double), parameter :: S = 1d-4, C = 5d0
+    real(c_double), parameter :: S = 1d-4, C = 6d0
     real(c_double), parameter :: B(4) = [1d0/6d0, -1d0/30d0, 1d0/42d0, -1d0/30d0]
     real(c_double) :: z, r, r2
     If(x <= 0) Then
@@ -157,7 +159,37 @@ Contains
     End Do
     r = 1d0/z
     r2 = r*r
+    ! y = x^-1 + 1/2*x^-2 + 1/6*x^-3 - 1/30*x^-5 + 1/42*x^-7 -1/30*x^-9
     y = y + r * (1d0+0.5d0*r+r2*(B(1)+r2*(B(2)+r2*(B(3)+r2*B(4)))))
   End Function Trigamma
+
+  ! Tetragamma function (derivative of the trigamma function)
+  Elemental Real(c_double) Function TetraGamma(x) Result(y)
+    real(c_double), intent(in) :: x
+    real(c_double), parameter :: S = 1d-4, C = 6d0
+    real(c_double) :: z, r, r2
+    If(x <= 0) Then
+      ! Invalid input x
+      y = IEEE_VALUE(y, IEEE_QUIET_NAN)
+      RETURN
+    Endif
+    If(x <= S) Then
+      ! TetraGamma(x) = sum_i>=0 -2*(x+i)**-3
+      !              ~= -2/x**3 + zeta3 + 6*zeta4*x
+      y = -2*(x**(-3)+zeta3)+6*zeta4*x
+      RETURN
+    Endif
+    z = x
+    y = 0
+    Do While(z <= C)
+      ! Use psi''(x+1) = psi''(x) - 2/x^3
+      y = y - 2*z**(-3)
+      z = z + 1d0
+    End Do
+    r = 1d0/z
+    r2 = r*r
+    ! y = -x^-2 - x^-3 - 1/2*x^-4 + 1/6*x^-6 - 1/6*x^-8 + 3/10*x^-10
+    y = y + r2*(-1d0 -r + r2*(-1d0/2d0 + r2*(1d0/6d0 + r2*(-1d0/6d0 + 0.3d0*r2))))
+  End Function TetraGamma
 End Module mlf_gamma_dist
 

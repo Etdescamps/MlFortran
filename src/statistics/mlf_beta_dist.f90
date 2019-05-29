@@ -33,6 +33,7 @@ Module mlf_beta_dist
   Use mlf_gamma_dist
   Use mlf_poly
   Use mlf_distribution
+  Use mlf_2dplane_integration
   IMPLICIT NONE
   PRIVATE
 
@@ -40,7 +41,10 @@ Module mlf_beta_dist
   Public :: BetaDensity, IncompleteBeta, IntegrateIncompleteBeta
   Public :: QuantileTableBeta, QuantileBeta
   Public :: MaxLikelihoodBeta, MaxLikelihoodBetaPriorBeta
+  Public :: BetaPriorConst, BetaPriorMaxLL
 
+  real(c_double), parameter :: m_gamma = 0.5772156649015328606d0 ! Euler-Maschenori constant
+  
   Type, Public, Extends(mlf_distributionWithQuantile_type) :: mlf_beta_distribution
     real(c_double) :: alpha, beta, a = 0d0, b = 1d0
   Contains
@@ -65,6 +69,11 @@ Module mlf_beta_dist
     procedure :: computeLogPDF => Beta_Prior_computeLogPDF
   End Type mlf_beta_prior
 
+  Type, Extends(mlf_2dplane_h_fun) :: Beta_prior_integrate
+    real(c_double) :: lambda, x0, y0
+  Contains
+    procedure :: getValDer => Beta_prior_getValDer
+  End Type Beta_prior_integrate
 Contains
   Integer Function Beta_getParameters(this, X) Result(info)
     class(mlf_beta_distribution), intent(in) :: this
@@ -219,17 +228,235 @@ Contains
     info = -1
     sLG = 0; sAlpha = 0; sBeta = 0
     If(PRESENT(W)) Then
-      sLG = SUM(W*(LOG_GAMMA(Points(1,:)+Points(2,:)) &
+      sLG = SUM(W*(LOG_GAMMA(Points(1,:) + Points(2,:)) &
                 - LOG_GAMMA(Points(1,:)) - LOG_GAMMA(Points(2,:))))
       sAlpha = SUM(W*Points(1,:))
       sBeta = SUM(W*Points(2,:))
     Else
-      sLG = SUM(LOG_GAMMA(Points(1,:)+Points(2,:)) &
+      sLG = SUM(LOG_GAMMA(Points(1,:) + Points(2,:)) &
                 - LOG_GAMMA(Points(1,:)) - LOG_GAMMA(Points(2,:)))
       sAlpha = SUM(Points(1,:))
       sBeta = SUM(Points(2,:))
     Endif
   End Function Beta_Prior_fitWithData
+
+  Pure Subroutine BetaPriorMaxLL(lambda, x0, y0, alpha, beta)
+    real(c_double), intent(in) :: lambda, x0, y0
+    real(c_double), intent(out) :: alpha, beta
+    real(c_double) :: lX0, lY0, Fa
+    real(c_double) :: X(2), F(2), H(3), Tr(3), invDetH
+    integer :: i
+    integer, parameter :: nMax = 50
+    If(lambda <= 0) Then
+      alpha = 0d0; beta = 0d0
+      RETURN
+    Endif
+    alpha = IEEE_VALUE(alpha, IEEE_QUIET_NAN)
+    beta  = IEEE_VALUE(beta,  IEEE_QUIET_NAN)
+    ! We try to find the maximum likelihood of the distribution
+    ! A(alpha, beta) ~ Beta(alpha, beta)^-lambda * x0^alpha * y0^beta
+
+    lX0 = LOG(x0); lY0 = LOG(y0)
+
+    ! Does not converge in this case: this function can go to infinity
+    If(EXP(lX0/lambda) + EXP(lY0/lambda) >= 1) RETURN
+
+    ! The maximum likelihood is found using a Newton's method
+    ! We use the derivatives of this function A
+    ! dA/dalpha(alpha,beta) = A(alpha,beta)*f1(alpha,beta)
+    ! dA/dbeta(alpha,beta)  = A(alpha,beta)*f2(alpha,beta)
+    ! with f1 and f2 defined as:
+    ! f1(alpha, beta) = LOG(x0) - lambda*(Digamma(alpha) - Digamma(alpha+beta))
+    ! f2(alpha, beta) = LOG(y0) - lambda*(Digamma(beta)  - Digamma(alpha+beta))
+
+    ! Find a first approximation of alpha and beta:
+    ! Using f1 = 0 = f2 we have Digamma(alpha)-Digamma(beta) = (log(x0)-log(y0))/lambda
+    ! We use the approximation Digamma(alpha)-Digamma(beta) ~= log(alpha)-log(beta)
+    ! => beta ~= alpha*U with U = (y0/x0)^1/lambda
+    ! We try to find the root of the function
+    ! u(alpha) = Digamma(alpha*(1+U))-1/2*(Digamma(alpha)+Digamma(alpha*U))+log(x0*y0)/2/lambda
+    If(x0 < y0) Then
+      Fa = EXP((lY0-lX0)/lambda)
+      X(2) = EstimateRoot(Fa, lX0/lambda)
+      X(1) = X(2)/Fa
+    Else
+      Fa = EXP((lX0-lY0)/lambda)
+      X(1) = EstimateRoot(Fa, lY0/lambda)
+      X(2) = X(1)/Fa
+    Endif
+
+    If(ANY(IEEE_IS_NAN(X))) X = [1d0, 1d0]
+    ! Apply Newton's method on log likelihood for finding the roots
+    Do i = 1, nMax
+      F = lambda*(Digamma(X(1)+X(2)) - Digamma(X)) + [lX0, lY0]
+      If(SUM(F*F) < MAX(1d-25, -1d-20*lambda*(lX0+lY0))) EXIT
+      Tr = Trigamma([X(1), X(2), X(1)+X(2)])
+      H = lambda*(Tr(3) - [Tr(1), Tr(2), 0d0])
+      invDetH = 1d0/(H(1)*H(2)-H(3)**2)
+      X = MAX(X - invDetH*[H(2)*F(1)-H(3)*F(2), -H(3)*F(1)+H(1)*F(2)], 0.25d0*X)
+    End Do
+    alpha = X(1)
+    beta  = X(2)
+  Contains
+    Pure Real(c_double) Function UA(z, U)
+      real(c_double), intent(in) :: z, U
+      UA = Digamma(z*(1d0+U)) - Digamma(z)
+    End Function UA
+
+    Pure Real(c_double) Function DUA(z, U)
+      real(c_double), intent(in) :: z, U
+      DUA = (1d0+U)*Trigamma(z*(1d0+U)) - Trigamma(z)
+    End Function DUA
+
+    Pure Real(c_double) Function EstimateRoot(U, V) Result(z)
+      real(c_double), intent(in) :: U, V
+      real(c_double) :: z0, z1, a0, a1, a, da
+      integer :: i
+      integer, parameter :: nMax = 30
+      z = IEEE_VALUE(z, IEEE_QUIET_NAN)
+      a = UA(1d0, U) + V
+      da = DUA(1d0, U)
+      If(a*da > 0d0) Then
+        z0 = 0.5d0; z1 = 1d0
+        a0 = UA(z0, U) + V; a1 = a
+        Do While(a0*a1 > 0d0)
+          z1 = z0
+          a1 = a0
+          z0 = 0.5d0*z0
+          a0 = UA(z0, U) + V
+        End Do
+      Else
+        z0 = 1d0; z1 = 2d0
+        a0 = a; a1 = UA(z1, U) + V
+        Do While(a0*a1 > 0d0)
+          z0 = z1
+          a0 = a1
+          z1 = 2d0*z1
+          a1 = UA(z1, U) + V
+          If(ABS(a1-a0)/z1 < 1d-20) RETURN
+        End Do
+      Endif
+      z = z0+(z1-z0)*a0/(a0-a1)
+      a = UA(z, U) + V
+      Do i= 1, nMax
+        If(ABS(a) < 1d-6) RETURN
+        If(a*a0 > 0) Then
+          a0 = a; z0 = z
+        Else
+          a1 = a; z1 = z
+        Endif
+        da = DUA(z, U)
+        z = z - a/da
+        If(da == 0 .OR. z < z0 .OR. z > z1) z = z0+(z1-z0)*a0/(a0-a1)
+        a = UA(z, U) + V
+      End Do
+    End Function EstimateRoot
+  End Subroutine BetaPriorMaxLL
+
+  Subroutine Beta_prior_getValDer(this, x, y, D)
+    class(Beta_prior_integrate), intent(inout) :: this
+    real(c_double), intent(in) :: x, y
+    type(mlf_2d_h_val), intent(out) :: D
+    real(c_double) :: Dg(3), Tg(3), Ga, Gb, F
+    ASSOCIATE(z => x+y, lambda => this%lambda, lX0 => LOG(this%x0), lY0 => LOG(this%y0))
+      F = EXP(lambda*(LOG_GAMMA(z)-LOG_GAMMA(x)-LOG_GAMMA(y)) + lX0*x + lY0*y)
+      Dg = Digamma([x, y, z])
+      Tg = Trigamma([x, y, z])
+      Ga = lambda*(Dg(3)-Dg(1)) + lX0
+      Gb = lambda*(Dg(3)-Dg(2)) + lY0
+      D%val = F
+      D%der = F*[Ga, Gb]
+      D%hes(1) = F*(Ga**2 + lambda*(Tg(3)-Tg(1)))
+      D%hes(2) = F*(Gb**2 + lambda*(Tg(3)-Tg(2)))
+      D%hes(3) = F*(Ga*Gb + lambda*Tg(3))
+    END ASSOCIATE
+  End Subroutine Beta_prior_getValDer
+
+  Real(c_double) Function BetaPriorGetBorders(lambda, x0, y0, dx, b, N) Result(y)
+    real(c_double), intent(in) :: lambda, x0, y0, dx, b
+    integer, intent(in) :: N
+    real(c_double) :: lY0, S, u, y0b, F, dxL
+    integer :: i
+    lY0 = LOG(y0)
+    y0b = EXP(lY0*b)
+    F = y0b/REAL(N+1,8)
+    S = 0
+    Do i = 1, N
+      u = F*REAL(i)
+      S = S + LOG_GAMMA(2*LOG(u)/lY0)*u
+    End Do
+    S = 2*S + LOG_GAMMA(b)*EXP(0.5d0*lY0*b)
+    dxL = dx**(lambda+1d0)
+    y = -y0b/lY0*dxL*(1d0/(lambda+1)+dx/(lambda+2)*(lambda*m_gamma+LOG(x0))) &
+      + lambda/(lambda+2)*dxL*dx*(S-y0b*LOG_GAMMA(b))
+  End Function BetaPriorGetBorders
+
+  Real(c_double) Function BetaPriorConst2(lambda, x0, y0, eps, N, aMax, bMax) Result(y)
+    real(c_double), intent(in) :: lambda, x0, y0, eps
+    real(c_double), intent(in), optional :: aMax, bMax
+    integer, intent(in) :: N
+    real(c_double) :: alpha0, beta0, rN, rNij, invM, invM2, maxL, lX0, lY0
+    real(c_double) :: dx, dy
+    type(Beta_prior_integrate) :: fun
+    If(PRESENT(aMax) .AND. PRESENT(bMax)) Then
+      alpha0 = aMax; beta0 = bMax
+    Else
+      CALL BetaPriorMaxLL(lambda, x0, y0, alpha0, beta0)
+    Endif
+    fun%lambda = lambda; fun%x0 = x0; fun%y0 = y0
+    dx = 1d-3*eps**(1d0/lambda); dy = dx
+    y = BetaPriorGetBorders(lambda, x0, y0, dx, dy, N) &
+      + BetaPriorGetBorders(lambda, y0, x0, dy, dx, N)
+    y = y + fun%integrateOnPlane(eps, 20, x0 = x0, y0 = y0, xMin = dx, yMin = dy)
+  End Function BetaPriorConst2
+
+  Elemental Real(c_double) Function BetaPriorConst(lambda, x0, y0, N, aMax, bMax) Result(y)
+    real(c_double), intent(in) :: lambda, x0, y0
+    real(c_double), intent(in), optional :: aMax, bMax
+    integer, intent(in) :: N
+    real(c_double) :: alpha0, beta0, rN, rNij, invM, invM2, maxL, lX0, lY0
+    real(c_double) :: S, Sa, alpha, beta, lGa, a, va, vb
+    integer :: Nk, Nl, i, j, k, l, M
+    If(PRESENT(aMax) .AND. PRESENT(bMax)) Then
+      alpha0 = aMax; beta0 = bMax
+    Else
+      CALL BetaPriorMaxLL(lambda, x0, y0, alpha0, beta0)
+    Endif
+    Nk = CEILING(alpha0); Nl = CEILING(beta0)
+    rN = REAL(N,8)
+    M = MAX(CEILING(rN/(REAL(Nk,8)*REAL(Nl,8))), 8)
+    invM = 1d0/REAL(M,8)
+    invM2 = invM**2
+    lX0 = LOG(x0); lY0 = LOG(y0)
+    maxL = EXP(lambda*(LOG_GAMMA(alpha0+beta0)-LOG_GAMMA(alpha0)-LOG_GAMMA(beta0)) &
+              + alpha0*lX0 + beta0*lY0)
+    y = 0
+    Do i = 1, M
+      alpha = REAL(i,8)*invM
+      lGa = LOG_GAMMA(alpha)
+      S = 0
+      Do j = 1, M
+        beta = REAL(j,8)*invM
+        a = EXP(lambda*(LOG_GAMMA(alpha+beta)-lGa-LOG_GAMMA(beta)) + alpha*lX0 + beta*lY0)
+        Sa = 0
+        va = a
+        Do k = 1, MAX(Nk*4, Nk+20)
+          vb = va
+          Do l = 1, MAX(Nl*4, Nl+20)
+            Sa = Sa + vb
+            vb = vb*((alpha+beta+k+l)/(beta+l))**lambda*y0
+            If(l > Nl .AND. vb < 1d-8*maxL) Then
+              Sa = Sa + vb; EXIT
+            Endif
+          End Do
+          va = va*((alpha+beta+k)/(alpha+k))**lambda*x0
+          If(k > Nk .AND. va < 1d-8*maxL) EXIT
+        End Do
+        S = S + Sa
+      End Do
+      y = y + S*invM2
+    End Do
+  End Function BetaPriorConst
 
   Real(c_double) Function RandomBeta(a, b) Result(y)
     real(c_double), intent(in) :: a, b

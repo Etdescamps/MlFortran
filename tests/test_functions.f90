@@ -33,6 +33,7 @@ Module test_functions
   Use mlf_rsc_array
   Use mlf_utils
   Use mlf_fun_intf
+  Use mlf_2dplane_integration
   IMPLICIT NONE
   
   ! Test function wrapper for fun_basis
@@ -75,6 +76,11 @@ Module test_functions
     procedure :: init => odeTestCstrIds_init
   End Type mlf_odeTestCstrIds
 
+  Type, Extends(mlf_2dplane_h_fun) :: gauss_fun
+    integer :: nsteps = 0
+  Contains
+    procedure :: getValDer => gauss_getValDer
+  End Type
 
   real(c_double) , Parameter :: X0Arenstorf(4) = [0.994d0, 0d0, 0d0, -2.00158510637908252240537862224d0]
   real(c_double) , Parameter :: TEndArenstorf = 17.0652165601579625588917206249d0
@@ -198,6 +204,23 @@ Contains
       Y=0
     endif
   End Function mlf_obj_test_constraints
+
+  Subroutine gauss_getValDer(this, x, y, D)
+    class(gauss_fun), intent(inout) :: this
+    real(c_double), intent(in) :: x, y
+    type(mlf_2d_h_val), intent(out) :: D
+    real(8) :: x0, y0, ef
+    If(x == 0 .OR. y == 0) Then
+      D%val = 0; D%der = 0; D%hes = 0
+      RETURN
+    Endif
+    x0 = -LOG(x); y0 = -LOG(y)
+    ef = EXP(x0+y0-x0**2-y0**2)
+    D%val = ef
+    D%der = ef*[(1-2*x0)/x, (1-2*y0)/y]
+    D%hes = ef*[(4*x0**2-2*x0-2)/x**2, (4*y0**2-2*y0-2)/y**2, (1-2*x0)*(1-2*y0)/(x*y)]
+    this%nsteps = this%nsteps+1
+  End Subroutine gauss_getValDer
 
   Subroutine FArenstorf(t, X, F)
     real(c_double), intent(in) :: X(:), t

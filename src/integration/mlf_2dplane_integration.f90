@@ -52,21 +52,19 @@ Module mlf_2dplane_integration
     Subroutine mlf_2dplane_h_getValDer(this, x, y, D)
       Use iso_c_binding
       import :: mlf_2dplane_h_fun, mlf_2d_h_val
-      class(mlf_2dplane_h_fun), intent(in) :: this
+      class(mlf_2dplane_h_fun), intent(inout) :: this
       real(c_double), intent(in) :: x, y
       type(mlf_2d_h_val), intent(out) :: D
     End Subroutine mlf_2dplane_h_getValDer
   End Interface
 Contains
-  Real(c_double) Function mlf_2dplane_h_integrateOnPlane(this, eps, x0, y0, xMin, yMin, xMax, yMax, nsteps0) Result(res)
-    class(mlf_2dplane_h_fun), intent(in) :: this
+  Real(c_double) Function mlf_2dplane_h_integrateOnPlane(this, eps, hmax, x0, y0, xMin, yMin, xMax, yMax) Result(res)
+    class(mlf_2dplane_h_fun), intent(inout) :: this
     real(c_double), intent(in) :: eps
-    integer, intent(out), optional :: nsteps0
+    integer, intent(in) :: hmax
     real(c_double), intent(in), optional :: x0, y0, xMin, yMin, xMax, yMax
-    real(c_double) :: xA0, yA0, F0, dx0, dy0, d2x0, d2y0, eps0, R1, R2, R3, R4
-    integer :: nsteps
+    real(c_double) :: xA0, yA0, F0, dx0, dy0, d2x0, d2y0, R1, R2, R3, R4
     type(mlf_2d_h_val) :: E(3,3)
-    nsteps = 0
     xA0 = 0; yA0 = 0
     If(PRESENT(x0)) xA0 = x0
     If(PRESENT(y0)) yA0 = y0
@@ -97,19 +95,17 @@ Contains
     Else
       E(3,2)%val = xA0 + SqrtDev(F0, dx0, d2x0)
     Endif
-    eps0 = MAXVAL(ABS(E%val))*eps
     !!$OMP PARALLEL SECTIONS
     !!$OMP SECTION
-      R1 = Integr(E(1,1), E(1,2), E(2,1), E(2,2), xMin, yMin, xA0, yA0)
+      R1 = Integr(0.25d0*eps, hmax-2, E(1,1), E(1,2), E(2,1), E(2,2), xMin, yMin, xA0, yA0)
     !!$OMP SECTION
-      R2 = Integr(E(1,2), E(1,3), E(2,2), E(2,3), xMin, y0, xA0, yMax)
+      R2 = Integr(0.25d0*eps, hmax-2, E(1,2), E(1,3), E(2,2), E(2,3), xMin, y0, xA0, yMax)
     !!$OMP SECTION
-      R3 = Integr(E(2,1), E(2,2), E(3,1), E(3,2), xA0, yMin, xMax, yA0)
+      R3 = Integr(0.25d0*eps, hmax-2, E(2,1), E(2,2), E(3,1), E(3,2), xA0, yMin, xMax, yA0)
     !!$OMP SECTION
-      R4 = Integr(E(2,2), E(2,3), E(3,2), E(3,3), xA0, yA0, xMax, yMax)
+      R4 = Integr(0.25d0*eps, hmax-2, E(2,2), E(2,3), E(3,2), E(3,3), xA0, yA0, xMax, yMax)
     !!$OMP END PARALLEL SECTIONS
     res = R1 + R2 + R3 + R4
-    If(PRESENT(nsteps0)) nsteps0 = nsteps
   Contains
     Real(c_double) Function SqrtDev(F, D1, D2) Result(y)
       real(c_double), intent(in) :: F, D1, D2
@@ -124,109 +120,138 @@ Contains
         If(y < 0) y = ABS(z-v)
       Endif
     End Function SqrtDev
-    Real(c_double) Recursive Function I4(D11, D13, D31, D33, x1, y1, x2, y2) Result(S)
-      real(c_double), intent(in) :: x1, y1, x2, y2
-      type(mlf_2d_h_val), intent(in) :: D11, D13, D31, D33
-      real(c_double) :: V(2,2), V1(2,2), vm, dx, dy, dx2, dy2, ax, ay, x0, y0
-      dx = 0.5d0*(x2-x1); dy = 0.5d0*(y2-y1)
-      dx2 = 0.5d0*dx**2; dy2 = 0.5d0*dy**2
-      V(1,1) = D11%val + dx*D11%der(1) + dy*D11%der(2) &
-             + dx2*D11%hes(1) + dy2*D11%hes(2) + dx*dy*D11%hes(3)
 
-      V(1,2) = D13%val + dx*D13%der(1) - dy*D13%der(2) &
-             + dx2*D13%hes(1) + dy2*D13%hes(2) - dx*dy*D13%hes(3)
+    Real(c_double) Function SquareI(err, D11, D13, D31, D33, D22, dx, dy) Result(S)
+      real(c_double), intent(in) :: dx, dy
+      real(c_double), intent(out) :: err
+      type(mlf_2d_h_val), intent(in) :: D11, D13, D31, D33, D22
+      real(c_double) :: u(0:1, 0:1), ux(0:1, 0:1), uy(0:1, 0:1)
+      real(c_double) :: uxx(0:1, 0:1), uxy(0:1, 0:1), uyy(0:1, 0:1)
+      real(c_double) :: vxx(0:1, 0:1), vxy(0:1, 0:1), vyy(0:1, 0:1)
+      real(c_double) :: Ig, Ih, K
+      real(c_double) :: w, wxx, wyy, sxy, IGr
+      u   =       RESHAPE([D11%val, D31%val, D13%val, D33%val], [2,2])
+      ux  =    dx*RESHAPE([D11%der(1), D31%der(1), D13%der(1), D33%der(1)], [2,2])
+      uy  =    dy*RESHAPE([D11%der(2), D31%der(2), D13%der(2), D33%der(2)], [2,2])
+      uxx = dx**2*RESHAPE([D11%hes(1), D31%hes(1), D13%hes(1), D33%hes(1)], [2,2])
+      uxy = dx*dy*RESHAPE([D11%hes(3), D31%hes(3), D13%hes(3), D33%hes(3)], [2,2])
+      uyy = dy**2*RESHAPE([D11%hes(2), D31%hes(2), D13%hes(2), D33%hes(2)], [2,2])
+      K = u(1,1)-u(1,0)-u(0,1)+u(0,0)
 
-      V(2,1) = D31%val - dx*D31%der(1) + dy*D31%der(2) &
-             + dx2*D31%hes(1) + dy2*D31%hes(2) - dx*dy*D31%hes(3)
+      Ig = dx*dy*(1d0/4d0 *(u(0,0)+u(0,1)+u(1,0)+u(1,1)) &
+                 + 1d0/24d0*(ux(0,0)-ux(1,0)+ux(0,1)-ux(1,1)) &
+                 + 1d0/24d0*(uy(0,0)-uy(0,1)+uy(1,0)-uy(1,1)))
 
-      V(2,2) = D33%val - dx*D33%der(1) - dy*D33%der(2) &
-             + dx2*D33%hes(1) + dy2*D33%hes(2) + dx*dy*D33%hes(3)
-      vm = 0.25d0*SUM(V)
-      If(MAXVAL(ABS(V-vm)) < eps0) Then
-        V1(1,1) = D11%der(1) + dy*D11%hes(3) + dx*D11%hes(1)
-        V1(1,2) = D13%der(1) - dy*D13%hes(3) + dx*D13%hes(1)
-        V1(2,1) = D31%der(1) + dy*D31%hes(3) - dx*D31%hes(1)
-        V1(2,2) = D33%der(1) - dy*D33%hes(3) - dx*D33%hes(1)
-        vm = 0.25d0*SUM(V)
-        If(MAXVAL(ABS(V-vm)) > eps0) GOTO 10
-        V1(1,1) = D11%der(2) + dx*D11%hes(3) + dy*D11%hes(2)
-        V1(1,2) = D13%der(2) + dx*D13%hes(3) - dy*D13%hes(2)
-        V1(2,1) = D31%der(2) - dx*D31%hes(3) + dy*D31%hes(2)
-        V1(2,2) = D33%der(2) - dx*D33%hes(3) - dy*D33%hes(2)
-        vm = 0.25d0*SUM(V)
-        If(MAXVAL(ABS(V-vm)) > eps0) GOTO 10
-        ! Use the second order bivariate Taylor approximation
-        S = dx*dy*( D11%val + D13%val + D31%val + D33%val &
-                  + 0.5d0*dx*(    D11%der(1) - D13%der(1) + D31%der(1) - D33%der(1)) &
-                  + 0.5d0*dy*(    D11%der(2) + D13%der(2) - D31%der(2) - D33%der(2)) &
-                  + 1d0/3d0*dx2*( D11%hes(1) + D13%hes(1) + D31%hes(1) + D33%hes(1)) &
-                  + 1d0/3d0*dy2*( D11%hes(2) + D13%hes(2) + D31%hes(2) + D33%hes(2)) &
-                  + 0.25d0*dx*dy*(D11%hes(3) - D13%hes(3) - D31%hes(3) + D33%hes(3))  )
-        nsteps = nsteps+1
-        RETURN
-      Endif
-  10  ax = dx*(  dx*(ABS(D11%der(1) - D31%der(1)) + ABS(D13%der(1) - D33%der(1))) &
-              + dx2*(ABS(D11%hes(1) - D31%hes(1)) + ABS(D13%hes(1) - D33%hes(1))) &
-              + dx*dy*(ABS(D11%hes(3) - D33%hes(3)) + ABS(D31%hes(3) - D13%hes(3))))
-      ay = dy*(  dy*(ABS(D11%der(2) - D13%der(2)) + ABS(D31%der(2) - D33%der(2))) &
-              + dy2*(ABS(D11%hes(2) - D13%hes(2)) + ABS(D31%hes(2) - D33%hes(2))) &
-              + dx*dy*(ABS(D11%hes(3) - D33%hes(3)) + ABS(D31%hes(3) - D13%hes(3))))
+      vxx = uxx + 2*RESHAPE([ &
+            -ux(1,0) - 2*ux(0,0) + 3*(u(1,0) - u(0,0)), & ! gxx(0,0)
+            2*ux(1,0) + ux(0,0) - 3*(u(1,0) - u(0,0)), & ! gxx(1,0)
+            -ux(1,1) - 2*ux(0,1) + 3*(u(1,1) - u(1,0)), & ! gxx(0,1)
+            2*ux(1,1) + ux(0,1) - 3*(u(1,1) - u(0,1)) & ! gxx(1,1)
+          ], [2,2])
+
+      vyy = uyy + 2*RESHAPE([ &
+            -uy(0,1) - 2*uy(0,0) + 3*(u(0,1) - u(0,0)), & ! gxx(0,0)
+            -uy(1,1) - 2*uy(1,0) + 3*(u(1,1) - u(1,0)), & ! gxx(1,0)
+            2*uy(0,1) + uy(0,0) - 3*(u(0,1) - u(0,0)), & ! gxx(0,1)
+            2*uy(1,1) + uy(1,0) - 3*(u(1,1) - u(1,0)) & ! gxx(1,1)
+          ], [2,2])
+
+      vxy = uxy + K - RESHAPE([ &
+            uy(0,1) - uy(0,0) + ux(1,0) - ux(0,0), & ! gxy(0,0)
+            uy(0,1) - uy(0,0) + ux(1,1) - ux(1,0), & ! gxy(1,0)
+            uy(1,1) - uy(0,1) + ux(1,0) - ux(0,0), & ! gxy(0,1)
+            uy(1,1) - uy(1,0) + ux(1,1) - ux(1,0) & ! gxy(1,1)
+          ], [2,2])
+
+      Ih = dx*dy*(3d0/720d0*SUM(vxx+vyy) &
+                 + 5d0/720d0*(vxy(1,1)-vxy(1,0)-vxy(0,1)+vxy(0,0))) 
+      sxy = vxy(1,1) - vxy(1,0) - vxy(0,1) + vxy(0,0)
+      w = D22%val - 1d0/4d0*SUM(u) - 1d0/128*SUM(vxx+vyy) - 1d0/64d0*sxy &
+        + 1d0/16d0*(ux(1,1)+uy(1,1)-ux(1,0)-uy(1,0)-ux(0,1)-uy(0,1)+ux(0,0)+uy(0,0))
+        
+      wxx = dx**2*D22%hes(1) - 0.5d0*(ux(1,1)+ux(1,0)-ux(0,1)-ux(0,0)) &
+          + 1d0/8d0*(SUM(vxx) + sxy)
+      wyy = dy**2*D22%hes(2) - 0.5d0*(uy(1,1)-uy(1,0)+uy(0,1)-uy(0,0)) &
+          + 1d0/8d0*(SUM(vyy) + sxy)
+      IGr = dx*dy/1575d0*(8*wyy+8*wxx+704*w)
+      S = Ih + Ig + IGr
+      err = ABS(IGr)
+    End Function SquareI
+
+    Real(c_double) Recursive Function I4(eps, hmax, D11, D13, D31, D33, D22, x1, y1, x2, y2, eval) Result(S)
+      real(c_double), intent(in) :: eps, x1, y1, x2, y2
+      integer, intent(in) :: hmax
+      type(mlf_2d_h_val), intent(in) :: D11, D13, D31, D33, D22
+      real(c_double), optional, intent(in) :: eval
+      type(mlf_2d_h_val) :: D12, D21, D32, D23, U11, U12, U21, U22
+      real(c_double) :: dx, dy, x0, y0, xu1, xu2, yu1, yu2, eps0
+      real(c_double) :: V(0:1, 0:1), error(0:1, 0:1)
       x0 = 0.5d0*(x1+x2); y0 = 0.5d0*(y1+y2)
-      If(ax < 1d-1*ay) Then
-        ! Divide horizontally the block
-        BLOCK
-          type(mlf_2d_h_val) :: D12, D32
-          CALL this%getValDer(x1, y0, D12)
-          CALL this%getValDer(x2, y0, D32)
-          S =     I4(D11, D12, D31, D32, x1, y1, x2, y0)
-          S = S + I4(D12, D13, D32, D33, x1, y0, x2, y2)
-        END BLOCK
-      Else If(ay < 1d-1*ax) Then
-        ! Divide vertically the block
-        BLOCK
-          type(mlf_2d_h_val) :: D21, D23
-          CALL this%getValDer(x0, y1, D21)
-          CALL this%getValDer(x0, y2, D23)
-          S =     I4(D11, D13, D21, D23, x1, y1, x0, y2)
-          S = S + I4(D21, D23, D31, D33, x0, y1, x2, y2)
-        END BLOCK
+      dx = x2-x1; dy = y2-y1
+      xu1 = 0.5d0*(x1+x0); xu2 = 0.5d0*(x0+x2)
+      yu1 = 0.5d0*(y1+y0); yu2 = 0.5d0*(y0+y2)
+      ! Divide the block into four parts
+      CALL this%getValDer(x1, y0, D12)
+      CALL this%getValDer(x2, y0, D32)
+      CALL this%getValDer(x0, y1, D21)
+      CALL this%getValDer(x0, y2, D23)
+
+      CALL this%getValDer(xu1, yu1, U11)
+      CALL this%getValDer(xu2, yu1, U21)
+      CALL this%getValDer(xu1, yu2, U12)
+      CALL this%getValDer(xu2, yu2, U22)
+
+      V(0,0) = SquareI(error(0,0), D11, D12, D21, D22, U11, 0.5d0*dx, 0.5d0*dy)
+      V(1,0) = SquareI(error(1,0), D21, D22, D31, D32, U21, 0.5d0*dx, 0.5d0*dy)
+      V(0,1) = SquareI(error(0,1), D12, D13, D22, D23, U12, 0.5d0*dx, 0.5d0*dy)
+      V(1,1) = SquareI(error(1,1), D22, D23, D32, D33, U22, 0.5d0*dx, 0.5d0*dy)
+
+      S = SUM(V)
+      If(hmax <= 1) RETURN
+      If(PRESENT(eval)) Then
+        If(ABS(eval-S) < 2*eps) RETURN
+      Endif
+
+      If(SUM(error) <= 2.1d0*eps) RETURN
+
+      eps0 = (2d0*eps - SUM(error, error <= eps*0.5d0))/COUNT(error > eps*0.5d0)
+
+      If(error(0,0) <= eps*0.5d0) Then
+        S =     V(0,0)
       Else
-        BLOCK
-          ! Divide the block into four parts
-          type(mlf_2d_h_val) :: D12, D21, D22, D23, D32
-          CALL this%getValDer(x0, y0, D22)
-          If(ABS(D22%val-vm) < eps0) Then
-            S = dx*dy*(8d0/36d0*(D22%val-vm) + D11%val + D13%val + D31%val + D33%val &
-                + 0.5d0*dx*(    D11%der(1) - D13%der(1) + D31%der(1) - D33%der(1)) &
-                + 0.5d0*dy*(    D11%der(2) + D13%der(2) - D31%der(2) - D33%der(2)) &
-                + 1d0/3d0*dx2*( D11%hes(1) + D13%hes(1) + D31%hes(1) + D33%hes(1)) &
-                + 1d0/3d0*dy2*( D11%hes(2) + D13%hes(2) + D31%hes(2) + D33%hes(2)) &
-                + 0.25d0*dx*dy*(D11%hes(3) - D13%hes(3) - D31%hes(3) + D33%hes(3))  )
-            nsteps = nsteps+1
-          Else
-            CALL this%getValDer(x1, y0, D12)
-            CALL this%getValDer(x2, y0, D32)
-            CALL this%getValDer(x0, y1, D21)
-            CALL this%getValDer(x0, y2, D23)
-            S =     I4(D11, D12, D21, D22, x1, y1, x0, y0)
-            S = S + I4(D12, D13, D22, D23, x1, y0, x0, y2)
-            S = S + I4(D21, D22, D31, D32, x0, y1, x2, y0)
-            S = S + I4(D22, D23, D32, D33, x0, y0, x2, y2)
-          Endif
-        END BLOCK
+        S =     I4(eps0, hmax-2, D11, D12, D21, D22, U11, x1, y1, x0, y0, V(0,0))
+      Endif
+      If(error(1,0) <= eps*0.5d0) Then
+        S = S + V(1,0)
+      Else
+        S = S + I4(eps0, hmax-2, D21, D22, D31, D32, U21, x0, y1, x2, y0, V(1,0))
+      Endif
+      If(error(0,1) <= eps*0.5d0) Then
+        S = S + V(0,1)
+      Else
+        S = S + I4(eps0, hmax-2, D12, D13, D22, D23, U12, x1, y0, x0, y2, V(0,1))
+      Endif
+      If(error(1,1) <= eps*0.5d0) Then
+        S = S + V(1,1)
+      Else
+        S = S + I4(eps0, hmax-2, D22, D23, D32, D33, U22, x0, y0, x2, y2, V(1,1))
       Endif
     End Function I4
     !Real(c_double) Recursive Function I3() Result(S)
     !End Function I3
-    Real(c_double) Recursive Function Integr(D11, D13, D31, D33, x1, y1, x2, y2) Result(S)
-      real(c_double), intent(in), optional :: x1, y1, x2, y2
+    Real(c_double) Recursive Function Integr(eps, hmax, D11, D13, D31, D33, x1, y1, x2, y2) Result(S)
+      real(c_double), intent(in) :: eps
+      integer, intent(in) :: hmax
       type(mlf_2d_h_val), intent(in) :: D11, D13, D31, D33
+      real(c_double), intent(in), optional :: x1, y1, x2, y2
+      type(mlf_2d_h_val) :: D22
       logical :: pr(4)
       pr = [PRESENT(x1), PRESENT(x2), PRESENT(y1), PRESENT(y2)]
       S = 0
       Select Case(COUNT(pr))
       Case(4)
-        S = I4(D11, D13, D31, D33, x1, y1, x2, y2)
+        CALL this%getValDer(0.5d0*(x1+x2), 0.5d0*(y1+y2), D22)
+        S = I4(eps, hmax, D11, D13, D31, D33, D22, x1, y1, x2, y2)
       Case(3)
         If(     .NOT. PRESENT(x1)) Then
         Else If(.NOT. PRESENT(x2)) Then

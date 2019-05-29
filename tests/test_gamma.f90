@@ -38,12 +38,27 @@ Program test_gamma
   type(mlf_hdf5_file) :: h5f
   info = mlf_init()
   info = h5f%createFile("test_gamma.h5")
+  CALL test_gammaFun(h5f, 500000, 50d0)
   CALL test_random(h5f, "g1", 1d0, 1024, 1024)
   CALL test_random(h5f, "g0.5", 0.5d0, 1024, 1024)
   CALL test_random(h5f, "g2", 2d0, 1024, 1024)
   CALL h5f%finalize()
   info = mlf_quit()
 Contains
+  Subroutine test_gammaFun(h5f, N, vMax)
+    class(mlf_hdf5_file), intent(inout) :: h5f
+    integer, intent(in) :: N
+    integer :: i
+    real(c_double), intent(in) :: vMax
+    real(c_double), allocatable :: gammaV(:,:)
+    ALLOCATE(gammaV(5, N))
+    FORALL(i=1:N) gammaV(1,i) = vMax*REAL(i,8)/REAL(N,8)
+    gammaV(2,:) = LOG_GAMMA(gammaV(1,:))
+    gammaV(3,:) = Digamma(gammaV(1,:))
+    gammaV(4,:) = Trigamma(gammaV(1,:))
+    gammaV(5,:) = Tetragamma(gammaV(1,:))
+    info = h5f%pushData(gammaV, "gammaVal")
+  End Subroutine
   Subroutine test_random(h5f, rname, a, k, N)
     class(mlf_hdf5_file), intent(inout) :: h5f
     character(len=*), intent(in) :: rname

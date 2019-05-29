@@ -39,6 +39,13 @@ Program test_beta
   type(mlf_hdf5_file) :: h5f
   real(8) :: x
   info = mlf_init()
+  CALL BetaTestMaxLL(1d0, 0.5d0, 0.4d0)
+  CALL BetaTestMaxLL(1d0, 0.4999d0, 0.4999d0)
+  CALL BetaTestMaxLL(1d0, 0.2d0, 0.1d0)
+  CALL BetaTestMaxLL(2d0, 0.3d0, 0.2d0)
+  CALL test_betaPriorConst(1d0, 0.5d0, 0.4d0)
+  CALL test_betaPriorConst(1d0, 0.2d0, 0.1d0)
+  CALL test_betaPriorConst(2d0, 0.3d0, 0.2d0)
   x = QuantileBeta(0.5d0, 0.7d0, 0.98d0)
   info = h5f%createFile("test_beta.h5")
   CALL test_incompleteIntervalBeta(h5f, 'a2b2', 2d0, 2d0)
@@ -58,6 +65,34 @@ Program test_beta
   !CALL test_likelihood(10000000, 60d0, 50d0)
   info = mlf_quit()
 Contains
+  Subroutine BetaTestMaxLL(lambda, x0, y0)
+    real(c_double), intent(in) :: lambda, x0, y0
+    real(c_double) :: alpha, beta
+    CALL BetaPriorMaxLL(lambda, x0, y0, alpha, beta)
+    PRINT *, "MaxLL: lambda,x0,y0 = ", lambda, x0, y0, "alpha,beta = ", alpha, beta
+  End Subroutine BetaTestMaxLL
+  Subroutine BetaPriorTest(lambda, x0, y0, N)
+    real(c_double), intent(in) :: lambda, x0, y0
+    integer, intent(in) :: N
+    real :: x
+    x = BetaPriorConst(lambda, x0, y0, N)
+    PRINT *, "1: N = ", N, " ", x
+  End Subroutine BetaPriorTest
+  Subroutine test_betaPriorConst(lambda, x0, y0)
+    real(c_double), intent(in) :: lambda, x0, y0
+    PRINT *, "******Test betaPriorConst******"
+    PRINT *, "lamdba: ", lambda, " x0: ", x0, " y0: ", y0
+    CALL BetaPriorTest(lambda, x0, y0, 10)
+    CALL BetaPriorTest(lambda, x0, y0, 50)
+    CALL BetaPriorTest(lambda, x0, y0, 100)
+    CALL BetaPriorTest(lambda, x0, y0, 500)
+    CALL BetaPriorTest(lambda, x0, y0, 1000)
+    CALL BetaPriorTest(lambda, x0, y0, 5000)
+    CALL BetaPriorTest(lambda, x0, y0, 10000)
+    CALL BetaPriorTest(lambda, x0, y0, 50000)
+    PRINT *, "****End Test betaPriorConst****"
+  End Subroutine test_betaPriorConst
+
   Subroutine test_incompleteBeta(h5f, rname, alpha, beta)
     class(mlf_hdf5_file), intent(inout) :: h5f
     character(len=*), intent(in) :: rname

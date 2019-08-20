@@ -18,6 +18,7 @@ add_executable(test_sobol test_sobol.f90)
 add_executable(test_linalg test_linalg.f90)
 add_executable(test_beta test_beta.f90)
 add_executable(test_gamma test_gamma.f90)
+add_executable(test_utils test_utils.f90)
 add_executable(test_2dplane test_2dplane.f90 test_functions.f90)
 
 target_link_libraries(test_rsc ${MLF_LIB})
@@ -41,4 +42,5 @@ target_link_libraries(test_linalg ${MLF_LIB})
 target_link_libraries(test_beta ${MLF_LIB})
 target_link_libraries(test_gamma ${MLF_LIB})
 target_link_libraries(test_2dplane ${MLF_LIB})
+target_link_libraries(test_utils ${MLF_LIB})
 

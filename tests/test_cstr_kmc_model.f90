@@ -77,20 +77,23 @@ Module test_cstr_kmc_model
     procedure :: m_getDerivatives => test_getDerivatives
   End Type model_cstr_kmc
 Contains
-  Integer(8) Function test_cstr_kmc_parameters_getNParameters(this) Result(N)
+  Subroutine test_cstr_kmc_parameters_getNParameters(this, nPar, nCstr)
     class(test_cstr_kmc_parameters), intent(inout), target :: this
-    N = 5
-  End Function test_cstr_kmc_parameters_getNParameters
+    integer(8), intent(out) :: nPar, nCstr
+    nPar = 5
+    nCstr = 0
+  End Subroutine test_cstr_kmc_parameters_getNParameters
 
-  Real(c_double) Function test_cstr_kmc_parameters_set(this, X) Result(cstr)
+  Integer Function test_cstr_kmc_parameters_set(this, X, Cstr) Result(ret)
     class(test_cstr_kmc_parameters), intent(inout), target :: this
     real(c_double), intent(in) :: X(:)
+    real(c_double), intent(out), optional :: Cstr(:)
     this%Alpha = X(1)
     this%Beta  = X(2)
     this%Delta = X(3)
     this%Kappa = X(4)
     this%Zeta  = X(5)
-    cstr = 0d0
+    ret = 0
   End Function test_cstr_kmc_parameters_set
 
   Integer Function test_setupModel(this, param, experiment) Result(info)

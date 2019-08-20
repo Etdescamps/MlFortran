@@ -73,7 +73,7 @@ Contains
     class(mlf_1DRealSampler), intent(inout) :: this
     real(c_double), intent(out) :: X(:)
     integer :: i
-    Do i = LBOUND(X,1), UBOUND(X,1)
+    Do i = 1, SIZE(X)
       X(i) = this%random()
     End Do
   End Subroutine mlf_1DRealSampler_sample

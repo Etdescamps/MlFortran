@@ -83,7 +83,7 @@ Module mlf_cmaes
   End Type mlf_cmaes_obj
 
   Abstract Interface
-    integer Function mlf_matrix_updateF(this)
+    Integer Function mlf_matrix_updateF(this)
       import :: mlf_matrix_es_obj
       class(mlf_matrix_es_obj), intent(inout), target :: this
     End Function mlf_matrix_updateF

@@ -71,19 +71,22 @@ Module test_hybrid_kmc_model
     procedure :: evalOde => test_evalOde
   End Type model_hybrid_kmc
 Contains
-  Integer(8) Function test_hybrid_kmc_parameters_getNParameters(this) Result(N)
+  Subroutine test_hybrid_kmc_parameters_getNParameters(this, nPar, nCstr)
     class(test_hybrid_kmc_parameters), intent(inout), target :: this
-    N = 4
-  End Function test_hybrid_kmc_parameters_getNParameters
+    integer(8), intent(out) :: nPar, nCstr
+    nPar = 4
+    nCstr = 0
+  End Subroutine test_hybrid_kmc_parameters_getNParameters
 
-  Real(c_double) Function test_hybrid_kmc_parameters_set(this, X) Result(cstr)
+  Integer Function test_hybrid_kmc_parameters_set(this, X, Cstr) Result(ret)
     class(test_hybrid_kmc_parameters), intent(inout), target :: this
     real(c_double), intent(in) :: X(:)
+    real(c_double), intent(out), optional :: Cstr(:)
     this%Alpha = X(1)
     this%Beta  = X(2)
     this%Kappa = X(3)
     this%Zeta  = X(4)
-    cstr = 0d0
+    ret = 0
   End Function test_hybrid_kmc_parameters_set
 
   Integer Function test_setupModel(this, param, experiment) Result(info)

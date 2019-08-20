@@ -227,7 +227,7 @@ Module mlf_fun_intf
       import :: mlf_objective_fun
       class(mlf_objective_fun), intent(in), target :: this
       real(c_double), intent(in), target :: X(:,:)
-      real(c_double), intent(inout), target:: Y(:,:)
+      real(c_double), intent(inout), target :: Y(:,:)
     End Function mlf_obj_eval
 
     ! C interface for objective functions

@@ -1,4 +1,4 @@
-! Copyright (c) 2018 Etienne Descamps
+! Copyright (c) 2018-2019 Etienne Descamps
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without modification,
@@ -58,21 +58,24 @@ Module mlf_supervised_model
   Type, Public, Abstract, Extends(mlf_model_result) :: mlf_result_vectReal
   Contains
     procedure(mlf_vectResults), deferred :: vectResults
+    procedure(mlf_real_get_noutput), deferred :: getNOutput
   End Type mlf_result_vectReal
 
   Type, Public, Abstract, Extends(mlf_step_obj) :: mlf_experience_model
   Contains
     procedure(mlf_model_setupModel), deferred :: setupModel
     procedure :: getResults => mlf_experience_dummy_results
+    procedure :: getNCstr => mlf_experience_dummy_getNCstr
   End Type mlf_experience_model
 
   Type, Public :: mlf_data_point
     class(mlf_model_experiment), allocatable :: experiment
     class(mlf_model_result), allocatable :: results
-    real(c_double) :: weight
+    real(c_double) :: weight = 1d0
   End Type mlf_data_point
 
   Type, Public, Abstract, Extends(mlf_obj) :: mlf_experience_runner
+    real(c_double), allocatable :: Z(:,:)
   Contains
     procedure(mlf_experience_run), deferred :: runExp
   End Type mlf_experience_runner
@@ -85,14 +88,6 @@ Module mlf_supervised_model
     procedure :: runExp => mlf_local_runExp
   End Type mlf_local_experience_runner
 
-  !Type, Public, Abstract, Extends(mlf_objective_fun) :: mlf_supervised_deterministic
-  !  type(mlf_data_point), allocatable :: dataSet(:)
-  !  type(mlf_local_experience_runner), allocatable :: runners(:)
-  !  integer(8), allocatable :: selectedIds(:)
-  !Contains
-  !  procedure :: eval => mlf_supervised_deterministic_eval
-  !End Type mlf_supervised_deterministic
-
   Abstract Interface
     Integer Function mlf_vectResults(this, Y)
       Use iso_c_binding
@@ -101,26 +96,32 @@ Module mlf_supervised_model
       real(c_double), intent(out) :: Y(:)
     End Function mlf_vectResults
 
-    Integer Function mlf_experience_run(this, experiment, X, Y, cstr)
+    Integer Function mlf_experience_run(this, experiment, X, Y, Cstr)
       Use iso_c_binding
       import :: mlf_experience_runner, mlf_model_experiment
       class(mlf_experience_runner), intent(inout), target :: this
       class(mlf_model_experiment), intent(in), target :: experiment
       real(c_double), intent(in) :: X(:)
-      real(c_double), intent(out) :: Y(:), cstr
+      real(c_double), intent(out) :: Y(:), Cstr(:)
     End Function mlf_experience_run
 
-    Integer(8) Function mlf_real_get_nparameters(this)
+    Subroutine mlf_real_get_nparameters(this, nPar, nCstr)
       import :: mlf_model_real_parameters
       class(mlf_model_real_parameters), intent(inout), target :: this
-    End Function mlf_real_get_nparameters
+      integer(8), intent(out) :: nPar, nCstr
+    End Subroutine mlf_real_get_nparameters
 
-    Function mlf_real_parameters_set(this, X)
+    Integer(8) Function mlf_real_get_noutput(this)
+      import :: mlf_result_vectReal
+      class(mlf_result_vectReal), intent(inout), target :: this
+    End Function mlf_real_get_noutput
+
+    Integer Function mlf_real_parameters_set(this, X, Cstr)
       Use iso_c_binding
       import :: mlf_model_real_parameters
       class(mlf_model_real_parameters), intent(inout), target :: this
       real(c_double), intent(in) :: X(:)
-      real(c_double) :: mlf_real_parameters_set
+      real(c_double), intent(out), optional :: Cstr(:)
     End Function mlf_real_parameters_set
 
     Integer Function mlf_model_setupModel(this, param, experiment)
@@ -129,35 +130,38 @@ Module mlf_supervised_model
       class(mlf_model_parameters), intent(in) :: param
       class(mlf_model_experiment), intent(in) :: experiment
     End Function mlf_model_setupModel
-
   End Interface
-
 Contains
-  Integer Function mlf_experience_dummy_results(this, results) Result(info)
+  Integer Function mlf_experience_dummy_results(this, results, Cstr) Result(info)
     class(mlf_experience_model), intent(inout), target :: this
     class(mlf_model_result), intent(inout) :: results
+    real(c_double), intent(out) :: Cstr(:)
     info = -1 ! You shall reimplement this function to get results
   End Function mlf_experience_dummy_results
 
-  Integer Function mlf_local_runExp(this, experiment, X, Y, cstr) Result(info)
+  Integer(8) Function mlf_experience_dummy_getNCstr(this) Result(N)
+    class(mlf_experience_model), intent(in) :: this
+    N = 0_8
+  End Function mlf_experience_dummy_getNCstr
+
+  Integer Function mlf_local_runExp(this, experiment, X, Y, Cstr) Result(info)
     class(mlf_local_experience_runner), intent(inout), target :: this
     class(mlf_model_experiment), intent(in), target :: experiment
     real(c_double), intent(in) :: X(:)
-    real(c_double), intent(out) :: Y(:), cstr
-    integer(8) :: iMax
+    real(c_double), intent(out) :: Y(:), Cstr(:)
+    integer(8) :: iMax, nCstr, nIn
     iMax = HUGE(iMax) ! Stop when finished
-    cstr = this%params%set(X)
-    If(cstr /= 0d0) Then
-      info = MIN(FLOOR(cstr), 0)
-      RETURN
-    Endif
+    Cstr = 0
+    CALL this%params%getNParameters(nCstr, nIn)
+    info = this%params%set(X, Cstr(1:nCstr))
+    If(info /= 0) RETURN
     info = this%model%reinit()
     If(info < 0) RETURN
     info = this%model%setupModel(this%params, experiment)
     If(info < 0) RETURN
     info = this%model%step(NITER = iMax)
     If(info < 0) RETURN
-    info = this%model%getResults(this%results)
+    info = this%model%getResults(this%results, Cstr(nCstr+1:))
     If(info < 0) RETURN
     info = this%results%vectResults(Y)
   End Function mlf_local_runExp

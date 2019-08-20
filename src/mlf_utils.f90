@@ -36,6 +36,7 @@ Module mlf_utils
   Public :: Xchange, QSortIdx, QSort, Mean, PrintMatrix, mlf_countcl, mlf_reversecl, SetIf
   Public :: InitOrDefault, FirstEltVal, PresentAndTrue, OutsideBounds
   Public :: mlf_reverseid, mlf_cumulativefromvect, mlf_di_search, mlf_printmatrix_c, mlf_isSorted
+  Public :: Median
 
   Interface FirstEltVal
     module procedure mlf_firstIntVal
@@ -79,8 +80,23 @@ Module mlf_utils
     module procedure mlf_initOrDefault_double
     module procedure mlf_initOrDefault_int64
   End Interface InitOrDefault
+  Interface Median
+    module procedure mlf_median_real8
+  End Interface Median
   real(c_double), public, parameter :: mlf_PI = ACOS(-1d0)
 Contains
+  Real(c_double) Function mlf_median_real8(X, idX) Result(Median)
+    real(c_double), intent(in) :: X(:)
+    integer, intent(in) :: idX(:)
+    integer :: N
+    N = SIZE(X)
+    If(BTEST(N,0)) Then
+      Median = X(idX((N+1)/2))
+    Else
+      Median = 0.5d0*(X(idX(N/2))+X(idX(N/2+1)))
+    Endif
+  End Function mlf_median_real8
+
   Real(c_double) Function OutsideBounds(X, XMin, XMax) Result(cstr)
     real(c_double), intent(in) :: X, XMin, XMax
     If(X < XMin) Then

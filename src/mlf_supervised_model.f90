@@ -92,7 +92,7 @@ Module mlf_supervised_model
     Integer Function mlf_vectResults(this, Y)
       Use iso_c_binding
       import :: mlf_result_vectReal
-      class(mlf_result_vectReal), intent(inout), target :: this
+      class(mlf_result_vectReal), intent(in), target :: this
       real(c_double), intent(out) :: Y(:)
     End Function mlf_vectResults
 
@@ -107,13 +107,13 @@ Module mlf_supervised_model
 
     Subroutine mlf_real_get_nparameters(this, nPar, nCstr)
       import :: mlf_model_real_parameters
-      class(mlf_model_real_parameters), intent(inout), target :: this
+      class(mlf_model_real_parameters), intent(in), target :: this
       integer(8), intent(out) :: nPar, nCstr
     End Subroutine mlf_real_get_nparameters
 
     Integer(8) Function mlf_real_get_noutput(this)
       import :: mlf_result_vectReal
-      class(mlf_result_vectReal), intent(inout), target :: this
+      class(mlf_result_vectReal), intent(in), target :: this
     End Function mlf_real_get_noutput
 
     Integer Function mlf_real_parameters_set(this, X, Cstr)

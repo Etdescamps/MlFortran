@@ -78,7 +78,7 @@ Module test_cstr_kmc_model
   End Type model_cstr_kmc
 Contains
   Subroutine test_cstr_kmc_parameters_getNParameters(this, nPar, nCstr)
-    class(test_cstr_kmc_parameters), intent(inout), target :: this
+    class(test_cstr_kmc_parameters), intent(in), target :: this
     integer(8), intent(out) :: nPar, nCstr
     nPar = 5
     nCstr = 0

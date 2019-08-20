@@ -47,7 +47,8 @@ Module mlf_simple_evaluator
     real(c_double), allocatable :: ds_target(:,:)
     real(c_double), allocatable :: weights(:,:)
     type(mlf_local_experience_runner), allocatable :: runners(:)
-    integer :: nEval, nCstr, nOut
+    integer(8) :: nCstr, nOut, nIn
+    integer :: nEval
   Contains
     procedure :: setup => mlf_simple_stochastic_setup
     procedure :: eval => mlf_simple_stochastic_eval
@@ -81,18 +82,18 @@ Contains
   End Function EvalFunMedian
 
   Integer Function mlf_simple_stochastic_setup(this, experiences, results, &
-      initr, nR, weights, ds_weights) Result(info)
+      initr, nR, nE, weights, ds_weights) Result(info)
     class(mlf_simple_stochastic_evaluator), intent(inout), target :: this
     class(mlf_model_experiment), intent(in) :: experiences(:)
     class(mlf_result_vectReal), intent(in) :: results(:)
     class(mlf_local_initializer), intent(inout) :: initr
-    integer, intent(in) :: nR
+    integer, intent(in) :: nR, nE
     real(c_double), intent(in), optional :: weights(:,:), ds_weights(:)
     integer :: i, N
     integer(8) :: M
     info = -1
     N = SIZE(experiences)
-    If(SIZE(results) /= N) RETURN
+    If(SIZE(results) /= N .OR. nR <= 0) RETURN
     this%weights = weights
     M = results(1)%getNOutput()
     ALLOCATE(this%dataSet(N), this%ds_target(M,N), this%runners(nR))
@@ -100,6 +101,9 @@ Contains
       info = initr%init_runner(this%runners(i))
       If(info < 0) RETURN
     End Do
+    this%nEval = nE
+    CALL this%runners(1)%params%getNParameters(this%nIn, this%nCstr)
+    this%nCstr = this%nCstr + this%runners(1)%model%getNCstr()
     If(PRESENT(weights)) this%weights = weights
     Do i = 1, N
       this%dataSet(i)%experiment = experiences(i)
@@ -119,7 +123,7 @@ Contains
     real(c_double), intent(in), target :: X(:,:)
     real(c_double), intent(inout), target :: Y(:,:)
     class(mlf_local_experience_runner), pointer :: runner
-    integer :: i, j, Nx, Ny, Nd, Nr, id, nCstr
+    integer(8) :: i, j, Nx, Ny, Nd, Nr, id, nCstr
     real(c_double), allocatable :: Z(:), Cstr(:), Cstr2(:)
     info = -1
     Nx = SIZE(X,2)

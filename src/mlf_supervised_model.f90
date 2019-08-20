@@ -81,12 +81,17 @@ Module mlf_supervised_model
   End Type mlf_experience_runner
 
   Type, Public, Extends(mlf_experience_runner) :: mlf_local_experience_runner
-    class(mlf_experience_model), pointer :: model
+    class(mlf_experience_model), allocatable :: model
     class(mlf_model_real_parameters), allocatable :: params
     class(mlf_result_vectReal), allocatable :: results
   Contains
     procedure :: runExp => mlf_local_runExp
   End Type mlf_local_experience_runner
+
+  Type, Public, Abstract :: mlf_local_initializer
+  Contains
+    procedure(mlf_local_init_runner), deferred :: init_runner
+  End Type mlf_local_initializer
 
   Abstract Interface
     Integer Function mlf_vectResults(this, Y)
@@ -130,6 +135,12 @@ Module mlf_supervised_model
       class(mlf_model_parameters), intent(in) :: param
       class(mlf_model_experiment), intent(in) :: experiment
     End Function mlf_model_setupModel
+
+    Integer Function mlf_local_init_runner(this, runner)
+      import :: mlf_local_initializer, mlf_local_experience_runner
+      class(mlf_local_initializer), intent(inout) :: this
+      class(mlf_local_experience_runner), intent(inout) :: runner
+    End Function mlf_local_init_runner
   End Interface
 Contains
   Integer Function mlf_experience_dummy_results(this, results, Cstr) Result(info)

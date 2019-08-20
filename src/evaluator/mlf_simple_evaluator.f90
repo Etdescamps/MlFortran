@@ -60,7 +60,6 @@ Contains
     real(c_double), intent(out) :: Y(:), Cstr(:), Cstr2(:)
     integer, intent(in) :: nE
     integer :: i, idX(nE)
-    If(info < 0) RETURN
     If(ALLOCATED(this%Z)) Then
       If(ANY(SIZE(this%Z) /= [SIZE(Y), nE])) DEALLOCATE(this%Z)
     Endif
@@ -78,29 +77,41 @@ Contains
       CALL QSortIdx(this%Z(i,:), idX)
       Y(i) = dS%weight*(Median(this%Z(i,:), idX) - targ(i))**2
     End Do
+    info = 0
   End Function EvalFunMedian
 
-  Integer Function mlf_simple_stochastic_setup(this, experiences, results, weights, ds_weights)
+  Integer Function mlf_simple_stochastic_setup(this, experiences, results, &
+      initr, nR, weights, ds_weights) Result(info)
     class(mlf_simple_stochastic_evaluator), intent(inout), target :: this
     class(mlf_model_experiment), intent(in) :: experiences(:)
     class(mlf_result_vectReal), intent(in) :: results(:)
+    class(mlf_local_initializer), intent(inout) :: initr
+    integer, intent(in) :: nR
     real(c_double), intent(in), optional :: weights(:,:), ds_weights(:)
-    integer :: i, N, info
+    integer :: i, N
     integer(8) :: M
-    mlf_simple_stochastic_setup = -1
+    info = -1
     N = SIZE(experiences)
     If(SIZE(results) /= N) RETURN
     this%weights = weights
     M = results(1)%getNOutput()
-    ALLOCATE(this%dataSet(N), this%ds_target(M,N))
+    ALLOCATE(this%dataSet(N), this%ds_target(M,N), this%runners(nR))
+    Do i = 1, nR
+      info = initr%init_runner(this%runners(i))
+      If(info < 0) RETURN
+    End Do
     If(PRESENT(weights)) this%weights = weights
     Do i = 1, N
       this%dataSet(i)%experiment = experiences(i)
       this%dataSet(i)%results = results(i)
       info = results(i)%vectResults(this%ds_target(:,i))
-      If(PRESENT(ds_weights)) this%dataSet(i)%weight = ds_weights(i)
+      If(PRESENT(ds_weights)) Then
+        this%dataSet(i)%weight = ds_weights(i)
+      Else
+        this%dataSet(i)%weight = 1d0
+      Endif
     End Do
-    mlf_simple_stochastic_setup = 0
+    info = 0
   End Function mlf_simple_stochastic_setup
 
   Integer Function mlf_simple_stochastic_eval(this, X, Y) Result(info)
@@ -110,6 +121,7 @@ Contains
     class(mlf_local_experience_runner), pointer :: runner
     integer :: i, j, Nx, Ny, Nd, Nr, id, nCstr
     real(c_double), allocatable :: Z(:), Cstr(:), Cstr2(:)
+    info = -1
     Nx = SIZE(X,2)
     Ny = SIZE(Y,1)
     Nd = SIZE(this%dataSet)
@@ -137,6 +149,7 @@ Contains
     !$OMP END DO
     DEALLOCATE(Z, Cstr, Cstr2)
     !$OMP END PARALLEL
+    info = 0
   End Function mlf_simple_stochastic_eval
 End Module mlf_simple_evaluator
 

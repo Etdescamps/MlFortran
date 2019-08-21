@@ -165,7 +165,10 @@ Contains
     Cstr = 0
     CALL this%params%getNParameters(nCstr, nIn)
     info = this%params%set(X, Cstr(1:nCstr))
-    If(info /= 0) RETURN
+    If(info /= 0) Then
+      Cstr(nCstr+1:) = HUGE(1d0)
+      RETURN
+    Endif
     info = this%model%reinit()
     If(info < 0) RETURN
     info = this%model%setupModel(this%params, experiment)

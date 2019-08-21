@@ -70,7 +70,7 @@ Contains
       info = this%runExp(dS%experiment, X, this%Z(:,i), Cstr2)
       Cstr = MAX(Cstr, Cstr2)
       If(info /= 0) Then
-        Y = this%Z(:,i)
+        Y = HUGE(1d0)
         RETURN
       Endif
     End Do

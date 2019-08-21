@@ -146,7 +146,7 @@ Contains
   Integer Function mlf_experience_dummy_results(this, results, Cstr) Result(info)
     class(mlf_experience_model), intent(inout), target :: this
     class(mlf_model_result), intent(inout) :: results
-    real(c_double), intent(out) :: Cstr(:)
+    real(c_double), intent(out), optional :: Cstr(:)
     info = -1 ! You shall reimplement this function to get results
   End Function mlf_experience_dummy_results
 

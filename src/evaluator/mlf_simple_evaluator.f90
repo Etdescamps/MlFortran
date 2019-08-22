@@ -42,7 +42,7 @@ Module mlf_simple_evaluator
   IMPLICIT NONE
   PRIVATE
  
-  Type, Public, Abstract, Extends(mlf_objective_fun) :: mlf_simple_stochastic_evaluator
+  Type, Public, Extends(mlf_objective_fun) :: mlf_simple_stochastic_evaluator
     type(mlf_data_point), allocatable :: dataSet(:)
     real(c_double), allocatable :: ds_target(:,:)
     real(c_double), allocatable :: weights(:,:)

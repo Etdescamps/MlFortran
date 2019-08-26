@@ -379,10 +379,10 @@ Contains
       Endif
       h0 = MIN(h0, hCstr)
       ! Do an explicit euler step for evaluating the second derivative
-      Do i=1,16
+      Do i=1,64
         info = this%fun%eval(this%t+h0, this%X+h0*this%K(:,1), this%K(:,2))
-        if(info < 0) RETURN
-        if(info <= 1) EXIT ! The point (t+h0,X+h0*F0) is valid
+        If(info < 0) RETURN
+        If(info <= 1) EXIT ! The point (t+h0,X+h0*F0) is valid
         h0 = 0.5d0*h0 ! The point (t+h0,X+h0*F0) is outside the constraints space
         hCstr = h0
       End Do
@@ -454,6 +454,11 @@ Contains
       Select Type(fun)
       Class is (mlf_ode_funCstr)
         hMax = MIN(hMax, fun%getHMax(t, X, K(:,1)))
+        If(hMax < 0) Then
+          PRINT *, "Error getHMax < 0"
+          info = -1
+          RETURN
+        Endif
       End Select
       Do While(i < niter0)
         this%t0 = t
@@ -550,7 +555,7 @@ Contains
     End Select
     RETURN
  12 WRITE (error_unit, *) "h negative ", i
-    WRITE (error_unit, *) this%t0, this%X0
+    WRITE (error_unit, *) this%tMax-t, hMax, this%t0, this%X0
     RETURN
  11 WRITE (error_unit, *) "OdeEval error ", i
     WRITE (error_unit, *) this%t0, this%X0

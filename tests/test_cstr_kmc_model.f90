@@ -199,7 +199,7 @@ Contains
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X(:), F(:)
     hMax = HUGE(hMax)
-    If(X(3) > 0 .AND. F(3) > 0) hMax = -this%kmc_alpha*X(3)/F(3)
+    If(X(3) > 0 .AND. F(3) > 0) hMax = 2d0*this%kmc_alpha*X(3)/F(3)
   End Function test_getHMax
 
   Integer Function test_reachCstr(this, t, tMin, tMax, ids, X, F) Result(info)

@@ -113,10 +113,10 @@ Module mlf_supervised_model
     Subroutine mlf_real_get_nparameters(this, nPar, nCstr)
       import :: mlf_model_real_parameters
       class(mlf_model_real_parameters), intent(in), target :: this
-      integer(8), intent(out) :: nPar, nCstr
+      integer, intent(out) :: nPar, nCstr
     End Subroutine mlf_real_get_nparameters
 
-    Integer(8) Function mlf_real_get_noutput(this)
+    Integer Function mlf_real_get_noutput(this)
       import :: mlf_result_vectReal
       class(mlf_result_vectReal), intent(in), target :: this
     End Function mlf_real_get_noutput
@@ -150,9 +150,9 @@ Contains
     info = -1 ! You shall reimplement this function to get results
   End Function mlf_experience_dummy_results
 
-  Integer(8) Function mlf_experience_dummy_getNCstr(this) Result(N)
+  Integer Function mlf_experience_dummy_getNCstr(this) Result(N)
     class(mlf_experience_model), intent(in) :: this
-    N = 0_8
+    N = 0
   End Function mlf_experience_dummy_getNCstr
 
   Integer Function mlf_local_runExp(this, experiment, X, Y, Cstr) Result(info)
@@ -160,7 +160,8 @@ Contains
     class(mlf_model_experiment), intent(in), target :: experiment
     real(c_double), intent(in) :: X(:)
     real(c_double), intent(out) :: Y(:), Cstr(:)
-    integer(8) :: iMax, nCstr, nIn
+    integer(8) :: iMax
+    integer :: nCstr, nIn
     iMax = HUGE(iMax) ! Stop when finished
     Cstr = 0
     CALL this%params%getNParameters(nCstr, nIn)

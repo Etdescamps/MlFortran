@@ -73,7 +73,7 @@ Module test_hybrid_kmc_model
 Contains
   Subroutine test_hybrid_kmc_parameters_getNParameters(this, nPar, nCstr)
     class(test_hybrid_kmc_parameters), intent(in), target :: this
-    integer(8), intent(out) :: nPar, nCstr
+    integer, intent(out) :: nPar, nCstr
     nPar = 4
     nCstr = 0
   End Subroutine test_hybrid_kmc_parameters_getNParameters

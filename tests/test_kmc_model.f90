@@ -70,19 +70,18 @@ Module test_kmc_model
 Contains
   Subroutine test_kmc_parameters_getNParameters(this, nPar, nCstr)
     class(test_kmc_parameters), intent(in), target :: this
-    integer(8), intent(out) :: nPar, nCstr
+    integer, intent(out) :: nPar, nCstr
     NPar = 2
     nCstr = 0
   End Subroutine test_kmc_parameters_getNParameters
 
-  Integer Function test_kmc_parameters_set(this, X, Cstr) Result(N)
+  Integer Function test_kmc_parameters_set(this, X, Cstr) Result(ret)
     class(test_kmc_parameters), intent(inout), target :: this
     real(c_double), intent(in) :: X(:)
     real(c_double), intent(out), optional :: Cstr(:)
     this%Alpha = X(1)
     this%Beta  = X(2)
-    Cstr = 0
-    N = 0
+    ret = 0
   End Function test_kmc_parameters_set
 
   Integer Function kmc_ode_fun(this, t, X, F) Result(info)

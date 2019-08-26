@@ -47,7 +47,6 @@ Module mlf_simple_evaluator
     real(c_double), allocatable :: ds_target(:,:)
     real(c_double), allocatable :: weights(:,:)
     type(mlf_local_experience_runner), allocatable :: runners(:)
-    integer(8) :: nCstr, nOut, nIn
     integer :: nEval
   Contains
     procedure :: setup => mlf_simple_stochastic_setup
@@ -102,9 +101,14 @@ Contains
       If(info < 0) RETURN
     End Do
     this%nEval = nE
-    CALL this%runners(1)%params%getNParameters(this%nIn, this%nCstr)
-    this%nCstr = this%nCstr + this%runners(1)%model%getNCstr()
-    If(PRESENT(weights)) this%weights = weights
+    CALL this%runners(1)%params%getNParameters(this%nD, this%nC)
+    this%nC = this%nC + this%runners(1)%model%getNCstr()
+    If(PRESENT(weights)) Then
+      this%weights = weights
+      this%nY = SIZE(weights, 1)
+    Else
+      this%nY = M
+    Endif
     Do i = 1, N
       this%dataSet(i)%experiment = experiences(i)
       this%dataSet(i)%results = results(i)
@@ -130,12 +134,12 @@ Contains
     Ny = SIZE(Y,1)
     Nd = SIZE(this%dataSet)
     Nr = SIZE(this%runners)
-    nCstr = this%nCstr
+    nCstr = this%nC
     Y = 0d0
     !$OMP PARALLEL num_threads(Nr) private(id, runner, info, Z)
     id = OMP_GET_THREAD_NUM()
     runner => this%runners(id)
-    ALLOCATE(Z(this%nOut), Cstr(this%nCstr), Cstr2(this%nCstr))
+    ALLOCATE(Z(this%nY), Cstr(nCstr), Cstr2(nCstr))
     !$OMP DO collapse(2)
     Do i = 1, Nx
       Do j = 1, Nd

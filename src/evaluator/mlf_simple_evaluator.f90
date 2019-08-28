@@ -42,40 +42,49 @@ Module mlf_simple_evaluator
   IMPLICIT NONE
   PRIVATE
  
+  Type, Public, Extends(mlf_local_experience_runner) :: mlf_simple_stochastic_runner
+    real(c_double), allocatable :: Z(:,:), Y(:), Cstr(:), Cstr2(:)
+    integer, allocatable :: idX(:)
+  Contains
+    procedure :: init_r => mlf_simple_stochastic_runner_init
+  End Type mlf_simple_stochastic_runner
+
   Type, Public, Extends(mlf_objective_fun) :: mlf_simple_stochastic_evaluator
     type(mlf_data_point), allocatable :: dataSet(:)
     real(c_double), allocatable :: ds_target(:,:)
     real(c_double), allocatable :: weights(:,:)
-    type(mlf_local_experience_runner), allocatable :: runners(:)
+    type(mlf_simple_stochastic_runner), allocatable :: runners(:)
     integer :: nEval
   Contains
     procedure :: setup => mlf_simple_stochastic_setup
     procedure :: eval => mlf_simple_stochastic_eval
   End Type mlf_simple_stochastic_evaluator
 Contains
-  Integer Function EvalFunMedian(this, dS, X, Y, targ, Cstr, Cstr2, nE) Result(info)
-    class(mlf_local_experience_runner), intent(inout) :: this
+  Subroutine mlf_simple_stochastic_runner_init(this, nY, nCstr, nE)
+    class(mlf_simple_stochastic_runner), intent(inout) :: this
+    integer, intent(in) :: nY, nCstr, nE
+    ALLOCATE(this%Z(nY, nE), this%Y(nY), this%idX(nE))
+    ALLOCATE(this%Cstr(nCstr), this%Cstr2(nCstr))
+  End Subroutine mlf_simple_stochastic_runner_init
+
+  Integer Function EvalFunMedian(this, dS, X, targ) Result(info)
+    class(mlf_simple_stochastic_runner), intent(inout) :: this
     type(mlf_data_point), intent(in), target :: dS
     real(c_double), intent(in) :: X(:), targ(:)
-    real(c_double), intent(out) :: Y(:), Cstr(:), Cstr2(:)
-    integer, intent(in) :: nE
-    integer :: i, idX(nE)
-    If(ALLOCATED(this%Z)) Then
-      If(ANY(SIZE(this%Z) /= [SIZE(Y), nE])) DEALLOCATE(this%Z)
-    Endif
-    If(.NOT. ALLOCATED(this%Z)) ALLOCATE(this%Z(SIZE(Y), nE))
-    Cstr = 0
+    integer :: i, nE
+    this%Cstr = 0
+    nE = SIZE(this%idX)
     Do i = 1, nE
-      info = this%runExp(dS%experiment, X, this%Z(:,i), Cstr2)
-      Cstr = MAX(Cstr, Cstr2)
+      info = this%runExp(dS%experiment, X, this%Z(:,i), this%Cstr2)
+      this%Cstr = MAX(this%Cstr, this%Cstr2)
       If(info /= 0) Then
-        Y = HUGE(1d0)
+        this%Y = HUGE(1d0)
         RETURN
       Endif
     End Do
-    Do i = 1, SIZE(Y)
-      CALL QSortIdx(this%Z(i,:), idX)
-      Y(i) = dS%weight*(Median(this%Z(i,:), idX) - targ(i))**2
+    Do i = 1, SIZE(this%Y)
+      CALL QSortIdx(this%Z(i,:), this%idX)
+      this%Y(i) = dS%weight*(Median(this%Z(i,:), this%idX) - targ(i))**2
     End Do
     info = 0
   End Function EvalFunMedian
@@ -88,14 +97,13 @@ Contains
     class(mlf_local_initializer), intent(inout) :: initr
     integer, intent(in) :: nR, nE
     real(c_double), intent(in), optional :: weights(:,:), ds_weights(:)
-    integer :: i, N
-    integer(8) :: M
+    integer :: i, N, nOut
     info = -1
     N = SIZE(experiences)
     If(SIZE(results) /= N .OR. nR <= 0) RETURN
     this%weights = weights
-    M = results(1)%getNOutput()
-    ALLOCATE(this%dataSet(N), this%ds_target(M,N), this%runners(nR))
+    nOut = results(1)%getNOutput()
+    ALLOCATE(this%dataSet(N), this%ds_target(nOut,N), this%runners(nR))
     Do i = 1, nR
       info = initr%init_runner(this%runners(i))
       If(info < 0) RETURN
@@ -107,7 +115,7 @@ Contains
       this%weights = weights
       this%nY = SIZE(weights, 1)
     Else
-      this%nY = M
+      this%nY = nOut
     Endif
     Do i = 1, N
       this%dataSet(i)%experiment = experiences(i)
@@ -119,16 +127,17 @@ Contains
         this%dataSet(i)%weight = 1d0
       Endif
     End Do
+    Do i = 1, nR
+      CALL this%runners(i)%init_r(nOut, this%nC, nE)
+    End Do
     info = 0
   End Function mlf_simple_stochastic_setup
 
   Integer Function mlf_simple_stochastic_eval(this, X, Y) Result(info)
-    class(mlf_simple_stochastic_evaluator), intent(in), target :: this
+    class(mlf_simple_stochastic_evaluator), intent(inout), target :: this
     real(c_double), intent(in), target :: X(:,:)
     real(c_double), intent(inout), target :: Y(:,:)
-    class(mlf_local_experience_runner), pointer :: runner
     integer(8) :: i, j, Nx, Ny, Nd, Nr, id, nCstr
-    real(c_double), allocatable :: Z(:), Cstr(:), Cstr2(:)
     info = -1
     Nx = SIZE(X,2)
     Ny = SIZE(Y,1)
@@ -136,26 +145,23 @@ Contains
     Nr = SIZE(this%runners)
     nCstr = this%nC
     Y = 0d0
-    !$OMP PARALLEL num_threads(Nr) private(id, runner, info, Z)
-    id = OMP_GET_THREAD_NUM()
-    runner => this%runners(id)
-    ALLOCATE(Z(this%nY), Cstr(nCstr), Cstr2(nCstr))
+    !$OMP PARALLEL num_threads(Nr) private(id, info) default(shared)
+    id = OMP_GET_THREAD_NUM() + 1
     !$OMP DO collapse(2)
     Do i = 1, Nx
       Do j = 1, Nd
-        info = EvalFunMedian(runner, this%dataSet(j), X(:,i), Z, this%ds_target(:,i), Cstr, Cstr2, this%nEval)
+        info = EvalFunMedian(this%runners(id), this%dataSet(j), X(:,i), this%ds_target(:,i))
         !$OMP CRITICAL
         If(ALLOCATED(this%weights)) Then
-          Y(nCstr+1:, i) = Y(nCstr+1:, i) + MATMUL(this%weights, Z)
+          Y(nCstr+1:, i) = Y(nCstr+1:, i) + MATMUL(this%weights, this%runners(id)%Y)
         Else
-          Y(nCstr+1:, i) = Y(nCstr+1:, i) + Z
+          Y(nCstr+1:, i) = Y(nCstr+1:, i) + this%runners(id)%Y
         Endif
-        Y(1:nCstr, i) = MAX(Y(1:nCstr, i), Cstr)
+        Y(1:nCstr, i) = MAX(Y(1:nCstr, i), this%runners(id)%Cstr)
         !$OMP END CRITICAL
       End Do
     End Do
     !$OMP END DO
-    DEALLOCATE(Z, Cstr, Cstr2)
     !$OMP END PARALLEL
     info = 0
   End Function mlf_simple_stochastic_eval

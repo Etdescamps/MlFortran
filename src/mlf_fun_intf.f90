@@ -225,7 +225,7 @@ Module mlf_fun_intf
     Integer Function mlf_obj_eval(this, X, Y)
       Use iso_c_binding
       import :: mlf_objective_fun
-      class(mlf_objective_fun), intent(in), target :: this
+      class(mlf_objective_fun), intent(inout), target :: this
       real(c_double), intent(in), target :: X(:,:)
       real(c_double), intent(inout), target :: Y(:,:)
     End Function mlf_obj_eval
@@ -587,7 +587,7 @@ Contains
   End Function mlf_basis_c_eval
 
   Integer Function mlf_obj_c_eval(this, X, Y) result(info)
-    class(mlf_objective_fun_c), intent(in), target :: this
+    class(mlf_objective_fun_c), intent(inout), target :: this
     real(c_double), intent(in), target :: X(:,:)
     real(c_double), intent(inout), target :: Y(:,:)
     integer(c_int) :: ND, NY, lambda

@@ -75,7 +75,6 @@ Module mlf_supervised_model
   End Type mlf_data_point
 
   Type, Public, Abstract, Extends(mlf_obj) :: mlf_experience_runner
-    real(c_double), allocatable :: Z(:,:)
   Contains
     procedure(mlf_experience_run), deferred :: runExp
   End Type mlf_experience_runner

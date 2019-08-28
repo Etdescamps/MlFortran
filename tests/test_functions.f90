@@ -180,7 +180,7 @@ Contains
   End Function mlf_basis_test_eval
   
   integer Function mlf_obj_test_eval(this, X, Y) result(info)
-    class(mlf_objective_test), intent(in), target :: this
+    class(mlf_objective_test), intent(inout), target :: this
     real(c_double), intent(in), target :: X(:,:)
     real(c_double), intent(inout), target :: Y(:,:)
     integer :: i

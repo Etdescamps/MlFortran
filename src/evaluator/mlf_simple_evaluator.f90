@@ -147,7 +147,7 @@ Contains
     Y = 0d0
     !$OMP PARALLEL num_threads(Nr) private(id, info) default(shared)
     id = OMP_GET_THREAD_NUM() + 1
-    !$OMP DO collapse(2)
+    !$OMP DO collapse(2) schedule(guided)
     Do i = 1, Nx
       Do j = 1, Nd
         info = EvalFunMedian(this%runners(id), this%dataSet(j), X(:,i), this%ds_target(:,i))

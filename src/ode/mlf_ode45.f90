@@ -177,7 +177,7 @@ Contains
     class(mlf_ode45_obj), intent(inout) :: this
     class(mlf_ode_funCstr), intent(inout) :: fun
     real(c_double), intent(inout) :: hMax, t, X(:)
-    real(c_double) :: dt, h, hMax0
+    real(c_double) :: dt, h, hMax0, tol
     integer :: i, N, ids(fun%NCstr), K
     hMax0 = hMax
     info = mlf_ODE_Continue
@@ -185,16 +185,45 @@ Contains
     If(N == 0) RETURN ! No constraints reached
     If(this%lastT < this%t) CALL ODE45UpdateDense(this)
     dt = this%t - this%t0
-    BLOCK
-      real(c_double) :: C0(N), C(N), Q(N,7)
-      integer :: nIds(N)
-      CALL fun%getDerivatives(ids(:N), this%X0, X, this%K, C0, C, Q)
-      Q = dt * Q
-      K = ODE45FindCstrRoot(this%rtoli, this%atoli, Q, C0, C, nIds, h)
-      h = dt * h
-      ids(:K) = ids(nIds(:K))
-    END BLOCK
-    If(K < 0) GOTO 10
+    If(N == 1) Then
+      BLOCK
+        ! Find the root of the unique constraint reached
+        real(c_double) :: C0(1), C(1), Q(1,7), A(6), Y, F, th0
+        CALL fun%getDerivatives(ids(:N), this%X0, X, this%K, C0, C, Q)
+        A(1) = C(1) - C0(1)
+        A(2) = dt*Q(1,1) - A(1)
+        A(3) = dt*Q(1,7) + A(1) - A(2)
+        A(4) = dt*DOT_PRODUCT(Q(1,:), DOPRI5_DC)
+        A(5) = -4d0*A(4)-2d0*A(3)
+        A(6) = A(4)+A(3)-A(2)
+        tol = 1d-3*(this%atoli + this%rtoli*ABS(C0(1)-C(1)))
+        Y = C0(1)+0.5d0*(A(1)+0.5d0*(A(2)+0.5d0*(A(3)+0.5d0*A(4))))
+        If(C0(1) == 0) Then
+          F = Q(1,1)
+        Else
+          F = C0(1)
+        Endif
+        If(SIGN(F, Y) == F) Then
+          th0 = 0.5d0+0.5d0*Y/(Y-C(1))
+          h = dt*FindNewtonRalphson(th0, 0.5d0, 1d0, C0(1), A, tol)
+        Else
+          th0 = 0.5d0*C0(1)/(C0(1)-Y)
+          h = dt*FindNewtonRalphson(th0, 0d0, 0.5d0, C0(1), A, tol)
+        Endif
+        K = 1
+      END BLOCK
+    Else
+      BLOCK
+        real(c_double) :: C0(N), C(N), Q(N,7)
+        integer :: nIds(N)
+        CALL fun%getDerivatives(ids(:N), this%X0, X, this%K, C0, C, Q)
+        Q = dt * Q
+        K = ODE45FindCstrRoot(this%rtoli, this%atoli, Q, C0, C, nIds, h)
+        If(K < 0) GOTO 10
+        h = dt * h
+        ids(:K) = ids(nIds(:K))
+      END BLOCK
+    Endif
     t = this%t0 + h
     CALL this%denseEvaluation(t, X, this%K(:,7))
     info = fun%reachCstr(t, this%t0, this%t, ids(1:K), X, this%K(:,7))
@@ -221,18 +250,34 @@ Contains
     WRITE (error_unit, *) "t: ", this%t, this%X
   End Function ODE45FindRoot
 
-  Real(c_double) Function FindNewtonRalphson(t0, A0, A, V) &
+  Real(c_double) Function FindNewtonRalphson(t0, thMin0, thMax0, A0, A, V) &
       Result(th)
-    real(c_double), intent(in) :: t0, A0, A(6), V
-    real(c_double) :: th1, W, F, Y
+    real(c_double), intent(in) :: t0, thMin0, thMax0, A0, A(6), V
+    real(c_double) :: th1, W, F, Y, thMin, thMax, dth
     integer :: i
-    th = t0
+    th = t0; thMin = thMin0; thMax = thMax0
     Do i=1,16
       th1 = 1d0-th
       W = A(1)+th1*(A(2)+th*(A(3)+th1*A(4)))
       F = W+th*(th*(3d0*A(4)*th+A(5))+A(6))
       Y = A0+th*W
-      th = th-Y/F
+      dth = -Y/F
+      If(dth < 0) Then
+        If(th+dth < thMin) Then
+          th = 0.5d0*(thMin+th)
+          CYCLE
+        Else
+          thMax = th
+        Endif
+      Else
+        If(th+dth > thMax) Then
+          th = 0.5d0*(thMax+th)
+          CYCLE
+        Else
+          thMin = th
+        Endif
+      Endif
+      th = th + dth
       If(abs(Y)<V) RETURN
     End Do
   End Function FindNewtonRalphson
@@ -244,9 +289,9 @@ Contains
     real(c_double), intent(in) :: Q(:, :), C0(:), C(:), rtol, atol
     real(c_double), intent(inout) :: th
     integer, intent(out) :: ids(:)
-    integer :: i, id
+    integer :: i, id, j, k, l
     real(c_double) :: A(SIZE(C),6), Y(SIZE(C)), F(SIZE(C)), thI(SIZE(C)), W(SIZE(C))
-    real(c_double) :: V, th1, thMin, thMax
+    real(c_double) :: V, zF, thMin, thMax, thM, thL
     id = -1
     A(:,1) = C-C0
     A(:,2) = Q(:,1)-A(:,1)
@@ -260,66 +305,93 @@ Contains
     ! Determine if the crossing is negative or positive using C(t0) or dC/dt(t0)
     ! THE CASE C0 == 0 IS NOT CONSIDERED AS A CROSSING!!!
     F = Q(:,1)
+    thMin = 0d0; thMax = 0.5d0
     Where(C0 /= 0) F = C0
-    Where(Y*F > 0)
-      thI = 0.5d0+0.5d0*Y/(Y-C)
-    ElseWhere
-      thI = 0.5d0*C0/(C0-Y)
-    EndWhere
-    If(SIZE(C) == 1) Then ! Most common case
-      ! Use Newton-Ralphson to polish the root th
-      ids(1) = 1
-      V = 1d-3*(atol + rtol*ABS(C0(1)-C(1)))
-      th = FindNewtonRalphson(thI(1), C0(1), A(1,:), V)
-      N = 1
+    N = 0
+    Do i = 1, SIZE(C)
+      If(SIGN(Y(i), F(i)) /= Y(i)) Then
+        N = N+1
+        ids(N) = i
+      Endif
+    End Do
+    If(N == 1) Then
+      i = ids(1)
+      V = 1d-3*(atol + rtol*ABS(C0(i)-C(i)))
+      th = FindNewtonRalphson(thI(i), thMin, thMax, C0(i), A(i,:), V)
       RETURN
-    Endif
-    ! Use more intensively the Newton-Ralphson in order to get one unique root
-    Do i = 1, 4
+    Else If(N == 0 .OR. N == SIZE(C)) Then
+      ids = [(i, i = 1,SIZE(C))]
+      If(N == 0) Then
+        N = SIZE(C)
+        thI = 0.5d0+0.5d0*Y/(Y-C)
+        thMin = 0.5d0; thMax = 1d0
+      Else
+        thI = 0.5d0*C0/(C0-Y)
+      Endif
       W = A(:,1)+(1d0-thI)*(A(:,2)+thI*(A(:,3)+(1d0-thI)*A(:,4)))
       F = W+thI*(thI*(3d0*A(:,4)*thI+A(:,5))+A(:,6))
       Y = C0+thI*W
       thI = thI-Y/F
-    End Do
-    thMin = 0; thMax = 1
-    id = MINLOC(thI, DIM = 1)
-    th = thI(id)
+      WHERE(thI < thMin) thI = 0.25d0 + thMin
+      id = MINLOC(thI, DIM=1)
+      j = id
+    Else
+      thI(1:N) = 0.5d0*C0(ids(1:N))/(C0(ids(1:N))-Y(ids(1:N)))
+      WHERE(thI < thMin) thI = 0.25d0
+      j = MINLOC(thI(1:N), DIM=1)
+      id = ids(j)
+    Endif
+    If(thM >= thMax) thM = 0.5d0*(th+thMax)
+    thM = thI(id)
     Do
-      th1 = 1d0-th
-      W = A(:,1)+th1*(A(:,2)+th*(A(:,3)+th1*A(:,4)))
-      F = W+th*(th*(3d0*A(:,4)*th+A(:,5))+A(:,6))
-      Y = C0+th*W
-      thI = -Y/F
-      id = MINLOC(thI, DIM = 1)
-      N = COUNT(thI <= 0)
-      If(thMax - thMin < 1d-2*(atol+rtol)) Then
-        ! When multiple event occurs within a short time span, put multiple event in the list
-        ! As the dichotomous search is expensive, this case has to be rare
-        N = 0
-        Do i = 1, SIZE(C)
-          If(thI(i) <= 0) Then
-            N = N + 1
-            ids(N) = i
-          Endif
-        End Do
+      V = 1d-3*(atol + rtol*ABS(C0(id)-C(id)))
+      th = FindNewtonRalphson(thM, thMin, thMax, C0(id), A(id,:), V)
+      k = 0
+      If(th >= thMax) Then
+        j = -1
+        th = thMax
+      Endif
+      Do i = 1,N
+        l = ids(i)
+        W(l) = A(l,1)+(1d0-th)*(A(l,2)+th*(A(l,3)+(1d0-th)*A(l,4)))
+        Y(l) = C0(l) + th*W(l)
+        zF = C0(l)
+        If(zF == 0d0) zF = Q(l,1)
+        If(Y(l) == 0d0 .OR. SIGN(zF, Y(l)) /= zF) Then
+          k = k + 1
+          ids(k) = l
+        Endif
+      End Do
+      N = k
+      If(j == -1) RETURN
+      If(N == 0) Then
+        ids(1) = id
+        N = 1
         RETURN
       Endif
-      Select Case(N)
-      Case(0)
-        thMin = th
-        th = MIN(th + 2*thI(id), thMax)
-      Case(2:)
-        thMax = th
-        th = 0.5d0*(thMin+thMax)
-      Case(1)
-        thMax = th
-        V = 1d-3*MIN(atol, rtol*ABS(C0(id)-C(id)), ABS(C0(id)))
-        th = MAX(MIN(th-Y(id)/F(id), thMax), thMin)
-        th = FindNewtonRalphson(th, C0(id), A(id,:), V)
-        th = MIN(th, thMax)
-        ids(1) = id
+      If(N == 1) Then
+        If(ids(1) == id) RETURN
+        id = ids(1)
+        V = 1d-3*(atol + rtol*ABS(C0(id)-C(id)))
+        th = FindNewtonRalphson(th, thMin, thMax, C0(id), A(id,:), V)
         RETURN
-      End Select
+      Endif
+      thM = th
+      thMax = th
+      j = -1
+      Do i = 1,N
+        l = ids(i)
+        If(Y(l) == 0d0) CYCLE
+        F(l) = W(l) + th*(th*(3d0*A(l,4)*th+A(l,5))+A(l,6))
+        thL = th - Y(l)/F(l)
+        If(thL < thMin) thL = 0.5d0*(thMin+th)
+        If(thL < thM) Then
+          thM = thL
+          j = i
+        Endif
+      End Do
+      If(j == -1) RETURN
+      id = ids(j)
     End Do
   End Function ODE45FindCstrRoot
 
@@ -332,7 +404,7 @@ Contains
       A(:,1) = this%X-this%X0
       A(:,2) = dt*K(:,1)-A(:,1)
       A(:,3) = -dt*K(:,7)+A(:,1)-A(:,2)
-      A(:,4) = dt*matmul(K,DOPRI5_DC)
+      A(:,4) = dt*MATMUL(K,DOPRI5_DC)
     END ASSOCIATE
     this%lastT = this%t
   End Subroutine ODE45UpdateDense

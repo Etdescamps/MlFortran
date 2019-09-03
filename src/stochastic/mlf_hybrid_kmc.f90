@@ -284,7 +284,10 @@ Contains
     integer ::N
     ASSOCIATE(Rates => model%Rates)
       info = model%evalOde(t, X(2:), F(2:))
-      If(info < 0) RETURN
+      If(info < 0) Then
+        WRITE (error_unit, *) "EvalOde error: ", info
+        RETURN
+      Endif
       N = model%funTransitionRates(t, X(2:), F(2:), Rates)
       If(N <= 0) Then
         info = N
@@ -420,23 +423,29 @@ Contains
     real(c_double) :: r, dt
     info = -1
     model%lastTNext = ieee_value(model%lastTNext, ieee_quiet_nan)
-    N = Model%funTransitionRates(t, X(2:), F(2:), Rates)
-    If(N <= 0) RETURN ! Shall not happen
+    N = model%funTransitionRates(t, X(2:), F(2:), Rates)
+    If(N <= 0) Then
+      WRITE (error_unit, *) "Error model%funTransitionRates:", N
+      RETURN ! Shall not happen
+    Endif
     CALL RANDOM_NUMBER(r)
     r = r*SUM(Rates(:N))
     Do idAction = 1,N-1
       r = r - Rates(idAction)
       If(r <= 0) Then
-        info = Model%applyAction(idAction, t, X(2:), F(2:), Rates(idAction))
-        EXIT
+        info = model%applyAction(idAction, t, X(2:), F(2:), Rates(idAction))
+        GOTO 20
       Endif
     End Do
-    If(r > 0) info = Model%applyAction(N, t, X(2:), F(2:), Rates(N))
-    If(info < 0 .OR. info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
+    info = model%applyAction(N, t, X(2:), F(2:), Rates(N))
+ 20 If(info < 0 .OR. info == mlf_ODE_StopTime) Then
+      WRITE (error_unit, *) "Error model%applyAction:", info
+      RETURN
+    Endif
  10 CALL RANDOM_NUMBER(r)
     If(r == 0) GOTO 10 ! Remove the case r == 0
     X(1) = -LOG(r)
-    info = EvalOdeModel(model, t, X, F)
+    If(info /= mlf_ODE_HardCstr) info = EvalOdeModel(model, t, X, F)
   End Function KMCReachAction
 
   Integer Function mlf_kmc_reach(this, t, tMin, tMax, ids, X, F) Result(info)
@@ -460,21 +469,31 @@ Contains
     real(c_double) :: t0, U0, r
     If(SIZE(ids) == 1 .AND. ids(1) == 1) Then
       info = KMCReachAction(this%kmc_model, t, tMin, tMax, X, F, this%kmc_model%Rates)
+      If(info < 0) Then
+        WRITE (error_unit, *) "KMCReachAction error", info
+        WRITE (error_unit, *) "ids:", ids, "X:", X, "F:", F
+        RETURN
+      Endif
     Else
       ! The global events of the system are applied before applying random actions.
-      If(SIZE(ids) > 1 .AND. ANY(ids == 1)) Then
+      If(ids(1) == 1) Then
         t0 = t
         U0 = F(1)
-        info = this%kmc_model%m_reachCstr(t, tMin, tMax, PACK(ids, ids /= 1)-1, X(2:), F(2:))
-        If(info == mlf_ODE_Continue .OR. info == mlf_ODE_SoftCstr) Then
-          If(t0 /= t) X(1) = X(1) + (t0-t)*F(1)
-        Else If(info == mlf_ODE_ReevaluateDer) Then
+        info = this%kmc_model%m_reachCstr(t, tMin, tMax, ids(2:)-1, X(2:), F(2:))
+        If(info < 0) Then
+          WRITE (error_unit, *) "KMC model reachCstr error", info
+          WRITE (error_unit, *) "ids:", ids, "X:", X, "F:", F
+          RETURN
+        Endif
+        If(info == mlf_ODE_ReevaluateDer) Then
           info = EvalOdeModel(this%kmc_model, t, X, F)
         Endif
         ! Look if the probability of an event has been inpacted by the constraint reach
+        ! Introduce a null event if the probability decreased
         If(F(1) < U0) Then
           CALL RANDOM_NUMBER(r)
           If(r*U0 > F(1)) Then
+            ! Case where a null event is reached: reinit X(1)
             10 CALL RANDOM_NUMBER(r)
             If(r == 0) GOTO 10 ! Remove the case r == 0
             X(1) = -LOG(r)
@@ -486,8 +505,18 @@ Contains
       Else
         t0 = t
         info = this%kmc_model%m_reachCstr(t, tMin, tMax, ids-1, X(2:), F(2:))
+        If(info < 0) Then
+          WRITE (error_unit, *) "KMC model reachCstr error", info
+          WRITE (error_unit, *) "ids:", ids, "X:", X, "F:", F
+          RETURN
+        Endif
         If(info == mlf_ODE_Continue .OR. info == mlf_ODE_SoftCstr) Then
-          If(t0 /= t) X(1) = X(1) + (t0-t)*F(1)
+          If(t0 /= t) Then
+            X(1) = X(1) + (t0-t)*F(1)
+            If(X(1) <= 0) Then
+              info = KMCReachAction(this%kmc_model, t, tMin, tMax, X, F, this%kmc_model%Rates)
+            Endif
+          Endif
         Else If(info == mlf_ODE_ReevaluateDer) Then
           info = EvalOdeModel(this%kmc_model, t, X, F)
         Endif

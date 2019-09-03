@@ -188,7 +188,7 @@ Contains
     If(N == 1) Then
       BLOCK
         ! Find the root of the unique constraint reached
-        real(c_double) :: C0(1), C(1), Q(1,7), A(6), Y, F, th0
+        real(c_double) :: C0(1), C(1), Q(1,7), A(6), Y, F, th0, thMin, thMax
         CALL fun%getDerivatives(ids(:N), this%X0, X, this%K, C0, C, Q)
         A(1) = C(1) - C0(1)
         A(2) = dt*Q(1,1) - A(1)
@@ -205,12 +205,16 @@ Contains
         Endif
         If(SIGN(F, Y) == F) Then
           th0 = 0.5d0+0.5d0*Y/(Y-C(1))
-          h = dt*FindNewtonRalphson(th0, 0.5d0, 1d0, C0(1), A, tol)
+          thMin = 0.5d0; thMax = 1d0
+          h = dt*FindNewtonRalphson(th0, thMin, thMax, C0(1), A, tol)
         Else
           th0 = 0.5d0*C0(1)/(C0(1)-Y)
-          h = dt*FindNewtonRalphson(th0, 0d0, 0.5d0, C0(1), A, tol)
+          thMin = 1d0; thMax = 0.5d0
+          h = dt*FindNewtonRalphson(th0, thMin, thMax, C0(1), A, tol)
         Endif
         K = 1
+        t = this%t0 + h
+        CALL this%denseEvaluation(t, X, this%K(:,7))
       END BLOCK
     Else
       BLOCK
@@ -222,10 +226,22 @@ Contains
         If(K < 0) GOTO 10
         h = dt * h
         ids(:K) = ids(nIds(:K))
+        t = this%t0 + h
+        CALL this%denseEvaluation(t, X, this%K(:,7))
+        If(K < N) Then
+          N = fun%updateCstr(t, this%X0, X, this%K(:,1), this%K(:,7), nIds, hMax)
+          If(N > 0) Then
+            K = N
+            ids(1:K) = nIds(1:K)
+          Endif
+        Endif
       END BLOCK
     Endif
-    t = this%t0 + h
-    CALL this%denseEvaluation(t, X, this%K(:,7))
+    If(h < 0 .OR. h > dt) Then
+      WRITE (error_unit, *) "ODE45 Error rootfinding: h:", h, "dt:", dt
+      info = -1
+      RETURN
+    Endif
     info = fun%reachCstr(t, this%t0, this%t, ids(1:K), X, this%K(:,7))
     If(info < 0) GOTO 11
     If(info == mlf_ODE_HardCstr .OR. info == mlf_ODE_StopTime) RETURN
@@ -250,12 +266,13 @@ Contains
     WRITE (error_unit, *) "t: ", this%t, this%X
   End Function ODE45FindRoot
 
-  Real(c_double) Function FindNewtonRalphson(t0, thMin0, thMax0, A0, A, V) &
+  Real(c_double) Function FindNewtonRalphson(t0, thMin, thMax, A0, A, V) &
       Result(th)
-    real(c_double), intent(in) :: t0, thMin0, thMax0, A0, A(6), V
-    real(c_double) :: th1, W, F, Y, thMin, thMax, dth
+    real(c_double), intent(in) :: t0, A0, A(6), V
+    real(c_double), intent(inout) :: thMin, thMax
+    real(c_double) :: th1, W, F, Y, dth
     integer :: i
-    th = t0; thMin = thMin0; thMax = thMax0
+    th = t0
     Do i=1,16
       th1 = 1d0-th
       W = A(1)+th1*(A(2)+th*(A(3)+th1*A(4)))
@@ -291,7 +308,7 @@ Contains
     integer, intent(out) :: ids(:)
     integer :: i, id, j, k, l
     real(c_double) :: A(SIZE(C),6), Y(SIZE(C)), F(SIZE(C)), thI(SIZE(C)), W(SIZE(C))
-    real(c_double) :: V, zF, thMin, thMax, thM, thL
+    real(c_double) :: V, V0, zF, thMin, thMax, thM, thL, thMin0
     id = -1
     A(:,1) = C-C0
     A(:,2) = Q(:,1)-A(:,1)
@@ -343,14 +360,12 @@ Contains
     Endif
     If(thM >= thMax) thM = 0.5d0*(th+thMax)
     thM = thI(id)
+    V0 = 1d-3*(atol + rtol*ABS(C0(id)-C(id)))
+    V = V0
     Do
-      V = 1d-3*(atol + rtol*ABS(C0(id)-C(id)))
-      th = FindNewtonRalphson(thM, thMin, thMax, C0(id), A(id,:), V)
+      thMin0 = thMin
+      th = FindNewtonRalphson(thM, thMin0, thMax, C0(id), A(id,:), V)
       k = 0
-      If(th >= thMax) Then
-        j = -1
-        th = thMax
-      Endif
       Do i = 1,N
         l = ids(i)
         W(l) = A(l,1)+(1d0-th)*(A(l,2)+th*(A(l,3)+(1d0-th)*A(l,4)))
@@ -362,36 +377,38 @@ Contains
           ids(k) = l
         Endif
       End Do
-      N = k
-      If(j == -1) RETURN
-      If(N == 0) Then
-        ids(1) = id
-        N = 1
-        RETURN
-      Endif
-      If(N == 1) Then
-        If(ids(1) == id) RETURN
-        id = ids(1)
-        V = 1d-3*(atol + rtol*ABS(C0(id)-C(id)))
-        th = FindNewtonRalphson(th, thMin, thMax, C0(id), A(id,:), V)
-        RETURN
-      Endif
-      thM = th
-      thMax = th
-      j = -1
-      Do i = 1,N
-        l = ids(i)
-        If(Y(l) == 0d0) CYCLE
-        F(l) = W(l) + th*(th*(3d0*A(l,4)*th+A(l,5))+A(l,6))
-        thL = th - Y(l)/F(l)
-        If(thL < thMin) thL = 0.5d0*(thMin+th)
-        If(thL < thM) Then
-          thM = thL
-          j = i
+      If(k == 0) Then
+        thMin = th
+        thM = 0.5d0*(thMin+thMax)
+        V = 0.1d0*V
+      Else
+        N = k
+        If(thMax - thMin0 < V0) RETURN
+        thMax = th
+        thM = th
+        If(N == 1) Then
+          If(ids(1) == id) RETURN
+          id = ids(1)
+        Else
+          j = -1
+          Do i = 1,N
+            l = ids(i)
+            If(Y(l) == 0d0) CYCLE
+            F(l) = W(l) + th*(th*(3d0*A(l,4)*th+A(l,5))+A(l,6))
+            thL = th - Y(l)/F(l)
+            If(thL < thM) Then
+              thM = thL
+              j = i
+            Endif
+          End Do
+          If(j > 0) Then
+            id = ids(j)
+            V0 = 1d-3*(atol + rtol*ABS(C0(id)-C(id)))
+            V = V0
+          Endif
+          thM = MAX(0.9*thMin+0.1*thMax, thM)
         Endif
-      End Do
-      If(j == -1) RETURN
-      id = ids(j)
+      Endif
     End Do
   End Function ODE45FindCstrRoot
 

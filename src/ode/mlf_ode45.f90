@@ -209,7 +209,7 @@ Contains
           h = dt*FindNewtonRalphson(th0, thMin, thMax, C0(1), A, tol)
         Else
           th0 = 0.5d0*C0(1)/(C0(1)-Y)
-          thMin = 1d0; thMax = 0.5d0
+          thMin = 0d0; thMax = 0.5d0
           h = dt*FindNewtonRalphson(th0, thMin, thMax, C0(1), A, tol)
         Endif
         K = 1
@@ -303,7 +303,7 @@ Contains
     real(c_double), intent(in) :: Q(:, :), C0(:), C(:), rtol, atol
     real(c_double), intent(inout) :: th
     integer, intent(out) :: ids(:)
-    integer :: i, id, j, k, l
+    integer :: i, id, j, k, l, nSteps, nStepsMax
     real(c_double) :: A(SIZE(C),6), Y(SIZE(C)), F(SIZE(C)), thI(SIZE(C)), W(SIZE(C))
     real(c_double) :: V, V0, zF, thMin, thMax, thM, thL, thMin0
     id = -1
@@ -359,7 +359,8 @@ Contains
     thM = thI(id)
     V0 = 1d-3*(atol + rtol*ABS(C0(id)-C(id)))
     V = V0
-    Do
+    nStepsMax = MAX(8, 2*N)
+    Do nSteps = 1,nStepsMax
       thMin0 = thMin
       th = FindNewtonRalphson(thM, thMin0, thMax, C0(id), A(id,:), V)
       k = 0

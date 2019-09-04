@@ -66,6 +66,7 @@ Module mlf_hybrid_kmc
     procedure(mlf_hybrid_kmc_updateCstr), deferred :: m_updateCstr
     procedure(mlf_hybrid_kmc_reachCstr), deferred :: m_reachCstr
     procedure(mlf_hybrid_kmc_getDerivatives), deferred :: m_getDerivatives
+    procedure :: m_checkCstr => mlf_hybrid_kmc_checkCstr
   End Type mlf_hybrid_kmc_cstrModel
 
   Type, Public, Extends(mlf_hybrid_odeFun) :: mlf_kmc_odeModel
@@ -88,6 +89,7 @@ Module mlf_hybrid_kmc
     procedure :: updateCstr => mlf_kmc_h_update
     procedure :: reachCstr => mlf_kmc_h_reach
     procedure :: getDerivatives => mlf_kmc_h_getDerivatives
+    procedure :: checkCstr => mlf_kmc_h_checkCstr
   End Type mlf_kmc_constrModel
 
   Abstract Interface
@@ -460,6 +462,46 @@ Contains
     info = KMCReachAction(this%kmc_model, t, tMin, tMax, X, F, this%kmc_model%Rates)
   End Function mlf_kmc_reach
 
+  Integer Function mlf_hybrid_kmc_checkCstr(this, t, X0, Xd, K0, K1, ids, nIds) Result(N)
+    class(mlf_hybrid_kmc_cstrModel), intent(inout), target :: this
+    real(c_double), intent(in) :: t
+    real(c_double), intent(in), target :: X0(:), Xd(:), K0(:), K1(:)
+    integer, intent(inout), target :: ids(:)
+    integer, intent(in), target :: nIds(:)
+    N = SIZE(ids)
+  End Function mlf_hybrid_kmc_checkCstr
+
+  Integer Function mlf_kmc_h_checkCstr(this, t, X0, Xd, K0, K1, ids, nIds) Result(N)
+    class(mlf_kmc_constrModel), intent(inout), target :: this
+    real(c_double), intent(in) :: t
+    real(c_double), intent(in), target :: X0(:), Xd(:), K0(:), K1(:)
+    integer, intent(inout), target :: ids(:)
+    integer, intent(in), target :: nIds(:)
+    If(ids(1) == 1) Then
+      If(nIds(1) == 1 .OR. Xd(1) <= 0d0) Then
+        ids(2:) = ids(2:)-1
+        If(nIds(1) == 1) Then
+          N = 1 + this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids(2:), nIds(2:)-1)
+        Else
+          ! 1 is put even if not present in nIds
+          N = 1 + this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids(2:), nIds-1)
+        Endif
+        ids(2:N) = ids(2:N)+1
+      Else
+        ! We remove 1 from the potential constraints
+        N = SIZE(ids)
+        ids(:N-1) = ids(2:)-1
+        N = this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids(1:N-1), nIds-1)
+        ids(1:N) = ids(1:N)+1
+      Endif
+    Else
+      ! No id = 1 present
+      ids = ids - 1
+      N = this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids, nIds)
+      ids = ids + 1
+    Endif
+  End Function mlf_kmc_h_checkCstr
+
   Integer Function mlf_kmc_h_reach(this, t, tMin, tMax, ids, X, F) Result(info)
     class(mlf_kmc_constrModel), intent(inout), target :: this
     real(c_double), intent(inout) :: t
@@ -474,52 +516,49 @@ Contains
         WRITE (error_unit, *) "ids:", ids, "X:", X, "F:", F
         RETURN
       Endif
-    Else
+    Else If(ids(1) == 1) Then
       ! The global events of the system are applied before applying random actions.
-      If(ids(1) == 1) Then
-        t0 = t
-        U0 = F(1)
-        info = this%kmc_model%m_reachCstr(t, tMin, tMax, ids(2:)-1, X(2:), F(2:))
-        If(info < 0) Then
-          WRITE (error_unit, *) "KMC model reachCstr error", info
-          WRITE (error_unit, *) "ids:", ids, "X:", X, "F:", F
+      t0 = t
+      U0 = F(1)
+      info = this%kmc_model%m_reachCstr(t, tMin, tMax, ids(2:)-1, X(2:), F(2:))
+      If(info < 0) Then
+        WRITE (error_unit, *) "KMC model reachCstr error", info
+        WRITE (error_unit, *) "ids:", ids, "X:", X, "F:", F
+        RETURN
+      Endif
+      If(info == mlf_ODE_ReevaluateDer) Then
+        info = EvalOdeModel(this%kmc_model, t, X, F)
+      Endif
+      ! Look if the probability of an event has been inpacted by the constraint reach
+      ! Introduce a null event if the probability decreased
+      If(F(1) < U0) Then
+        CALL RANDOM_NUMBER(r)
+        If(r*U0 > F(1)) Then
+          ! Case where a null event is reached: reinit X(1)
+          10 CALL RANDOM_NUMBER(r)
+          If(r == 0) GOTO 10 ! Remove the case r == 0
+          X(1) = -LOG(r)
+          info = EvalOdeModel(this%kmc_model, t, X, F)
           RETURN
         Endif
-        If(info == mlf_ODE_ReevaluateDer) Then
-          info = EvalOdeModel(this%kmc_model, t, X, F)
-        Endif
-        ! Look if the probability of an event has been inpacted by the constraint reach
-        ! Introduce a null event if the probability decreased
-        If(F(1) < U0) Then
-          CALL RANDOM_NUMBER(r)
-          If(r*U0 > F(1)) Then
-            ! Case where a null event is reached: reinit X(1)
-            10 CALL RANDOM_NUMBER(r)
-            If(r == 0) GOTO 10 ! Remove the case r == 0
-            X(1) = -LOG(r)
-            info = EvalOdeModel(this%kmc_model, t, X, F)
-            RETURN
-          Endif
-        Endif
+      Endif
+      info = KMCReachAction(this%kmc_model, t, tMin, tMax, X, F, this%kmc_model%Rates)
+    Else
+      t0 = t
+      info = this%kmc_model%m_reachCstr(t, tMin, tMax, ids-1, X(2:), F(2:))
+      If(info < 0) Then
+        WRITE (error_unit, *) "KMC model reachCstr error", info
+        WRITE (error_unit, *) "ids:", ids, "X:", X, "F:", F
+        RETURN
+      Endif
+      If((info == mlf_ODE_Continue .OR. info == mlf_ODE_SoftCstr) .AND. t0 /= t) Then
+        X(1) = X(1) + (t-t0)*F(1)
+      Endif
+      If(X(1) <= 0) Then
         info = KMCReachAction(this%kmc_model, t, tMin, tMax, X, F, this%kmc_model%Rates)
-      Else
-        t0 = t
-        info = this%kmc_model%m_reachCstr(t, tMin, tMax, ids-1, X(2:), F(2:))
-        If(info < 0) Then
-          WRITE (error_unit, *) "KMC model reachCstr error", info
-          WRITE (error_unit, *) "ids:", ids, "X:", X, "F:", F
-          RETURN
-        Endif
-        If(info == mlf_ODE_Continue .OR. info == mlf_ODE_SoftCstr) Then
-          If(t0 /= t) Then
-            X(1) = X(1) + (t0-t)*F(1)
-            If(X(1) <= 0) Then
-              info = KMCReachAction(this%kmc_model, t, tMin, tMax, X, F, this%kmc_model%Rates)
-            Endif
-          Endif
-        Else If(info == mlf_ODE_ReevaluateDer) Then
-          info = EvalOdeModel(this%kmc_model, t, X, F)
-        Endif
+      Endif
+      If(info == mlf_ODE_ReevaluateDer) Then
+        info = EvalOdeModel(this%kmc_model, t, X, F)
       Endif
     Endif
   End Function mlf_kmc_h_reach

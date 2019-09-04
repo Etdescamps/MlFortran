@@ -225,20 +225,17 @@ Contains
         K = ODE45FindCstrRoot(this%rtoli, this%atoli, Q, C0, C, nIds, h)
         If(K < 0) GOTO 10
         h = dt * h
-        ids(:K) = ids(nIds(:K))
         t = this%t0 + h
         CALL this%denseEvaluation(t, X, this%K(:,7))
         If(K < N) Then
-          N = fun%updateCstr(t, this%X0, X, this%K(:,1), this%K(:,7), nIds, hMax)
-          If(N > 0) Then
-            K = N
-            ids(1:K) = nIds(1:K)
-          Endif
+          K = fun%checkCstr(t, this%X0, X, this%K(:,1), this%K(:,7), ids(1:N), nIds)
         Endif
       END BLOCK
     Endif
     If(h < 0 .OR. h > dt) Then
-      WRITE (error_unit, *) "ODE45 Error rootfinding: h:", h, "dt:", dt
+      WRITE (error_unit, *) "ODE45 Error rootfinding: h:", h, "dt:", dt, "t:", t
+      WRITE (error_unit, *) "X0:", this%X0, "Xdense:", X, "F0:", this%K(:,1)
+      WRITE (error_unit, *) "ids:", ids(:K), "N:", N
       info = -1
       RETURN
     Endif

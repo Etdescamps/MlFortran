@@ -127,6 +127,7 @@ Module mlf_fun_intf
     procedure (mlf_ode_funCstr_update), deferred :: updateCstr
     procedure (mlf_ode_funCstr_getHMax), deferred :: getHMax
     procedure (mlf_ode_funCstr_reach), deferred :: reachCstr
+    procedure :: checkCstr => mlf_ode_checkCstr
     procedure (mlf_ode_funCstr_getDerivatives), deferred :: getDerivatives
   End Type mlf_ode_funCstr
 
@@ -320,6 +321,14 @@ Module mlf_fun_intf
 
    End Interface
 Contains
+  Integer Function mlf_ode_checkCstr(this, t, X0, Xd, K0, K1, ids, nIds) Result(N)
+    class(mlf_ode_funCstr), intent(inout), target :: this
+    real(c_double), intent(in) :: t
+    real(c_double), intent(in), target :: X0(:), Xd(:), K0(:), K1(:)
+    integer, intent(inout), target :: ids(:)
+    integer, intent(in), target :: nIds(:)
+    N = SIZE(ids)
+  End Function mlf_ode_checkCstr
 
   Subroutine mlf_ode_allocateCstr(this, N, M)
     class(mlf_ode_funCstrVect), intent(inout), target :: this

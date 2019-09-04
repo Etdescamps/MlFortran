@@ -321,13 +321,14 @@ Module mlf_fun_intf
 
    End Interface
 Contains
-  Integer Function mlf_ode_checkCstr(this, t, X0, Xd, K0, K1, ids, nIds) Result(N)
+  Integer Function mlf_ode_checkCstr(this, t, X0, Xd, K0, K1, ids, K) Result(N)
     class(mlf_ode_funCstr), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X0(:), Xd(:), K0(:), K1(:)
     integer, intent(inout), target :: ids(:)
-    integer, intent(in), target :: nIds(:)
-    N = SIZE(ids)
+    integer, intent(in) :: K
+    ! Default behaviour: keep all the selected ids
+    N = K
   End Function mlf_ode_checkCstr
 
   Subroutine mlf_ode_allocateCstr(this, N, M)

@@ -462,43 +462,31 @@ Contains
     info = KMCReachAction(this%kmc_model, t, tMin, tMax, X, F, this%kmc_model%Rates)
   End Function mlf_kmc_reach
 
-  Integer Function mlf_hybrid_kmc_checkCstr(this, t, X0, Xd, K0, K1, ids, nIds) Result(N)
+  Integer Function mlf_hybrid_kmc_checkCstr(this, t, X0, Xd, K0, K1, ids, K) Result(N)
     class(mlf_hybrid_kmc_cstrModel), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X0(:), Xd(:), K0(:), K1(:)
     integer, intent(inout), target :: ids(:)
-    integer, intent(in), target :: nIds(:)
-    N = SIZE(ids)
+    integer, intent(in) :: K
+    N = K
   End Function mlf_hybrid_kmc_checkCstr
 
-  Integer Function mlf_kmc_h_checkCstr(this, t, X0, Xd, K0, K1, ids, nIds) Result(N)
+  Integer Function mlf_kmc_h_checkCstr(this, t, X0, Xd, K0, K1, ids, K) Result(N)
     class(mlf_kmc_constrModel), intent(inout), target :: this
     real(c_double), intent(in) :: t
     real(c_double), intent(in), target :: X0(:), Xd(:), K0(:), K1(:)
     integer, intent(inout), target :: ids(:)
-    integer, intent(in), target :: nIds(:)
+    integer, intent(in) :: K
     If(ids(1) == 1) Then
-      If(nIds(1) == 1 .OR. Xd(1) <= 0d0) Then
-        ids(2:) = ids(2:)-1
-        If(nIds(1) == 1) Then
-          N = 1 + this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids(2:), nIds(2:)-1)
-        Else
-          ! 1 is put even if not present in nIds
-          N = 1 + this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids(2:), nIds-1)
-        Endif
-        ids(2:N) = ids(2:N)+1
-      Else
-        ! We remove 1 from the potential constraints
-        N = SIZE(ids)
-        ids(:N-1) = ids(2:)-1
-        N = this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids(1:N-1), nIds-1)
-        ids(1:N) = ids(1:N)+1
-      Endif
+      N = 1 + this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids(2:), K-1)
+    Else If(Xd(1) <= X0(1)*EPSILON(1d0)) Then
+      ! Add KMC event (id = 1) as constraint
+      ids(2:K+1) = ids(1:K)
+      ids(1) = 1
+      N = 1 + this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids(2:), K)
     Else
-      ! No id = 1 present
-      ids = ids - 1
-      N = this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids, nIds)
-      ids = ids + 1
+      ! No KMC event
+      N = this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids, K)
     Endif
   End Function mlf_kmc_h_checkCstr
 

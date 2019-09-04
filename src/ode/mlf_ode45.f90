@@ -213,8 +213,6 @@ Contains
           h = dt*FindNewtonRalphson(th0, thMin, thMax, C0(1), A, tol)
         Endif
         K = 1
-        t = this%t0 + h
-        CALL this%denseEvaluation(t, X, this%K(:,7))
       END BLOCK
     Else
       BLOCK
@@ -225,15 +223,13 @@ Contains
         K = ODE45FindCstrRoot(this%rtoli, this%atoli, Q, C0, C, nIds, h)
         If(K < 0) GOTO 10
         h = dt * h
-        t = this%t0 + h
-        CALL this%denseEvaluation(t, X, this%K(:,7))
-        If(K < N) Then
-          K = fun%checkCstr(t, this%X0, X, this%K(:,1), this%K(:,7), ids(1:N), nIds)
-        Endif
       END BLOCK
     Endif
+    t = this%t0 + h
+    CALL this%denseEvaluation(t, X, this%K(:,7))
+    K = fun%checkCstr(t, this%X0, X, this%K(:,1), this%K(:,7), ids, K)
     If(h < 0 .OR. h > dt) Then
-      WRITE (error_unit, *) "ODE45 Error rootfinding: h:", h, "dt:", dt, "t:", t
+      WRITE (error_unit, *) "ODE45 Error rootfinding: h:", h, "dt:", dt, "t:", t, "t0:", this%t0
       WRITE (error_unit, *) "X0:", this%X0, "Xdense:", X, "F0:", this%K(:,1)
       WRITE (error_unit, *) "ids:", ids(:K), "N:", N
       info = -1

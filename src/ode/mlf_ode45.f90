@@ -78,7 +78,7 @@ Module mlf_ode45
     procedure :: initHandler => mlf_ode45_initHandler
   End Type mlf_ode45_obj
 
-  Integer, Parameter, Public :: mlf_ODE_FunError = -1, mlf_ODE_Stiff = -2 
+  Integer, Parameter, Public :: mlf_ODE_Stiff = -2 
 
 Contains
   Integer Function mlf_ode45_reinit(this) result(info)

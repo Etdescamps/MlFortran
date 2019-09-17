@@ -44,6 +44,8 @@ Module mlf_hybrid_kmc
 
   Public :: mlf_hybrid_kmc_init, mlf_hybrid_kmc_h_init
 
+  Integer, Parameter, Public :: mlf_h_FunOdeComplete = 5
+
   Type, Public, Abstract, Extends(mlf_ode_funCstr) :: mlf_hybrid_odeFun
   Contains
     procedure(mlf_hybrid_odeFun_setModel), deferred :: setModel 
@@ -297,7 +299,11 @@ Contains
         RETURN
       Endif
       F(1) = -SUM(Rates(:N))
-      info = mlf_ODE_Continue
+      If(info == mlf_h_FunOdeComplete .AND. F(1) == 0) Then
+        info = mlf_ODE_StopTime
+      Else
+        info = mlf_ODE_Continue
+      Endif
     END ASSOCIATE
   End Function 
 

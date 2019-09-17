@@ -39,19 +39,21 @@ Module mlf_radius_sampler
 
   Type, Public, Extends(mlf_1DRealSampler) :: mlf_radiusSampler
     real(c_double) :: dR, r1, D
+    real(c_double) :: fdR, fr1, fD
   Contains
     procedure :: init => mlf_radiusSampler_init
     procedure :: random => mlf_radiusSampler_random
     procedure :: sample => mlf_radiusSampler_sample
+    procedure :: sampleFloat => mlf_radiusSampler_sampleFloat
   End Type mlf_radiusSampler
 Contains
   Integer Function mlf_radiusSampler_init(this, r0, r1, D) Result(info)
     class(mlf_radiusSampler), intent(inout) :: this
     real(c_double), intent(in) :: r0, r1, D
     info = 0
-    this%dR = r0 - r1
-    this%r1 = r1
-    this%D = D
+    this%dR = r0 - r1; this%r1 = r1; this%D = D
+    this%fdR = r0 - r1; this%fr1 = r1; this%fD = D
+
   End Function mlf_radiusSampler_init
 
   Real(c_double) Function mlf_radiusSampler_random(this) Result(res)
@@ -67,5 +69,12 @@ Contains
     CALL RANDOM_NUMBER(X)
     X = this%r1+this%dR*(X**this%D)
   End Subroutine mlf_radiusSampler_sample
+
+  Subroutine mlf_radiusSampler_sampleFloat(this, X)
+    class(mlf_radiusSampler), intent(inout) :: this
+    real(c_float), intent(out) :: X(:)
+    CALL RANDOM_NUMBER(X)
+    X = this%fr1+this%fdR*(X**this%fD)
+  End Subroutine mlf_radiusSampler_sampleFloat
 End Module mlf_radius_sampler 
 

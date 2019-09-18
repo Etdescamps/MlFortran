@@ -97,7 +97,7 @@ Contains
     Endif
   End Function mlf_median_real8
 
-  Real(c_double) Function OutsideBounds(X, XMin, XMax) Result(cstr)
+  Elemental Real(c_double) Function OutsideBounds(X, XMin, XMax) Result(cstr)
     real(c_double), intent(in) :: X, XMin, XMax
     If(X < XMin) Then
       cstr = XMin - X

@@ -447,7 +447,7 @@ Contains
     End Do
     info = model%applyAction(N, t, X(2:), F(2:), Rates(N))
  20 If(info < 0 .OR. info == mlf_ODE_StopTime) Then
-      WRITE (error_unit, *) "Error model%applyAction:", info
+      If(info < 0) WRITE (error_unit, *) "Error model%applyAction:", info
       RETURN
     Endif
  10 CALL RANDOM_NUMBER(r)

@@ -38,8 +38,8 @@ Module mlf_radius_sampler
   PRIVATE
 
   Type, Public, Extends(mlf_1DRealSampler) :: mlf_radiusSampler
-    real(c_double) :: dR, r1, D
-    real(c_double) :: fdR, fr1, fD
+    real(c_double) :: dR, r0, D
+    real(c_float) :: fdR, fr0, fD
   Contains
     procedure :: init => mlf_radiusSampler_init
     procedure :: random => mlf_radiusSampler_random
@@ -51,30 +51,35 @@ Contains
     class(mlf_radiusSampler), intent(inout) :: this
     real(c_double), intent(in) :: r0, r1, D
     info = 0
-    this%dR = r0 - r1; this%r1 = r1; this%D = D
-    this%fdR = r0 - r1; this%fr1 = r1; this%fD = D
-
+    this%dR = r1 - r0; this%r0 = r0; this%D = D
+    this%fdR = r1 - r0; this%fr0 = r0; this%fD = D
+    Do While(REAL(this%fr0, 8) < r0) ! Select the first float supperior to r0
+      this%fr0 = ieee_next_after(this%fr0, HUGE(1.0))
+    End Do
+    Do While(REAL(this%fr0 + this%fdR, 8) > r1) ! Select a float so that fr0 + fdR < r1
+      this%fdR = ieee_next_after(this%fdR, -HUGE(1.0))
+    End Do
   End Function mlf_radiusSampler_init
 
   Real(c_double) Function mlf_radiusSampler_random(this) Result(res)
     class(mlf_radiusSampler), intent(inout) :: this
     real(c_double) :: r
     CALL RANDOM_NUMBER(r)
-    res = this%r1+this%dR*(r**this%D)
+    res = this%r0+this%dR*(r**this%D)
   End Function mlf_radiusSampler_random
 
   Subroutine mlf_radiusSampler_sample(this, X)
     class(mlf_radiusSampler), intent(inout) :: this
     real(c_double), intent(out) :: X(:)
     CALL RANDOM_NUMBER(X)
-    X = this%r1+this%dR*(X**this%D)
+    X = this%r0+this%dR*(X**this%D)
   End Subroutine mlf_radiusSampler_sample
 
   Subroutine mlf_radiusSampler_sampleFloat(this, X)
     class(mlf_radiusSampler), intent(inout) :: this
     real(c_float), intent(out) :: X(:)
     CALL RANDOM_NUMBER(X)
-    X = this%fr1+this%fdR*(X**this%fD)
+    X = this%fr0+this%fdR*(X**this%fD)
   End Subroutine mlf_radiusSampler_sampleFloat
 End Module mlf_radius_sampler 
 

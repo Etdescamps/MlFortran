@@ -90,25 +90,25 @@ Contains
   End Function EvalFunMedian
 
   Integer Function mlf_simple_stochastic_setup(this, experiences, results, &
-      initr, nR, nE, weights, ds_weights) Result(info)
+      initr, nRunners, nEval, weights, ds_weights) Result(info)
     class(mlf_simple_stochastic_evaluator), intent(inout), target :: this
     class(mlf_model_experiment), intent(in) :: experiences(:)
     class(mlf_result_vectReal), intent(in) :: results(:)
     class(mlf_local_initializer), intent(inout) :: initr
-    integer, intent(in) :: nR, nE
+    integer, intent(in) :: nRunners, nEval
     real(c_double), intent(in), optional :: weights(:,:), ds_weights(:)
     integer :: i, N, nOut
     info = -1
     N = SIZE(experiences)
-    If(SIZE(results) /= N .OR. nR <= 0) RETURN
+    If(SIZE(results) /= N .OR. nRunners <= 0) RETURN
     this%weights = weights
     nOut = results(1)%getNOutput()
-    ALLOCATE(this%dataSet(N), this%ds_target(nOut,N), this%runners(nR))
-    Do i = 1, nR
+    ALLOCATE(this%dataSet(N), this%ds_target(nOut,N), this%runners(nRunners))
+    Do i = 1, nRunners
       info = initr%init_runner(this%runners(i))
       If(info < 0) RETURN
     End Do
-    this%nEval = nE
+    this%nEval = nEval
     CALL this%runners(1)%params%getNParameters(this%nD, this%nC)
     this%nC = this%nC + this%runners(1)%model%getNCstr()
     If(PRESENT(weights)) Then
@@ -127,8 +127,8 @@ Contains
         this%dataSet(i)%weight = 1d0
       Endif
     End Do
-    Do i = 1, nR
-      CALL this%runners(i)%init_r(nOut, this%nC, nE)
+    Do i = 1, nRunners
+      CALL this%runners(i)%init_r(nOut, this%nC, nEval)
     End Do
     info = 0
   End Function mlf_simple_stochastic_setup

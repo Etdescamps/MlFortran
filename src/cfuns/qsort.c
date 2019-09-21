@@ -134,7 +134,7 @@ static _dbl *_c_mlf_qsort(const double *v, int64_t mask0, int N, int ND, int L, 
   free(u);
 } */
 
-// Sort elements of a matrix using lexicographical order, and when equals, using the index
+// Sort elements of a matrix using lexicographical order, and when equals, uses the index
 void mlf_qsort(const double *v, int *idSorted, int N, int ND, int L, int mu) {
   int64_t mask0 = (int64_t) _genMask(N-1);
   int64_t mask1 = ~mask0;

@@ -33,7 +33,7 @@ Module mlf_cfuns
 
   PRIVATE
   Public :: c_qsort, c_qsort_neg, c_qsort_unify, c_memcpy, c_strncmp, c_strlen
-  Public :: mlf_stringFromC, c_cbrt, c_erf, c_erf_inv
+  Public :: mlf_stringFromC, c_cbrt, c_erf, c_erf_inv, mlf_getSystemClockC
 
   Interface
     Subroutine c_qsort(V, idSorted, N, ND, L, mu) Bind(C, NAME="mlf_qsort")
@@ -106,5 +106,10 @@ Contains
     ALLOCATE(character(len=sl) :: string)
     cout = c_memcpy(c_loc(string), cptr, int(sl, kind=c_size_t))
   End Subroutine mlf_stringFromC
+
+  Subroutine mlf_getSystemClockC(cnt, cnt_rate, cnt_max) Bind(C, NAME="mlf_getSystemClockC")
+    integer(c_int64_t), intent(out), optional :: cnt, cnt_rate, cnt_max
+    CALL SYSTEM_CLOCK(cnt, cnt_rate, cnt_max)
+  End Subroutine mlf_GetSystemClockC
 End Module mlf_cfuns
 

@@ -79,12 +79,24 @@ Module mlf_supervised_model
     procedure(mlf_experience_run), deferred :: runExp
   End Type mlf_experience_runner
 
+  Type, Public, Bind(C) :: mlf_local_experience_stats
+    integer(c_int64_t) :: clock_launched
+    integer(c_int) :: dataSet, paramSet, nR, state
+  End Type mlf_local_experience_stats
+
+  Integer(c_int), Public, Parameter :: mlf_exp_stat_waiting = 0, mlf_exp_stat_running = 1, &
+    mlf_exp_stat_finished = 2
+
   Type, Public, Extends(mlf_experience_runner) :: mlf_local_experience_runner
     class(mlf_experience_model), allocatable :: model
     class(mlf_model_real_parameters), allocatable :: params
     class(mlf_result_vectReal), allocatable :: results
+    type(mlf_local_experience_stats), pointer :: stats => NULL()
   Contains
     procedure :: runExp => mlf_local_runExp
+    procedure :: statSetPoint => mlf_local_statSetPoint
+    procedure :: statStart => mlf_local_statStart
+    procedure :: statFinished => mlf_local_statFinished
   End Type mlf_local_experience_runner
 
   Type, Public, Abstract :: mlf_local_initializer
@@ -153,6 +165,30 @@ Contains
     class(mlf_experience_model), intent(in) :: this
     N = 0
   End Function mlf_experience_dummy_getNCstr
+
+  Subroutine mlf_local_statSetPoint(this, dataSet, paramSet)
+    class(mlf_local_experience_runner), intent(inout) :: this
+    integer, intent(in) :: dataSet, paramSet
+    If(.NOT. ASSOCIATED(this%stats)) RETURN
+    this%stats%dataSet = dataSet
+    this%stats%paramSet = paramSet
+    this%stats%nR = 0
+    this%stats%state = mlf_exp_stat_waiting
+  End Subroutine mlf_local_statSetPoint
+
+  Subroutine mlf_local_statStart(this)
+    class(mlf_local_experience_runner), intent(inout) :: this
+    If(.NOT. ASSOCIATED(this%stats)) RETURN
+    this%stats%state = mlf_exp_stat_running
+    this%stats%nR = this%stats%nR + 1
+    CALL SYSTEM_CLOCK(this%stats%clock_launched)
+  End Subroutine mlf_local_statStart
+
+  Subroutine mlf_local_statFinished(this)
+    class(mlf_local_experience_runner), intent(inout) :: this
+    If(.NOT. ASSOCIATED(this%stats)) RETURN
+    this%stats%state = mlf_exp_stat_finished
+  End Subroutine mlf_local_statFinished
 
   Integer Function mlf_local_runExp(this, experiment, X, Y, Cstr) Result(info)
     class(mlf_local_experience_runner), intent(inout), target :: this

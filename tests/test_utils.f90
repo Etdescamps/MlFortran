@@ -33,9 +33,30 @@ Program test_utils
   !CALL test_sel(128, 65)
   !CALL test_sel(129, 65)
   !CALL test_sel(127, 64)
-  CALL test_median([5d0, 3d0, 2d0, 8d0, 1d0, 0d0, 6d0]) 
-  CALL test_median([5d0, 4d0, 2d0, 8d0, 1d0, 0d0, 6d0, 7d0]) 
+  !CALL test_median([5d0, 3d0, 2d0, 8d0, 1d0, 0d0, 6d0]) 
+  !CALL test_median([5d0, 4d0, 2d0, 8d0, 1d0, 0d0, 6d0, 7d0]) 
+  CALL test_qsort(128, 8)
 Contains
+  Subroutine test_qsort(N, ND)
+    integer, intent(in) :: N, ND
+    integer :: i, j
+    integer, allocatable :: idx(:)
+    real(c_double) :: r
+    real(c_double), allocatable :: Array(:,:)
+    ALLOCATE(Array(ND, N), idx(N))
+    Array = 0
+    Do i = 1, N
+      CALL RANDOM_NUMBER(r)
+      j = MIN(1+FLOOR(r*REAL(ND,8)),ND)
+      CALL RANDOM_NUMBER(r)
+      Array(j,i) = r
+    End Do
+    CALL QSortIdx(Array, idx)
+    Do i = 1, N
+      PRINT *, REAL(Array(:,idx(i)),4)
+    End Do
+  End Subroutine test_qsort
+
   Subroutine test_median(V)
     real(c_double) :: V(:)
     integer, allocatable :: K(:)
@@ -43,15 +64,4 @@ Contains
     CALL QSortIdx(V, K)
     PRINT *, Median(V, K)
   End Subroutine test_median
-  !Subroutine test_sel(N, i)
-  !  integer, intent(in) :: N, i
-  !  real(c_double), allocatable :: V(:)
-  !  real(c_double) :: x
-  !  integer, allocatable :: K(:)
-  !  ALLOCATE(V(N), K(N))
-  !  CALL RANDOM_NUMBER(V)
-  !  x = mlf_QuickSelect(V, i)
-  !  CALL QSortIdx(V, K)
-  !  PRINT *, x, V(K(i)), x == V(K(i))
-  !End Subroutine test_sel
 End

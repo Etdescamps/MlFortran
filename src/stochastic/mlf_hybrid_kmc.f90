@@ -44,7 +44,7 @@ Module mlf_hybrid_kmc
 
   Public :: mlf_hybrid_kmc_init, mlf_hybrid_kmc_h_init
 
-  Integer, Parameter, Public :: mlf_h_FunOdeComplete = 5
+  Integer, Parameter, Public :: mlf_h_FunOdeComplete = 5, mlf_h_StopODE = 6
 
   Type, Public, Abstract, Extends(mlf_ode_funCstr) :: mlf_hybrid_odeFun
   Contains
@@ -54,6 +54,7 @@ Module mlf_hybrid_kmc
   Type, Public, Abstract, Extends(mlf_ode_model) :: mlf_hybrid_kmc_model
     real(c_double), pointer :: Rates(:)
     real(c_double) :: kmc_alpha, lastTNext
+    logical :: without_ode
   Contains
     procedure(mlf_hybrid_kmc_apply_action), deferred :: applyAction
     procedure(mlf_hybrid_kmc_transition_rates), deferred :: funTransitionRates
@@ -214,6 +215,7 @@ Contains
       funSelected%NCstr = 1 + numCstr
       CALL this%add_subobject(C_CHAR_"odeFun", obj)
     Endif
+    this%without_ode = .FALSE.
     info = mlf_hybrid_kmc_init(this, numFields, ode, funSelected, nActions, &
       data_handler)
   End Function mlf_hybrid_kmc_h_init

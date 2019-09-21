@@ -281,13 +281,17 @@ Contains
   Integer Function mlf_matrix_es_obj_updateY(this, Y) Result(idMin)
     class(mlf_matrix_es_obj), intent(inout), target :: this
     real(c_double), intent(in) :: Y(:,:)
-    integer :: lambda, ND, info
+    integer :: lambda, ND, info, i
     lambda = SIZE(this%Z,2); ND = SIZE(this%Z,1)
     ASSOCIATE(mu=> this%mu, idx => this%idx, D => this%D, Z => this%Z, Dw => this%Dw, &
         W => this%W, sigma => this%sigma, mueff => this%mueff, c1 => this%c1, cs => this%cs, &
         cw => this%cw, ps => this%ps, dsigma => this%dsigma, chiN => this%chiN)
       ! Sort idx by the value Y
       CALL QSortIdx(Y, idx)
+      PRINT *, "CMA opt sigma:",  sigma
+      Do i=1, mu
+        PRINT *, REAL(Y(:,idx(i)))
+      End Do
       idMin = idx(1)
       ! Select the best values of D and Z
       D(:,:mu) = D(:,idx(:mu))

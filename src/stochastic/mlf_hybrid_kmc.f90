@@ -276,10 +276,54 @@ Contains
  10 call this%finalize()
   End Function mlf_hybrid_kmc_init
 
+  Integer Function HybridStepFunWithoutODE(this, nIter, t, X, Rates) Result(info)
+    class(mlf_hybrid_kmc_model), intent(inout), target :: this
+    integer(kind=8), intent(inout), optional :: nIter
+    real(c_double), intent(inout) :: t, X(:), Rates(:)
+    integer(kind=8) :: i, niter0
+    integer :: N, idAction
+    real(c_double) :: U, r, F(0)
+    niter0=1; info = 0
+    If(PRESENT(niter)) niter0 = niter
+    Do i = 1, niter
+      N = this%funTransitionRates(t, X(2:), F, Rates)
+      If(N <= 0) Then
+        info = N
+        If(N == 0) info = mlf_ODE_HardCstr
+        RETURN
+      Endif
+      U = SUM(Rates(1:N))
+      If(U <= 0) Then
+        info = mlf_ODE_StopTime
+        If(U < 0) info = -1
+        RETURN
+      Endif
+      CALL RANDOM_NUMBER(r)
+      ! If r == 0 -> we consider the rare case where dt = 0
+      If(r > 0) t = t-log(r)/U
+      CALL RANDOM_NUMBER(r)
+      r = r*U
+      Do idAction = 1,N-1
+        r = r - Rates(idAction)
+        If(r <= 0) Then
+          info = this%applyAction(idAction, t, X(2:), F, Rates(idAction))
+          EXIT
+        Endif
+      End Do
+      If(r > 0) info = this%applyAction(N, t, X(2:), F, Rates(N))
+    End Do
+  End Function HybridStepFunWithoutODE
+
   Integer Function mlf_hybrid_kmc_stepFun(this, nIter) Result(info)
     class(mlf_hybrid_kmc_model), intent(inout), target :: this
     integer(kind=8), intent(inout), optional :: nIter
-    info = this%ode%stepF(nIter)
+    integer :: N, idAction
+    real(c_double) :: U, r
+    If(this%without_ode) Then
+      info = HybridStepFunWithoutODE(this, nIter, this%ode%t, this%ode%X, this%Rates)
+    Else
+      info = this%ode%stepF(nIter)
+    Endif
   End Function mlf_hybrid_kmc_stepFun
 
   Integer Function EvalOdeModel(model, t, X, F) Result(info)
@@ -333,7 +377,7 @@ Contains
     hMax = HUGE(hMax)
     If(F(1) >= 0) RETURN
     If(.NOT. ieee_is_nan(this%lastTNext) .AND. X(1) > 0) Then
-      If(this%lastTNext == t) this%kmc_alpha = this%kmc_alpha * 1.5
+      If(this%lastTNext == t) this%kmc_alpha = this%kmc_alpha * 1.5d0
     Endif
     Z = -this%kmc_alpha*X(1)/F(1)
     If(Z <= 0) Then
@@ -444,7 +488,8 @@ Contains
       r = r - Rates(idAction)
       If(r <= 0) Then
         info = model%applyAction(idAction, t, X(2:), F(2:), Rates(idAction))
-        GOTO 20
+        If(info < 0) GOTO 20
+        If(info == mlf_h_StopODE) model%without_ode = .TRUE.
       Endif
     End Do
     info = model%applyAction(N, t, X(2:), F(2:), Rates(N))
@@ -452,10 +497,15 @@ Contains
       If(info < 0) WRITE (error_unit, *) "Error model%applyAction:", info
       RETURN
     Endif
+    If(info == mlf_h_StopODE) model%without_ode = .TRUE.
  10 CALL RANDOM_NUMBER(r)
     If(r == 0) GOTO 10 ! Remove the case r == 0
     X(1) = -LOG(r)
-    If(info /= mlf_ODE_HardCstr) info = EvalOdeModel(model, t, X, F)
+    If(model%without_ode) Then
+      info = mlf_ODE_StopTime
+    Else
+      If(info /= mlf_ODE_HardCstr) info = EvalOdeModel(model, t, X, F)
+    Endif
   End Function KMCReachAction
 
   Integer Function mlf_kmc_reach(this, t, tMin, tMax, ids, X, F) Result(info)
@@ -521,8 +571,10 @@ Contains
         WRITE (error_unit, *) "KMC model reachCstr error", info
         WRITE (error_unit, *) "ids:", ids, "X:", X, "F:", F
         RETURN
-      Endif
-      If(info == mlf_ODE_ReevaluateDer) Then
+      Else If(info == mlf_h_StopODE) Then
+        this%kmc_model%without_ode = .TRUE.
+        info = mlf_ODE_StopTime
+      Else If(info == mlf_ODE_ReevaluateDer) Then
         info = EvalOdeModel(this%kmc_model, t, X, F)
       Endif
       ! Look if the probability of an event has been inpacted by the constraint reach
@@ -530,6 +582,7 @@ Contains
       If(F(1) < U0) Then
         CALL RANDOM_NUMBER(r)
         If(r*U0 > F(1)) Then
+          If(this%kmc_model%without_ode) RETURN
           ! Case where a null event is reached: reinit X(1)
           10 CALL RANDOM_NUMBER(r)
           If(r == 0) GOTO 10 ! Remove the case r == 0
@@ -546,9 +599,11 @@ Contains
         WRITE (error_unit, *) "KMC model reachCstr error", info
         WRITE (error_unit, *) "ids:", ids, "X:", X, "F:", F
         RETURN
-      Endif
-      If((info == mlf_ODE_Continue .OR. info == mlf_ODE_SoftCstr) .AND. t0 /= t) Then
+      Else If((info == mlf_ODE_Continue .OR. info == mlf_ODE_SoftCstr) .AND. t0 /= t) Then
         X(1) = X(1) + (t-t0)*F(1)
+      Else If(info == mlf_h_StopODE) Then
+        this%kmc_model%without_ode = .TRUE.
+        info = mlf_ODE_StopTime
       Endif
       If(X(1) <= 0) Then
         info = KMCReachAction(this%kmc_model, t, tMin, tMax, X, F, this%kmc_model%Rates)

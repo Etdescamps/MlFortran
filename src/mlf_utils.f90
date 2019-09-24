@@ -36,7 +36,7 @@ Module mlf_utils
   Public :: Xchange, QSortIdx, QSort, Mean, PrintMatrix, mlf_countcl, mlf_reversecl, SetIf
   Public :: InitOrDefault, FirstEltVal, PresentAndTrue, OutsideBounds
   Public :: mlf_reverseid, mlf_cumulativefromvect, mlf_di_search, mlf_printmatrix_c, mlf_isSorted
-  Public :: Median
+  Public :: Median, AddCstr
 
   Interface FirstEltVal
     module procedure mlf_firstIntVal
@@ -107,6 +107,17 @@ Contains
       cstr = 0
     Endif
   End Function OutsideBounds
+
+  Integer Function AddCstr(V, N, i) Result(k)
+    integer, intent(inout) :: V(:)
+    integer, intent(in) :: N, i
+    If(ANY(V(1:N) == i)) Then
+      k = N
+    Else
+      V(N+1) = i
+      k = N+1
+    Endif
+  End Function AddCstr
 
   Logical Function PresentAndTrue(x) Result(y)
     logical, optional :: x

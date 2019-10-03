@@ -41,13 +41,14 @@ Module mlf_radius_sampler
     real(c_double) :: dR, r0, D
     real(c_float) :: fdR, fr0, fD
   Contains
-    procedure :: init => mlf_radiusSampler_init
+    procedure :: mlf_radiusSampler_initDouble, mlf_radiusSampler_initReal
     procedure :: random => mlf_radiusSampler_random
     procedure :: sample => mlf_radiusSampler_sample
     procedure :: sampleFloat => mlf_radiusSampler_sampleFloat
+    generic :: init => mlf_radiusSampler_initDouble, mlf_radiusSampler_initReal
   End Type mlf_radiusSampler
 Contains
-  Integer Function mlf_radiusSampler_init(this, r0, r1, D) Result(info)
+  Integer Function mlf_radiusSampler_initDouble(this, r0, r1, D) Result(info)
     class(mlf_radiusSampler), intent(inout) :: this
     real(c_double), intent(in) :: r0, r1, D
     info = 0
@@ -59,7 +60,15 @@ Contains
     Do While(REAL(this%fr0 + this%fdR, 8) > r1) ! Select a float so that fr0 + fdR < r1
       this%fdR = ieee_next_after(this%fdR, -HUGE(1.0))
     End Do
-  End Function mlf_radiusSampler_init
+  End Function mlf_radiusSampler_initDouble
+
+  Integer Function mlf_radiusSampler_initReal(this, r0, r1, D) Result(info)
+    class(mlf_radiusSampler), intent(inout) :: this
+    real(c_float), intent(in) :: r0, r1, D
+    info = 0
+    this%dR = r1 - r0; this%r0 = r0; this%D = D
+    this%fdR = r1 - r0; this%fr0 = r0; this%fD = D
+  End Function mlf_radiusSampler_initReal
 
   Real(c_double) Function mlf_radiusSampler_random(this) Result(res)
     class(mlf_radiusSampler), intent(inout) :: this

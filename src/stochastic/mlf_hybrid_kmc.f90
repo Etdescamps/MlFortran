@@ -215,7 +215,6 @@ Contains
       funSelected%NCstr = 1 + numCstr
       CALL this%add_subobject(C_CHAR_"odeFun", obj)
     Endif
-    this%without_ode = .FALSE.
     info = mlf_hybrid_kmc_init(this, numFields, ode, funSelected, nActions, &
       data_handler)
   End Function mlf_hybrid_kmc_h_init
@@ -229,6 +228,7 @@ Contains
     If(r == 0) GOTO 20
     this%ode%X0(1) = -LOG(r)
     this%ode%X0(2:) = X0
+    this%without_ode = .FALSE.
     info = this%ode%initODE(t0 = t0, tMax = tMax, hMax = hMax)
   End Function mlf_hybrid_kmc_initModel
 
@@ -298,18 +298,22 @@ Contains
         If(U < 0) info = -1
         RETURN
       Endif
-      CALL RANDOM_NUMBER(r)
-      ! If r == 0 -> we consider the rare case where dt = 0
-      If(r > 0) t = t-log(r)/U
+      If(X(1) > 0) Then
+        t = t + X(1)/U
+      Endif
+   10 CALL RANDOM_NUMBER(r)
+      X(1) = -LOG(1d0 - r)
       CALL RANDOM_NUMBER(r)
       r = r*U
       Do idAction = 1,N-1
+        If(Rates(idAction) <= 0) CYCLE
         r = r - Rates(idAction)
         If(r <= 0) Then
           info = this%applyAction(idAction, t, X(2:), F, Rates(idAction))
           EXIT
         Endif
       End Do
+      If(Rates(N) <= 0) GOTO 10
       If(r > 0) info = this%applyAction(N, t, X(2:), F, Rates(N))
     End Do
   End Function HybridStepFunWithoutODE
@@ -474,24 +478,30 @@ Contains
     real(c_double), intent(inout), target :: X(:), F(:)
     real(c_double), intent(out), target :: Rates(:)
     integer :: idAction, N
-    real(c_double) :: r, dt
+    real(c_double) :: r, dt, U
     info = -1
     model%lastTNext = ieee_value(model%lastTNext, ieee_quiet_nan)
     N = model%funTransitionRates(t, X(2:), F(2:), Rates)
-    If(N <= 0) Then
+    If(N < 0) Then
       WRITE (error_unit, *) "Error model%funTransitionRates:", N
       RETURN ! Shall not happen
     Endif
-    CALL RANDOM_NUMBER(r)
-    r = r*SUM(Rates(:N))
+    U = SUM(Rates(:N))
+    If(U <= 0 .OR. N == 0) Then
+      info = mlf_ODE_StopTime
+      RETURN
+    Endif
+ 30 CALL RANDOM_NUMBER(r)
+    r = r*U
     Do idAction = 1,N-1
+      If(Rates(idAction) <= 0) CYCLE
       r = r - Rates(idAction)
       If(r <= 0) Then
         info = model%applyAction(idAction, t, X(2:), F(2:), Rates(idAction))
-        If(info < 0) GOTO 20
-        If(info == mlf_h_StopODE) model%without_ode = .TRUE.
+        GOTO 20
       Endif
     End Do
+    If(Rates(N) <= 0) GOTO 30
     info = model%applyAction(N, t, X(2:), F(2:), Rates(N))
  20 If(info < 0 .OR. info == mlf_ODE_StopTime) Then
       If(info < 0) WRITE (error_unit, *) "Error model%applyAction:", info
@@ -604,6 +614,7 @@ Contains
       Else If(info == mlf_h_StopODE) Then
         this%kmc_model%without_ode = .TRUE.
         info = mlf_ODE_StopTime
+        RETURN
       Endif
       If(X(1) <= 0) Then
         info = KMCReachAction(this%kmc_model, t, tMin, tMax, X, F, this%kmc_model%Rates)

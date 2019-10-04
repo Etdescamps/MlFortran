@@ -35,7 +35,7 @@ Module mlf_poly
   PRIVATE
 
   Public :: mlf_solve4DPoly, mlf_rootsPoly, mlf_polyFromRoots
-  Public :: mlf_polyVal, mlf_polyValDer
+  Public :: mlf_polyVal, mlf_polyValDer, DRootsPoly
   Public :: FindRoot2DInterp, FindRoot2PDerivative, FindRoot3Bezier
 Contains
   Elemental Real(c_double) Function FindRoot2DInterp(x0, x1, dx1) Result(y)

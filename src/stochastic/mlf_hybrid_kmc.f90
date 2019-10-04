@@ -44,7 +44,7 @@ Module mlf_hybrid_kmc
 
   Public :: mlf_hybrid_kmc_init, mlf_hybrid_kmc_h_init
 
-  Integer, Parameter, Public :: mlf_h_FunOdeComplete = 5, mlf_h_StopODE = 6
+  Integer, Parameter, Public :: mlf_h_FunOdeComplete = 6
 
   Type, Public, Abstract, Extends(mlf_ode_funCstr) :: mlf_hybrid_odeFun
   Contains
@@ -322,11 +322,17 @@ Contains
     class(mlf_hybrid_kmc_model), intent(inout), target :: this
     integer(kind=8), intent(inout), optional :: nIter
     integer :: N, idAction
+    integer(8) :: NE
     real(c_double) :: U, r
+    NE = nIter
     If(this%without_ode) Then
       info = HybridStepFunWithoutODE(this, nIter, this%ode%t, this%ode%X, this%Rates)
     Else
       info = this%ode%stepF(nIter)
+      If(info == mlf_ODE_StopODE) Then
+        nIter = NE - nIter +1
+        info = HybridStepFunWithoutODE(this, nIter, this%ode%t, this%ode%X, this%Rates)
+      Endif
     Endif
   End Function mlf_hybrid_kmc_stepFun
 
@@ -507,12 +513,12 @@ Contains
       If(info < 0) WRITE (error_unit, *) "Error model%applyAction:", info
       RETURN
     Endif
-    If(info == mlf_h_StopODE) model%without_ode = .TRUE.
+    If(info == mlf_ODE_StopODE) model%without_ode = .TRUE.
  10 CALL RANDOM_NUMBER(r)
     If(r == 0) GOTO 10 ! Remove the case r == 0
     X(1) = -LOG(r)
     If(model%without_ode) Then
-      info = mlf_ODE_StopTime
+      info = mlf_ODE_StopODE
     Else
       If(info /= mlf_ODE_HardCstr) info = EvalOdeModel(model, t, X, F)
     Endif
@@ -546,15 +552,20 @@ Contains
     integer, intent(inout), target :: ids(:)
     integer, intent(in) :: K
     If(ids(1) == 1) Then
+      ids(2:K) = ids(2:K)-1
       N = 1 + this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids(2:), K-1)
+      ids(2:N) = ids(2:N)+1
     Else If(Xd(1) <= X0(1)*EPSILON(1d0)) Then
       ! Add KMC event (id = 1) as constraint
-      ids(2:K+1) = ids(1:K)
+      ids(2:K+1) = ids(1:K) - 1
       ids(1) = 1
       N = 1 + this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids(2:), K)
+      ids(2:N) = ids(2:N)+1
     Else
       ! No KMC event
+      ids(1:K) = ids(1:K)-1
       N = this%kmc_model%m_checkCstr(t, X0(2:), Xd(2:), K0(2:), K1(2:), ids, K)
+      ids(1:N) = ids(1:N)+1
     Endif
   End Function mlf_kmc_h_checkCstr
 
@@ -581,9 +592,8 @@ Contains
         WRITE (error_unit, *) "KMC model reachCstr error", info
         WRITE (error_unit, *) "ids:", ids, "X:", X, "F:", F
         RETURN
-      Else If(info == mlf_h_StopODE) Then
+      Else If(info == mlf_ODE_StopODE) Then
         this%kmc_model%without_ode = .TRUE.
-        info = mlf_ODE_StopTime
       Else If(info == mlf_ODE_ReevaluateDer) Then
         info = EvalOdeModel(this%kmc_model, t, X, F)
       Endif
@@ -602,6 +612,7 @@ Contains
         Endif
       Endif
       info = KMCReachAction(this%kmc_model, t, tMin, tMax, X, F, this%kmc_model%Rates)
+      If(this%kmc_model%without_ode) info = mlf_ODE_StopODE
     Else
       t0 = t
       info = this%kmc_model%m_reachCstr(t, tMin, tMax, ids-1, X(2:), F(2:))
@@ -611,9 +622,8 @@ Contains
         RETURN
       Else If((info == mlf_ODE_Continue .OR. info == mlf_ODE_SoftCstr) .AND. t0 /= t) Then
         X(1) = X(1) + (t-t0)*F(1)
-      Else If(info == mlf_h_StopODE) Then
+      Else If(info == mlf_ODE_StopODE) Then
         this%kmc_model%without_ode = .TRUE.
-        info = mlf_ODE_StopTime
         RETURN
       Endif
       If(X(1) <= 0) Then

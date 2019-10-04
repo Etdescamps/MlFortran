@@ -171,7 +171,8 @@ Module mlf_fun_intf
 
   Integer, Parameter, Public :: mlf_ODE_Continue = 0, mlf_ODE_SoftCstr = 1
   Integer, Parameter, Public :: mlf_ODE_StopTime = 2, mlf_ODE_HardCstr = 3
-  Integer, Parameter, Public :: mlf_ODE_ReevaluateDer = 4, mlf_ODE_FunError = -1
+  Integer, Parameter, Public :: mlf_ODE_ReevaluateDer = 4, mlf_ODE_StopODE = 5
+  Integer, Parameter, Public :: mlf_ODE_FunError = -1
 
   Abstract Interface
     Integer Function mlf_ode_funCstr_reach(this, t, tMin, tMax, ids, X, F)

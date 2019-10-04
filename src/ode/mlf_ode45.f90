@@ -608,7 +608,7 @@ Contains
           info = ODE45FindRoot(this, fun, t, X, hMax)
           If(info < 0) RETURN
           this%t = t
-          If(info == mlf_ODE_StopTime .OR. info == mlf_ODE_HardCstr) EXIT
+          If(ANY(info == [mlf_ODE_StopTime, mlf_ODE_HardCstr, mlf_ODE_StopODE])) EXIT
         End Select
         If(this%tMax <= t .OR. stopTime) Then
           info = mlf_ODE_StopTime

@@ -638,6 +638,9 @@ Contains
     End Function IC
   End Function IntegrateIncompleteBeta
 
+  ! Return the regularized incomplete beta function I_x(a,b)
+  ! This algorithm is described in Numerical Recipes in C by Press
+  ! (Chapter 6 Special Functions -> 6.4 Incomplete Beta Functions
   Elemental Real(c_double) Function IncompleteBeta(a, b, x) Result(y)
     real(c_double), intent(in) :: a, b, x
     real(c_double) :: F

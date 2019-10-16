@@ -116,14 +116,14 @@ Contains
     class(mlf_matrix_es_obj), intent(inout), target :: this
     integer :: ND
     ND = SIZE(this%Z, 1)
-    ASSOCIATE(W => this%W, mueff => this%mueff, alphacov => this%alphacov, &
+    ASSOCIATE(W => this%W, mueff => this%mueff, alphaCov => this%alphaCov, &
         chiN => this%chiN, c1 => this%c1, cs => this%cs, cw => this%cw, &
         dsigma => this%dsigma, nR =>REAL(nD, KIND=8))
       W = 1d0/SUM(W) * W
       mueff = 1d0/(SUM(W * W))
-      c1 = alphacov/((nR+1.3d0)**2 + mueff)
+      c1 = alphaCov/((nR+1.3d0)**2 + mueff)
       cs = (mueff + 2d0)/(mueff + nR + 5d0)
-      cw = MIN(1d0 - c1, alphacov*(mueff+1d0/mueff-2d0)/((nR+2d0)**2 + alphacov*mueff*0.5d0))
+      cw = MIN(1d0 - c1, alphaCov*(mueff+1d0/mueff-2d0)/((nR+2d0)**2 + alphaCov*mueff*0.5d0))
       dsigma = 1d0 + cs + 2d0*MAX(0d0, SQRT((mueff-1d0)/(nR+1d0))-1d0)
       chiN = SQRT(nR)*(1d0-1d0/(4d0*nR)+1d0/(21d0*nR*nR))
     END ASSOCIATE
@@ -134,10 +134,10 @@ Contains
     info = this%reinit_X()
   End Function mlf_matrix_es_obj_reinit
  
-  Integer Function mlf_matrix_es_obj_reinit_X(this, X0, sigma0, funW, alphacovIn) Result(info)
+  Integer Function mlf_matrix_es_obj_reinit_X(this, X0, sigma0, funW, alphaCovIn) Result(info)
     class(mlf_matrix_es_obj), intent(inout), target :: this
     class(mlf_weight_fun), optional, intent(in) :: funW
-    real(c_double), intent(in), optional :: X0(:), sigma0, alphacovIn
+    real(c_double), intent(in), optional :: X0(:), sigma0, alphaCovIn
     integer :: lambda, mu, i
     If(PRESENT(sigma0)) this%sigma = sigma0
     info = mlf_optim_reinit(this)
@@ -149,8 +149,8 @@ Contains
     Else
       CALL this%randomStartPoint(this%X0)
     Endif
-    this%alphacov = 2d0
-    If(PRESENT(alphacovIn)) this%alphacov=alphacovIn
+    this%alphaCov = 2d0
+    If(PRESENT(alphaCovIn)) this%alphaCov=alphaCovIn
     If(PRESENT(funW)) Then
       CALL funW%eval(this%W, lambda)
     Else
@@ -185,11 +185,11 @@ Contains
     info = mlf_optim_stopCond(this)
   End Function mlf_matrix_es_obj_stopCond
 
-  Integer Function mlf_maes_init(this, funW, alphacovIn, data_handler, params) Result(info)
+  Integer Function mlf_maes_init(this, funW, alphaCovIn, data_handler, params) Result(info)
     class(mlf_maes_obj), intent(inout), target :: this
     class(mlf_optim_param), intent(inout) :: params
     class(mlf_weight_fun), optional, intent(in) :: funW
-    real(c_double), intent(in), optional :: alphacovIn
+    real(c_double), intent(in), optional :: alphaCovIn
     class(mlf_data_handler), intent(inout), optional :: data_handler
     type(mlf_step_numFields) :: numFields
     CALL numFields%initFields()
@@ -198,16 +198,16 @@ Contains
     If(PRESENT(data_handler)) Then
       CALL this%updateW()
     Else
-      info = this%reinit_X(params%X0, funW = funW, alphacovIn = alphacovIn)
+      info = this%reinit_X(params%X0, funW = funW, alphaCovIn = alphaCovIn)
     Endif
   End Function mlf_maes_init
 
-  Integer Function mlf_cmaes_init(this, funW, alphacovIn, covEvery, data_handler, params) result(info)
+  Integer Function mlf_cmaes_init(this, funW, alphaCovIn, covEvery, data_handler, params) result(info)
     class(mlf_cmaes_obj), intent(inout), target :: this
     class(mlf_optim_param), intent(inout) :: params
     integer(c_int64_t) :: ND, CND(2)
     class(mlf_weight_fun), optional, intent(in) :: funW
-    real(c_double), intent(in), optional :: alphacovIn
+    real(c_double), intent(in), optional :: alphaCovIn
     integer, intent(in), optional :: covEvery
     class(mlf_data_handler), intent(inout), optional :: data_handler
     integer :: lambda
@@ -230,25 +230,25 @@ Contains
       this%covEvery = MAX(CEILING(ND/REAL(lambda, KIND=8)),1)
       If(PRESENT(covEvery)) this%covEvery = covEvery
       this%lastCov = 0
-      info = this%reinit_X(params%X0, funW = funW, alphacovIn = alphacovIn)
+      info = this%reinit_X(params%X0, funW = funW, alphaCovIn = alphaCovIn)
       If(CheckF(info, 'mlf_cmaes_init: Error reinit_X')) RETURN
     Endif
   End Function mlf_cmaes_init
 
-  Function mlf_cmaes_objcreate(ismaes, data_handler, params, funW, alphacovIn, covevery) Result(obj)
+  Function mlf_cmaes_objcreate(ismaes, data_handler, params, funW, alphaCovIn, covevery) Result(obj)
     type(mlf_maes_obj), pointer :: mthis
     type(mlf_cmaes_obj), pointer :: cthis
     class(mlf_optim_param), intent(inout) :: params
     class(mlf_obj), pointer :: obj
     class(mlf_weight_fun), optional, intent(in) :: funW
-    real(c_double), intent(in), optional :: alphacovIn
+    real(c_double), intent(in), optional :: alphaCovIn
     integer, intent(in), optional :: covevery
     class(mlf_data_handler), intent(inout), optional :: data_handler
     logical, intent(in) :: ismaes
     integer :: ret
     If(ismaes) Then
       ALLOCATE(mthis)
-      ret = mthis%init(funW, alphacovIn, data_handler, params)
+      ret = mthis%init(funW, alphaCovIn, data_handler, params)
       If(ret<0) Then
         DEALLOCATE(mthis)
       Else
@@ -256,7 +256,7 @@ Contains
       Endif
     Else
       ALLOCATE(cthis)
-      ret = cthis%init(funW, alphacovIn, covEvery, data_handler, params)
+      ret = cthis%init(funW, alphaCovIn, covEvery, data_handler, params)
       If(ret<0) Then
         DEALLOCATE(cthis)
       Else
@@ -265,12 +265,12 @@ Contains
     Endif
   End Function mlf_cmaes_objcreate
 
-  Integer Function mlf_cmaes_reinit_X(this, X0, sigma0, funW, alphacovIn) Result(info)
+  Integer Function mlf_cmaes_reinit_X(this, X0, sigma0, funW, alphaCovIn) Result(info)
     class(mlf_cmaes_obj), intent(inout), target :: this
     class(mlf_weight_fun), optional, intent(in) :: funW
-    real(c_double), intent(in), optional :: X0(:), sigma0, alphacovIn
+    real(c_double), intent(in), optional :: X0(:), sigma0, alphaCovIn
     integer ND
-    info = mlf_matrix_es_obj_reinit_X(this, X0, sigma0, funW, alphacovIn)
+    info = mlf_matrix_es_obj_reinit_X(this, X0, sigma0, funW, alphaCovIn)
     If(CheckF(info, 'mlf_cmaes_reinit_X: Error init matrix_es_obj')) RETURN
     ND = SIZE(this%Z, 1)
     CALL IdentityMatrix(this%C)
@@ -288,10 +288,10 @@ Contains
         cw => this%cw, ps => this%ps, dsigma => this%dsigma, chiN => this%chiN)
       ! Sort idx by the value Y
       CALL QSortIdx(Y, idx)
-      PRINT *, "CMA opt sigma:",  sigma
-      Do i=1, mu
-        PRINT *, REAL(Y(:,idx(i)))
-      End Do
+      !PRINT *, "CMA opt sigma:",  sigma
+      !Do i=1, mu
+      !  PRINT *, REAL(Y(:,idx(i)))
+      !End Do
       idMin = idx(1)
       ! Select the best values of D and Z
       D(:,:mu) = D(:,idx(:mu))

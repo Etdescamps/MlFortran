@@ -119,6 +119,11 @@ Contains
     real(c_double), intent(in) :: vSel(:)
     integer, intent(in), optional :: idAction
     real(c_double), intent(out), optional :: vActions(:)
+    If(this%nIndiv == 0) Then
+      val = 0
+      If(PRESENT(vActions)) vActions = 0
+      RETURN
+    Endif
     If(PRESENT(vActions)) Then
       vActions = MATMUL(vSel, this%V(:,:,0))
       val = SUM(vActions)
